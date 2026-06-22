@@ -1,0 +1,2529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LFDA · Cierre Diario por Sector</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{
+  --bg:#0b0c0e;
+  --bg2:#131519;
+  --panel:#1a1d22;
+  --panel2:#21252b;
+  --line:#2c3038;
+  --line2:#383d46;
+  --ink:#e8e9ea;
+  --ink-dim:#8d9199;
+  --ink-faint:#5a5e66;
+  --amber:#e8a33d;
+  --amber-dim:#e8a33d22;
+  --green:#4caf6e;
+  --green-dim:#4caf6e1a;
+  --red:#e8584d;
+  --red-dim:#e8584d1a;
+  --blue:#5b9fd8;
+  --mono: 'IBM Plex Mono','SF Mono',Consolas,monospace;
+  --sans: -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;}
+body{min-height:100vh;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+
+/* ===== layout ===== */
+.app{max-width:1400px;margin:0 auto;padding:20px 24px 80px;}
+.topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line);}
+.brand{display:flex;align-items:baseline;gap:10px;}
+.brand .tag{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;}
+.brand h1{font-size:19px;font-weight:600;letter-spacing:.2px;}
+.brand .sub{font-size:12px;color:var(--ink-dim);margin-left:8px;}
+.dateline{font-family:var(--mono);font-size:12px;color:var(--ink-dim);text-align:right;}
+.dateline b{color:var(--ink);}
+
+.tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
+.tab-btn{background:none;border:none;color:var(--ink-dim);padding:10px 16px;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:.15s;}
+.tab-btn:hover{color:var(--ink);}
+.tab-btn.active{color:var(--amber);border-bottom-color:var(--amber);}
+
+.view{display:none;}
+.view.active{display:block;}
+
+/* ===== cards / panels ===== */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin-bottom:16px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+.panel-head h2{font-size:14px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--ink-dim);}
+.panel-head .hint{font-size:12px;color:var(--ink-faint);}
+
+.grid{display:grid;gap:14px;}
+.grid-2{grid-template-columns:1fr 1fr;}
+@media (max-width:860px){.grid-2{grid-template-columns:1fr;}}
+
+textarea.paste{width:100%;min-height:150px;background:var(--bg2);border:1px solid var(--line2);border-radius:6px;color:var(--ink);font-family:var(--mono);font-size:12px;padding:12px;resize:vertical;line-height:1.5;}
+textarea.paste:focus{outline:none;border-color:var(--amber);}
+textarea.paste::placeholder{color:var(--ink-faint);}
+
+.btn{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);padding:9px 16px;border-radius:6px;font-size:13px;font-weight:500;transition:.15s;}
+.btn:hover{background:#272b32;border-color:var(--ink-faint);}
+.btn-primary{background:var(--amber);border-color:var(--amber);color:#1a1505;font-weight:600;}
+.btn-primary:hover{background:#f0ad4d;}
+.btn-danger{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.btn-danger:hover{background:#e8584d33;}
+.btn-ghost{background:none;border:1px solid var(--line2);color:var(--ink-dim);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.row.end{justify-content:flex-end;}
+.row.between{justify-content:space-between;}
+
+.status-pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;padding:4px 10px;border-radius:20px;border:1px solid var(--line2);color:var(--ink-dim);}
+.status-pill.ok{border-color:var(--green);color:var(--green);background:var(--green-dim);}
+.status-pill.pending{border-color:var(--amber);color:var(--amber);background:var(--amber-dim);}
+.status-pill.missing{border-color:var(--ink-faint);}
+
+/* ===== sector table ===== */
+table.sectors{width:100%;border-collapse:collapse;font-size:13px;}
+table.sectors th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);}
+table.sectors td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:middle;}
+table.sectors tr:last-child td{border-bottom:none;}
+table.sectors td.num{font-family:var(--mono);}
+table.sectors tr.hl-ok{background:var(--green-dim);}
+table.sectors tr.hl-bad{background:var(--red-dim);}
+.sector-name{font-weight:600;}
+.bar-wrap{width:100%;height:6px;background:var(--bg2);border-radius:4px;overflow:hidden;margin-top:4px;}
+.bar-fill{height:100%;border-radius:4px;}
+.delta-pos{color:var(--green);font-weight:600;}
+.delta-neg{color:var(--red);font-weight:600;}
+.tag-objetivo{font-family:var(--mono);font-size:11px;color:var(--ink-faint);}
+
+/* ===== KPI cards ===== */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
+.kpi .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-faint);margin-bottom:6px;}
+.kpi .val{font-family:var(--mono);font-size:24px;font-weight:600;}
+.kpi .val.green{color:var(--green);}
+.kpi .val.red{color:var(--red);}
+.kpi .val.amber{color:var(--amber);}
+.kpi .sub{font-size:11px;color:var(--ink-dim);margin-top:4px;}
+
+/* ===== modal ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--line2);border-radius:10px;max-width:480px;width:100%;padding:22px;max-height:85vh;overflow-y:auto;}
+.modal h3{font-size:15px;margin-bottom:4px;}
+.modal .modal-sub{font-size:12px;color:var(--ink-dim);margin-bottom:16px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--ink-dim);margin-bottom:6px;font-weight:500;}
+.field select,.field input,.field textarea{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:6px;color:var(--ink);padding:9px 10px;font-size:13px;}
+.field select:focus,.field input:focus,.field textarea:focus{outline:none;border-color:var(--amber);}
+.field textarea{min-height:70px;resize:vertical;}
+.causa-chip{display:inline-block;padding:6px 12px;margin:3px;border:1px solid var(--line2);border-radius:16px;font-size:12px;color:var(--ink-dim);cursor:pointer;transition:.15s;}
+.causa-chip:hover{border-color:var(--amber);color:var(--ink);}
+.causa-chip.sel{background:var(--amber);border-color:var(--amber);color:#1a1505;font-weight:600;}
+.causa-group-label{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--ink-faint);text-transform:uppercase;margin:10px 0 4px;}
+
+.causa-detalle-row{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin-bottom:10px;}
+.causa-detalle-row .cd-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.causa-detalle-row .cd-name{font-weight:600;font-size:12px;color:var(--amber);}
+.causa-detalle-row .cd-grid{display:grid;grid-template-columns:1fr 90px;gap:8px;align-items:start;}
+.causa-detalle-row textarea{min-height:50px;font-size:12px;}
+.causa-detalle-row input[type=number]{font-size:12px;text-align:right;}
+.causa-detalle-row .cd-m2-label{font-size:10px;color:var(--ink-faint);margin-bottom:4px;display:block;}
+
+/* ===== config (sectores/causas) ===== */
+.cfg-sector{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
+.cfg-sector-head{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.cfg-sector-head input[type=text]{flex:1;background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:6px 8px;font-size:13px;font-weight:600;}
+.causa-edit-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.causa-edit-item{display:flex;align-items:center;gap:5px;background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:4px 4px 4px 10px;font-size:12px;}
+.causa-edit-item button{background:none;border:none;color:var(--ink-faint);font-size:14px;line-height:1;padding:2px 4px;}
+.causa-edit-item button:hover{color:var(--red);}
+.add-causa-row{display:flex;gap:6px;margin-top:8px;}
+.add-causa-row input{flex:1;background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:6px 8px;font-size:12px;}
+
+/* ===== history ===== */
+.hist-day{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;}
+.hist-day.en-curso{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim);}
+.hist-day-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--panel2);}
+.hist-day-head:hover{background:#272b32;}
+.hist-day-head .hd-date{font-family:var(--mono);font-weight:600;font-size:13px;}
+.hist-day-body{display:none;padding:4px 16px 14px;}
+.hist-day.open .hist-day-body{display:block;}
+.hist-day.open .chev{transform:rotate(90deg);}
+.chev{transition:.15s;color:var(--ink-faint);}
+.hist-row{display:grid;grid-template-columns:90px 1fr 70px 70px 60px 1fr;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px;}
+.hist-row:last-child{border-bottom:none;}
+.hist-row .hr-sector{font-weight:600;}
+.hist-row .hr-motivo{color:var(--ink-dim);font-style:italic;}
+.empty-state{text-align:center;padding:40px 20px;color:var(--ink-faint);}
+.empty-state .big{font-size:32px;margin-bottom:10px;}
+
+.hist-causas{margin:4px 0 10px;padding-left:14px;border-left:2px solid var(--line2);}
+.hist-causa-item{display:grid;grid-template-columns:170px 1fr 60px;gap:10px;padding:5px 0;font-size:12px;}
+.hist-causa-item .hc-causa{color:var(--amber);font-weight:600;}
+.hist-causa-item .hc-detalle{color:var(--ink-dim);}
+.hist-causa-item .hc-m2{font-family:var(--mono);text-align:right;color:var(--ink-dim);}
+
+.toast{position:fixed;bottom:24px;right:24px;background:var(--panel);border:1px solid var(--line2);border-left:3px solid var(--green);border-radius:6px;padding:12px 18px;font-size:13px;z-index:200;opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.err{border-left-color:var(--red);}
+
+::-webkit-scrollbar{width:8px;height:8px;}
+::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<!-- PANTALLA DE LOGIN -->
+<div id="loginScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
+  <div style="max-width:420px;width:100%;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <span class="tag" style="display:block;margin-bottom:6px;">LFDA</span>
+      <h1 style="font-size:20px;font-weight:600;">Cierre Diario por Sector</h1>
+    </div>
+
+    <div id="loginListaUsuarios" class="panel">
+      <div class="panel-head"><h2>¿Quién está cargando?</h2></div>
+      <div id="loginBotonesLideres" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
+      <button class="btn btn-ghost" id="btnSoyAdmin" style="width:100%;">Soy administrador (Diego)</button>
+    </div>
+
+    <div id="loginAdminPass" class="panel" style="display:none;">
+      <div class="panel-head"><h2>Acceso administrador</h2></div>
+      <div class="field">
+        <label>Contraseña</label>
+        <input type="password" id="inputAdminPass" placeholder="••••••••">
+      </div>
+      <div class="row end">
+        <button class="btn btn-ghost" id="btnCancelarAdmin">Volver</button>
+        <button class="btn btn-primary" id="btnIngresarAdmin">Ingresar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="appMain" style="display:none;">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="tag">LFDA</span>
+      <h1>Cierre Diario por Sector</h1>
+      <span class="sub">m² objetivo vs. real · G_PRO</span>
+    </div>
+    <div class="dateline">
+      <div id="syncIndicator" style="font-size:11px;margin-bottom:3px;color:var(--ink-faint);">○ Solo local</div>
+      Hoy: <b id="todayLabel">—</b>
+      <div style="margin-top:4px;">
+        <span id="usuarioActualLabel" style="font-size:11px;color:var(--ink-dim);"></span>
+        <button class="btn btn-ghost btn-sm" id="btnCerrarSesion" style="margin-left:8px;padding:2px 8px;font-size:11px;">Salir</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-view="hoy">Hoy</button>
+    <button class="tab-btn" data-view="historial">Historial</button>
+    <button class="tab-btn" data-view="config">Configuración</button>
+  </div>
+
+  <!-- ===================== VISTA HOY ===================== -->
+  <div class="view active" id="view-hoy">
+
+    <div class="kpis" id="kpiRow"></div>
+
+    <div class="panel" id="panelResultado" style="display:none;">
+      <div class="panel-head">
+        <h2>Resultado del día</h2>
+        <span class="hint" id="resumenHint"></span>
+      </div>
+      <div class="row" id="avisoSinConfirmar" style="background:var(--amber-dim);border:1px solid var(--amber);border-radius:6px;padding:10px 14px;margin-bottom:14px;display:none;">
+        <span style="color:var(--amber);">⚠</span>
+        <span style="font-size:13px;">Este día todavía <b>NO está guardado</b> en el Historial. Las causas que declares acá quedan en borrador hasta que toques "Confirmar y guardar día" más abajo.</span>
+      </div>
+      <table class="sectors">
+        <thead>
+          <tr>
+            <th>Sector</th>
+            <th>Pulmón pendiente</th>
+            <th>m² objetivo</th>
+            <th>m² cerrados</th>
+            <th>% objetivo</th>
+            <th>Motivo (si aplica)</th>
+          </tr>
+        </thead>
+        <tbody id="resultadoBody"></tbody>
+      </table>
+      <div class="row end" style="margin-top:14px;">
+        <button class="btn btn-primary" id="btnConfirmarDia">Confirmar y guardar día</button>
+      </div>
+    </div>
+
+    <div id="bloquesPegadoAdmin">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>1 · Inicio de turno — pegar tabla G_PRO</h2>
+          <span class="status-pill" id="pillInicio">sin cargar</span>
+        </div>
+        <div class="hint" style="margin-bottom:10px;">Pegá el bloque copiado de G_PRO (sector, UDS PUL, SUP PUL, SUP FIN) tal cual, con tabulaciones.</div>
+        <textarea class="paste" id="pasteInicio" placeholder="1-ALM	284	706&#10;2-MEC	46	210	8&#10;3-SOL	20	124&#10;4-VID	79	235&#10;5-DVH	63	133&#10;6-ARM	35	180&#10;7-ACR	26	125	23&#10;8-LI	34	120"></textarea>
+        <div class="row end" style="margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" id="btnClearInicio">Limpiar</button>
+          <button class="btn btn-primary" id="btnGuardarInicio">Guardar inicio de turno</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <h2>2 · Fin de turno — pegar tabla actualizada</h2>
+          <span class="status-pill" id="pillFin">sin cargar</span>
+        </div>
+        <div class="hint" style="margin-bottom:10px;">Mismo formato, con los SUP FIN ya actualizados al cierre del turno.</div>
+        <textarea class="paste" id="pasteFin" placeholder="Pegar tabla de fin de turno..."></textarea>
+        <div class="row end" style="margin-top:10px;">
+          <button class="btn btn-ghost btn-sm" id="btnClearFin">Limpiar</button>
+          <button class="btn btn-primary" id="btnGuardarFin">Calcular cierre del día</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ===================== VISTA HISTORIAL ===================== -->
+  <div class="view" id="view-historial">
+
+    <div class="panel" id="panelCausasFrecuentes">
+      <div class="panel-head">
+        <h2>Causas más frecuentes</h2>
+        <div class="row" style="gap:8px;">
+          <select id="filtroSectorCausas" style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:6px 10px;border-radius:6px;font-size:12px;">
+            <option value="">Todos los sectores</option>
+          </select>
+        </div>
+      </div>
+      <div id="causasFrecuentesEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Todavía no hay causas declaradas.</div>
+      <div style="height:280px;"><canvas id="chartCausas"></canvas></div>
+    </div>
+
+    <div class="panel" id="panelEvolucionPulmon">
+      <div class="panel-head">
+        <h2>Evolución del pulmón (inicio de turno)</h2>
+        <span class="hint">La línea de umbral se muestra en el gráfico al elegir 1-2 sectores.</span>
+      </div>
+      <div class="hint" style="margin-bottom:10px;">Tocá los sectores que querés comparar en el gráfico. Datos tomados de lo pegado al inicio de cada turno, aunque el día no se haya confirmado.</div>
+      <div id="checksPulmonSectores" class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;"></div>
+      <div id="pulmonEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Todavía no hay pulmones registrados. Se guardan automáticamente cada vez que pegás el inicio de turno.</div>
+      <div id="pulmonChartWrap" style="height:300px;"><canvas id="chartPulmon"></canvas></div>
+      <div id="pulmonUmbralHint" class="hint" style="margin-top:6px;"></div>
+      <div id="pulmonAlertasResumen" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Historial de días cerrados</h2>
+        <div class="row">
+          <button class="btn btn-primary btn-sm" id="btnAgregarDiaAnterior">+ Agregar día anterior</button>
+          <button class="btn btn-ghost btn-sm" id="btnPdfRango">Informe PDF (rango)</button>
+          <button class="btn btn-ghost btn-sm" id="btnExportJSON">Exportar JSON</button>
+        </div>
+      </div>
+      <div id="historialList"></div>
+    </div>
+  </div>
+
+  <!-- ===================== VISTA CONFIG ===================== -->
+  <div class="view" id="view-config">
+    <div class="panel" style="border-color:var(--amber);">
+      <div class="panel-head">
+        <h2>Sector de Fin de Línea</h2>
+      </div>
+      <div class="hint" style="margin-bottom:10px;">El objetivo del día (m² cerrados) se mide únicamente en este sector — es el output real de la línea. Los demás sectores son etapas intermedias y no se suman al KPI principal.</div>
+      <div class="field" style="max-width:240px;">
+        <label>Sector que mide el cierre final</label>
+        <select id="cfgSectorFinLinea"></select>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btnGuardarFinLinea">Guardar</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Objetivos por defecto</h2>
+      </div>
+      <div class="hint" style="margin-bottom:10px;">Se usan al crear un sector nuevo. El mínimo, óptimo y umbral de pulmón se pueden ajustar después por sector más abajo.</div>
+      <div class="row" style="gap:20px;">
+        <div class="field" style="max-width:200px;">
+          <label>m² objetivo mínimo</label>
+          <input type="number" id="cfgObjetivoMin" min="0" step="1">
+        </div>
+        <div class="field" style="max-width:200px;">
+          <label>m² objetivo óptimo</label>
+          <input type="number" id="cfgObjetivoOptimo" min="0" step="1">
+        </div>
+        <div class="field" style="max-width:200px;">
+          <label>Pulmón bajo (alerta)</label>
+          <input type="number" id="cfgUmbralPulmon" min="0" step="1">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="btnGuardarObjetivo">Guardar</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Sectores, objetivos y causas 5M</h2>
+        <button class="btn btn-ghost btn-sm" id="btnAddSector">+ Agregar sector</button>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">El nombre del sector debe coincidir EXACTAMENTE con el texto que aparece en la tabla de G_PRO (ej: "1-ALM"). Mínimo: piso aceptable, dispara declaración de causa si no se llega. Óptimo: a partir de este valor el día se marca como rendimiento óptimo.</div>
+      <div id="sectorConfigList"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
+        <h2>Usuarios y permisos</h2>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">Cada líder ve y carga únicamente los datos de su sector asignado. Solo vos (admin) ves la planta completa.</div>
+      <div id="usuariosConfigList"></div>
+      <div class="row" style="margin-top:14px;">
+        <button class="btn btn-ghost btn-sm" id="btnCambiarPasswordAdmin">Cambiar mi contraseña de administrador</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h2>Datos</h2></div>
+      <div class="row">
+        <button class="btn btn-danger btn-sm" id="btnResetAll">Borrar todos los datos</button>
+        <span class="hint">Borra historial, configuración y cargas del día actual.</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL: causa 5M -->
+<div class="modal-overlay" id="modalCausa">
+  <div class="modal" style="max-width:560px;">
+    <h3 id="modalCausaTitle">Sector — no alcanzó el objetivo</h3>
+    <div class="modal-sub" id="modalCausaSub"></div>
+    <div class="hint" style="margin-bottom:8px;">1. Tocá las causas que aplican.</div>
+    <div id="modalCausaChips"></div>
+
+    <div class="hint" style="margin:16px 0 8px;">2. Para cada causa marcada, contá qué pasó y cuántos m² explica.</div>
+    <div id="modalCausaDetalles"></div>
+
+    <div class="row between" id="modalCausaSumaRow" style="margin-top:10px;padding:10px 12px;border-radius:6px;background:var(--bg2);">
+      <span class="hint">Suma declarada: <b id="modalSumaM2" style="color:var(--ink);">0</b> m² de <b id="modalDeficitM2" style="color:var(--ink);">0</b> m² de déficit</span>
+      <span id="modalSumaEstado" class="status-pill"></span>
+    </div>
+
+    <div class="row end" style="margin-top:16px;">
+      <button class="btn btn-ghost" id="btnCausaCancel">Cancelar</button>
+      <button class="btn btn-primary" id="btnCausaGuardar">Guardar motivo</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- MODAL: elegir fecha de día anterior -->
+<div class="modal-overlay" id="modalFecha">
+  <div class="modal" style="max-width:380px;">
+    <h3>Agregar día anterior</h3>
+    <div class="modal-sub">Elegí la fecha que querés cargar. Vas a pegar las tablas de inicio y fin de turno como siempre, pero quedará guardada bajo esta fecha.</div>
+    <div class="field">
+      <label>Fecha</label>
+      <input type="date" id="inputFechaAnterior">
+    </div>
+    <div class="row end">
+      <button class="btn btn-ghost" id="btnFechaCancel">Cancelar</button>
+      <button class="btn btn-primary" id="btnFechaContinuar">Continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: elegir rango de fechas para informe PDF consolidado -->
+<div class="modal-overlay" id="modalRangoPdf">
+  <div class="modal" style="max-width:400px;">
+    <h3>Informe PDF por rango</h3>
+    <div class="modal-sub">Elegí el período. Se incluyen solo los días confirmados dentro del rango.</div>
+    <div class="row" style="gap:12px;">
+      <div class="field" style="flex:1;">
+        <label>Desde</label>
+        <input type="date" id="inputRangoDesde">
+      </div>
+      <div class="field" style="flex:1;">
+        <label>Hasta</label>
+        <input type="date" id="inputRangoHasta">
+      </div>
+    </div>
+    <div class="row end">
+      <button class="btn btn-ghost" id="btnRangoCancel">Cancelar</button>
+      <button class="btn btn-primary" id="btnRangoGenerar">Generar PDF</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   FIREBASE — sincronización entre PCs de planta
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyCG732PRoxDKQUSptnCDsSHJSoj8Oz5re0",
+  authDomain: "lfda-cierre-sectores.firebaseapp.com",
+  projectId: "lfda-cierre-sectores",
+  storageBucket: "lfda-cierre-sectores.firebasestorage.app",
+  messagingSenderId: "362293707723",
+  appId: "1:362293707723:web:49ec88ab4d71fbab48ec4e"
+};
+
+const FIRESTORE_COLLECTION = 'lfda_cierre_sectores';
+const FIRESTORE_DOC_ID = 'estado_principal';
+const INSTANCE_ID = 'inst_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+
+let firestoreDb = null;
+let firestoreListenerActivo = false;
+let firestoreGuardadoTimer = null;
+let firestoreUltimoGuardadoLocal = 0;
+
+function inicializarFirebase(){
+  try{
+    if(typeof firebase === 'undefined'){
+      console.warn('Firebase SDK no cargó — la app sigue funcionando solo con almacenamiento local.');
+      return;
+    }
+    firebase.initializeApp(firebaseConfig);
+    firestoreDb = firebase.firestore();
+    escucharCambiosFirestore();
+    actualizarIndicadorSync('conectando');
+  }catch(e){
+    console.error('No se pudo inicializar Firebase, la app sigue funcionando localmente.', e);
+    actualizarIndicadorSync('local');
+  }
+}
+
+function escucharCambiosFirestore(){
+  if(!firestoreDb || firestoreListenerActivo) return;
+  firestoreListenerActivo = true;
+  firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID)
+    .onSnapshot(
+      (doc)=>{
+        actualizarIndicadorSync('online');
+        if(!doc.exists){
+          // primera vez: subimos el estado local actual como base compartida
+          subirEstadoAFirestore();
+          return;
+        }
+        const data = doc.data();
+        // ignorar el eco de nuestro propio guardado reciente, para no pisar lo que se está tipeando
+        if(data._instanceId === INSTANCE_ID) return;
+        if(data._ts && Date.now() - firestoreUltimoGuardadoLocal < 800) return;
+
+        aplicarEstadoRemoto(data);
+      },
+      (error)=>{
+        console.error('Error escuchando Firestore', error);
+        actualizarIndicadorSync('local');
+      }
+    );
+}
+
+function aplicarEstadoRemoto(data){
+  try{
+    const remoto = JSON.parse(data.json);
+    // conservamos lo que está en curso de tipeo en los textareas, pero actualizamos el resto del estado
+    state = Object.assign(defaultState(), remoto);
+    migrarMotivoCausaAArray(state);
+    migrarObjetivosPorSector(state);
+    migrarHistoricoPulmones(state);
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    renderHoy();
+    if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+    if(document.getElementById('view-config').classList.contains('active')) renderConfig();
+    toast('Datos actualizados desde otra PC');
+  }catch(e){
+    console.error('Error aplicando estado remoto', e);
+  }
+}
+
+function subirEstadoAFirestore(){
+  if(!firestoreDb) return;
+  clearTimeout(firestoreGuardadoTimer);
+  firestoreGuardadoTimer = setTimeout(()=>{
+    firestoreUltimoGuardadoLocal = Date.now();
+    firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set({
+      json: JSON.stringify(state),
+      _instanceId: INSTANCE_ID,
+      _ts: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(()=>{
+      actualizarIndicadorSync('online');
+    }).catch(e=>{
+      console.error('Error subiendo a Firestore', e);
+      actualizarIndicadorSync('local');
+    });
+  }, 600);
+}
+
+function actualizarIndicadorSync(estado){
+  const el = document.getElementById('syncIndicator');
+  if(!el) return;
+  const map = {
+    online: {txt:'● Sincronizado', color:'var(--green)'},
+    conectando: {txt:'● Conectando…', color:'var(--amber)'},
+    local: {txt:'○ Solo local', color:'var(--ink-faint)'}
+  };
+  const m = map[estado] || map.local;
+  el.textContent = m.txt;
+  el.style.color = m.color;
+}
+</script>
+
+<script>
+/* ============================================================
+   ESTADO Y PERSISTENCIA
+   ============================================================ */
+const LS_KEY = 'lfda_cierre_sectores_v1';
+
+const DEFAULT_CAUSAS = {
+  'Mano de obra': ['Ausentismo','Falta de personal','Capacitación insuficiente','Bajo rendimiento'],
+  'Máquina': ['Rotura / falla mecánica','Mantenimiento programado','Falta de repuestos','Setup / cambio de formato'],
+  'Método': ['Cambio de prioridad / urgencia','Reproceso por error','Orden mal cargada','Falta de instructivo'],
+  'Material': ['Falta de insumo','Material no conforme','Demora de proveedor','Stock incorrecto'],
+  'Medio ambiente': ['Corte de energía','Espacio / layout insuficiente','Condiciones climáticas','Orden y limpieza']
+};
+
+function defaultState(){
+  return {
+    objetivoMinDefault: 120,
+    objetivoOptimoDefault: 160,
+    umbralPulmonBajoDefault: 50,
+    sectorFinLinea: '8-LI',
+    usuarios: {
+      adminPassHash: '83f1ca6cf5ab96baa2feeced43a1904dee6d0007ce9605fe665eddd2dfae0dd6',
+      lideres: [
+        {id:'u1', nombre:'Diego Acevedo', sector:'2-MEC'},
+        {id:'u2', nombre:'Angel Córdoba', sector:'3-SOL'},
+        {id:'u3', nombre:'Pablo Muchiutti', sector:'4-VID'},
+        {id:'u4', nombre:'Líder 1-ALM', sector:'1-ALM'},
+        {id:'u5', nombre:'Líder 5-DVH', sector:'5-DVH'},
+        {id:'u6', nombre:'Líder 6-ARM', sector:'6-ARM'},
+        {id:'u7', nombre:'Líder 7-ACR', sector:'7-ACR'},
+        {id:'u8', nombre:'Líder 8-LI', sector:'8-LI'}
+      ]
+    },
+    sectores: [
+      {nombre:'1-ALM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'2-MEC', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'3-SOL', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'4-VID', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'5-DVH', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'6-ARM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'7-ACR', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'8-LI',  objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)}
+    ],
+    dias: {},          // { '2026-06-22': { sectores: { '1-ALM': {pulmon, objetivoMin, objetivoOptimo, cerrado, motivoCausa:[{causa,detalle,m2}]} } } }
+    pulmones: {},      // { '2026-06-22': { '1-ALM': {udsPul, supPul} } } — histórico de lo pegado en INICIO de turno, independiente de si el día se confirma
+    actual: {           // carga en progreso del día de hoy, no confirmada
+      fecha: null,
+      inicio: null,     // { sector: {udsPul, supPul, supFin} }
+      fin: null,
+      resultado: null    // calculado, antes de confirmar
+    }
+  };
+}
+
+let state = loadState();
+
+/* ============================================================
+   SESIÓN / LOGIN
+   ============================================================ */
+const SESION_KEY = 'lfda_sesion_v1';
+let sesion = cargarSesion(); // { rol: 'admin'|'lider', nombre, sector (solo lider) }
+
+function cargarSesion(){
+  try{
+    const raw = localStorage.getItem(SESION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function guardarSesion(s){
+  sesion = s;
+  if(s) localStorage.setItem(SESION_KEY, JSON.stringify(s));
+  else localStorage.removeItem(SESION_KEY);
+}
+
+function esAdmin(){ return sesion && sesion.rol === 'admin'; }
+function sectorDelLider(){ return sesion && sesion.rol === 'lider' ? sesion.sector : null; }
+
+async function sha256Hex(texto){
+  const enc = new TextEncoder().encode(texto);
+  const buf = await crypto.subtle.digest('SHA-256', enc);
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function renderLoginLideres(){
+  const cont = document.getElementById('loginBotonesLideres');
+  const lideres = (state.usuarios && state.usuarios.lideres) || [];
+  cont.innerHTML = lideres.map(l=>`
+    <button class="btn" data-login-lider="${esc(l.id)}" style="width:100%;text-align:left;padding:12px 16px;">
+      <div style="font-weight:600;">${esc(l.nombre)}</div>
+      <div style="font-size:11px;color:var(--ink-faint);">${esc(l.sector)}</div>
+    </button>
+  `).join('');
+  cont.querySelectorAll('[data-login-lider]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const lider = lideres.find(l=>l.id===btn.dataset.loginLider);
+      if(!lider) return;
+      guardarSesion({rol:'lider', nombre:lider.nombre, sector:lider.sector});
+      iniciarAppPostLogin();
+    });
+  });
+}
+
+document.getElementById('btnSoyAdmin').addEventListener('click', ()=>{
+  document.getElementById('loginListaUsuarios').style.display='none';
+  document.getElementById('loginAdminPass').style.display='';
+  document.getElementById('inputAdminPass').value='';
+  document.getElementById('inputAdminPass').focus();
+});
+document.getElementById('btnCancelarAdmin').addEventListener('click', ()=>{
+  document.getElementById('loginAdminPass').style.display='none';
+  document.getElementById('loginListaUsuarios').style.display='';
+});
+document.getElementById('btnIngresarAdmin').addEventListener('click', verificarPasswordAdmin);
+document.getElementById('inputAdminPass').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') verificarPasswordAdmin();
+});
+
+async function verificarPasswordAdmin(){
+  const val = document.getElementById('inputAdminPass').value;
+  if(!val){ toast('Ingresá la contraseña', true); return; }
+  const hash = await sha256Hex(val);
+  if(hash === state.usuarios.adminPassHash){
+    guardarSesion({rol:'admin', nombre:'Diego (Admin)'});
+    iniciarAppPostLogin();
+  } else {
+    toast('Contraseña incorrecta', true);
+  }
+}
+
+document.getElementById('btnCerrarSesion').addEventListener('click', ()=>{
+  guardarSesion(null);
+  location.reload();
+});
+
+function iniciarAppPostLogin(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appMain').style.display='';
+  document.getElementById('usuarioActualLabel').textContent = sesion.nombre + (sesion.sector ? ' · '+sesion.sector : '');
+
+  aplicarRestriccionesDeRol();
+  renderHoy();
+  inicializarFirebase();
+}
+
+function aplicarRestriccionesDeRol(){
+  const tabConfig = document.querySelector('.tab-btn[data-view="config"]');
+  const bloquesPegado = document.getElementById('bloquesPegadoAdmin');
+  const btnAgregarDiaAnterior = document.getElementById('btnAgregarDiaAnterior');
+  const btnExportJSON = document.getElementById('btnExportJSON');
+  if(!esAdmin()){
+    if(tabConfig) tabConfig.style.display='none';
+    if(bloquesPegado) bloquesPegado.style.display='none';
+    if(btnAgregarDiaAnterior) btnAgregarDiaAnterior.style.display='none';
+    if(btnExportJSON) btnExportJSON.style.display='none';
+  } else {
+    if(tabConfig) tabConfig.style.display='';
+    if(bloquesPegado) bloquesPegado.style.display='';
+    if(btnAgregarDiaAnterior) btnAgregarDiaAnterior.style.display='';
+    if(btnExportJSON) btnExportJSON.style.display='';
+  }
+}
+
+function chequearSesionAlCargar(){
+  if(sesion){
+    iniciarAppPostLogin();
+  } else {
+    renderLoginLideres();
+  }
+}
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(!raw) return defaultState();
+    const parsed = JSON.parse(raw);
+    const merged = Object.assign(defaultState(), parsed);
+    migrarMotivoCausaAArray(merged);
+    migrarObjetivosPorSector(merged);
+    migrarHistoricoPulmones(merged);
+    return merged;
+  }catch(e){
+    console.error('Error cargando estado', e);
+    return defaultState();
+  }
+}
+
+function migrarMotivoCausaAArray(s){
+  // v1: motivoCausa string|null. v2: array de strings. v3 (actual): array de {causa, detalle, m2}.
+  // Normalizamos todo a v3, repartiendo el déficit equitativamente entre causas si no había detalle por causa.
+  function normalizarSector(sec){
+    if(!Array.isArray(sec.motivoCausa)){
+      sec.motivoCausa = sec.motivoCausa ? [sec.motivoCausa] : [];
+    }
+    const esV2 = sec.motivoCausa.length>0 && typeof sec.motivoCausa[0] === 'string';
+    if(esV2){
+      const deficit = Math.max(0, (sec.objetivoMin||0) - (sec.cerrado||0));
+      const n = sec.motivoCausa.length;
+      const partes = n>0 ? round1(deficit/n) : 0;
+      sec.motivoCausa = sec.motivoCausa.map(c=>({causa:c, detalle: sec.motivoTexto||'', m2: partes}));
+    }
+    delete sec.motivoTexto;
+  }
+  Object.values(s.dias || {}).forEach(dia=>{
+    Object.values(dia.sectores || {}).forEach(normalizarSector);
+  });
+  if(s.actual && s.actual.resultado){
+    Object.values(s.actual.resultado).forEach(normalizarSector);
+  }
+}
+
+function migrarObjetivosPorSector(s){
+  // versiones anteriores tenían un único state.objetivo global; ahora es por sector
+  const minLegacy = (typeof s.objetivo === 'number') ? s.objetivo : (s.objetivoMinDefault || 120);
+  const optLegacy = s.objetivoOptimoDefault || 160;
+  const umbralLegacy = s.umbralPulmonBajoDefault || 50;
+  (s.sectores || []).forEach(sec=>{
+    if(typeof sec.objetivoMin !== 'number') sec.objetivoMin = minLegacy;
+    if(typeof sec.objetivoOptimo !== 'number') sec.objetivoOptimo = optLegacy;
+    if(typeof sec.umbralPulmonBajo !== 'number') sec.umbralPulmonBajo = umbralLegacy;
+  });
+  // días ya confirmados: si no tenían objetivoOptimo guardado, completamos con el default
+  // para que se puedan mostrar correctamente (no afecta lo ya cumplido/no cumplido del mínimo)
+  Object.values(s.dias || {}).forEach(dia=>{
+    Object.values(dia.sectores || {}).forEach(sec=>{
+      if(typeof sec.objetivoMin !== 'number') sec.objetivoMin = sec.objetivo ?? minLegacy;
+      if(typeof sec.objetivoOptimo !== 'number') sec.objetivoOptimo = optLegacy;
+    });
+  });
+  delete s.objetivo;
+  if(!s.umbralPulmonBajoDefault) s.umbralPulmonBajoDefault = umbralLegacy;
+}
+
+function migrarHistoricoPulmones(s){
+  // reconstruir state.pulmones a partir de días ya confirmados que no tenían este registro separado
+  if(!s.pulmones) s.pulmones = {};
+  Object.entries(s.dias || {}).forEach(([fecha, dia])=>{
+    if(!s.pulmones[fecha]) s.pulmones[fecha] = {};
+    Object.entries(dia.sectores || {}).forEach(([nombre, sec])=>{
+      if(s.pulmones[fecha][nombre]===undefined && typeof sec.pulmon === 'number'){
+        s.pulmones[fecha][nombre] = sec.pulmon;
+      }
+    });
+  });
+  // rescatar también el día en curso (todavía no confirmado), por si se cargó con una
+  // versión anterior que no guardaba el histórico al pegar el inicio de turno
+  if(s.actual && s.actual.fecha && s.actual.inicio){
+    if(!s.pulmones[s.actual.fecha]) s.pulmones[s.actual.fecha] = {};
+    Object.entries(s.actual.inicio).forEach(([nombre, d])=>{
+      if(s.pulmones[s.actual.fecha][nombre]===undefined && d && typeof d.supPul === 'number'){
+        s.pulmones[s.actual.fecha][nombre] = d.supPul;
+      }
+    });
+  }
+}
+function saveState(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  subirEstadoAFirestore();
+}
+
+function todayISO(){
+  const d = new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function todayLabel(){
+  const d = new Date();
+  return d.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+function toast(msg, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.toggle('err', !!isErr);
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+/* ============================================================
+   PARSER del formato G_PRO
+   Formato pegado (tab-separated), 2 bloques de 4 filas:
+   SECTOR \t UDS_PUL \t SUP_PUL \t SUP_FIN \t [vacío] \t SECTOR2 \t UDS_PUL2 \t SUP_PUL2 \t SUP_FIN2
+   SUP_FIN puede estar vacío.
+   ============================================================ */
+function parsePegado(texto){
+  const lineas = texto.split(/\r?\n/).map(l=>l.trim()).filter(l=>l.length>0);
+  const out = {}; // { 'NOMBRE-SECTOR': {udsPul, supPul, supFin} }
+  let warnings = [];
+
+  for(const linea of lineas){
+    const cols = linea.split('\t').map(c=>c.trim());
+    // Bloque izquierdo: cols[0..2] (nombre, udsPul, supPul) + supFin opcional en col 3.
+    // El bloque derecho arranca donde aparece el siguiente "nombre de sector" (texto con letras),
+    // ya que la cantidad de columnas vacías intermedias varía según si supFin del bloque
+    // izquierdo tiene valor o no.
+    procesarBloque(cols, 0, out, warnings);
+    let offsetDer = encontrarSegundoBloque(cols);
+    if(offsetDer!=null) procesarBloque(cols, offsetDer, out, warnings);
+
+    // fallback: si no hay tabs (vino con espacios múltiples), intentar split por espacios múltiples
+    if(cols.length < 2 && linea.includes('  ')){
+      const cols2 = linea.split(/\s{2,}/).map(c=>c.trim()).filter(Boolean);
+      procesarBloque(cols2, 0, out, warnings);
+    }
+  }
+  return {datos: out, warnings};
+}
+
+function encontrarSegundoBloque(cols){
+  // busca, a partir de la columna 1, el primer índice que parezca un nombre de sector
+  // (contiene letras) — eso marca el inicio del segundo bloque.
+  for(let i=1;i<cols.length;i++){
+    const c = cols[i];
+    if(c && /[A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(c)){
+      return i;
+    }
+  }
+  return null;
+}
+
+function procesarBloque(cols, offset, out, warnings){
+  const nombre = cols[offset];
+  if(!nombre) return;
+  // debe parecer un nombre de sector: contiene letras, no es puramente numérico
+  if(!/[A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(nombre)) return;
+  const udsPul = parseNum(cols[offset+1]);
+  const supPul = parseNum(cols[offset+2]);
+  const supFin = parseNum(cols[offset+3]);
+  if(udsPul===null && supPul===null) {
+    return; // no parece una fila de datos válida
+  }
+  out[nombre] = {
+    udsPul: udsPul ?? 0,
+    supPul: supPul ?? 0,
+    supFin: supFin // puede ser null si está vacío
+  };
+}
+
+function parseNum(s){
+  if(s===undefined || s===null || s==='' ) return null;
+  const cleaned = s.replace(/\./g,'').replace(',', '.').replace(/[^\d.-]/g,'');
+  if(cleaned==='' || cleaned==='-') return null;
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? null : n;
+}
+
+/* ============================================================
+   RENDER: TABS
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='historial') renderHistorial();
+    if(btn.dataset.view==='config') renderConfig();
+  });
+});
+
+/* ============================================================
+   VISTA HOY
+   ============================================================ */
+function ensureActualDia(){
+  const hoy = todayISO();
+  // si no hay una fecha "fijada" manualmente (carga de día anterior en curso),
+  // y la fecha guardada no es la de hoy, reseteamos para empezar el día de hoy.
+  if(!state.actual.fechaFijadaManual && state.actual.fecha !== hoy){
+    state.actual = {fecha: hoy, inicio:null, fin:null, resultado:null, fechaFijadaManual:false};
+    saveState();
+  }
+}
+
+function iniciarCargaFecha(fechaISO){
+  state.actual = {fecha: fechaISO, inicio:null, fin:null, resultado:null, fechaFijadaManual:true};
+  saveState();
+}
+
+function volverAHoy(){
+  state.actual = {fecha: todayISO(), inicio:null, fin:null, resultado:null, fechaFijadaManual:false};
+  saveState();
+}
+
+function renderHoy(){
+  ensureActualDia();
+  document.getElementById('todayLabel').textContent = capitalize(todayLabel());
+
+  renderAvisoFecha();
+
+  const pillInicio = document.getElementById('pillInicio');
+  const pillFin = document.getElementById('pillFin');
+
+  if(state.actual.inicio){
+    pillInicio.textContent = 'cargado';
+    pillInicio.className = 'status-pill ok';
+  } else {
+    pillInicio.textContent = 'sin cargar';
+    pillInicio.className = 'status-pill missing';
+  }
+
+  if(state.actual.fin){
+    pillFin.textContent = 'cargado';
+    pillFin.className = 'status-pill ok';
+  } else {
+    pillFin.textContent = 'sin cargar';
+    pillFin.className = 'status-pill missing';
+  }
+
+  // restaurar textareas si había algo cargado (mostramos resumen, no el texto crudo)
+  renderKpis();
+  if(state.actual.resultado){
+    renderResultado();
+  } else {
+    document.getElementById('panelResultado').style.display = 'none';
+  }
+
+  // si el día ya fue confirmado, mostrarlo; si no, recordar que falta confirmar
+  const yaConfirmado = !!state.dias[state.actual.fecha];
+  document.getElementById('resumenHint').textContent = yaConfirmado ? 'Día ya confirmado — podés volver a calcular si corregís datos.' : '';
+  const aviso = document.getElementById('avisoSinConfirmar');
+  if(aviso) aviso.style.display = (state.actual.resultado && !yaConfirmado) ? '' : 'none';
+}
+
+function renderAvisoFecha(){
+  let aviso = document.getElementById('avisoFechaAnterior');
+  if(!state.actual.fechaFijadaManual){
+    if(aviso) aviso.remove();
+    return;
+  }
+  if(!aviso){
+    aviso = document.createElement('div');
+    aviso.id = 'avisoFechaAnterior';
+    aviso.className = 'panel';
+    aviso.style.borderColor = 'var(--amber)';
+    aviso.style.background = 'var(--amber-dim)';
+    document.getElementById('view-hoy').insertBefore(aviso, document.getElementById('view-hoy').firstChild);
+  }
+  aviso.innerHTML = `
+    <div class="row between">
+      <div><b>Cargando día anterior:</b> <span class="tag-objetivo" style="color:var(--amber);">${state.actual.fecha}</span></div>
+      <button class="btn btn-ghost btn-sm" id="btnVolverHoy">Volver al día de hoy</button>
+    </div>
+  `;
+  document.getElementById('btnVolverHoy').addEventListener('click', ()=>{
+    volverAHoy();
+    document.getElementById('pasteInicio').value='';
+    document.getElementById('pasteFin').value='';
+    renderHoy();
+  });
+}
+
+function renderKpis(){
+  const hoy = state.dias[state.actual.fecha];
+  const row = document.getElementById('kpiRow');
+
+  if(!esAdmin()){
+    renderKpisLider(hoy);
+    return;
+  }
+
+  if(!hoy){
+    row.innerHTML = `
+      <div class="kpi"><div class="lbl">Objetivo mínimo</div><div class="val amber">${state.objetivoMinDefault} m²</div></div>
+      <div class="kpi"><div class="lbl">Objetivo óptimo</div><div class="val" style="color:var(--blue);">${state.objetivoOptimoDefault} m²</div></div>
+      <div class="kpi"><div class="lbl">Sectores configurados</div><div class="val">${state.sectores.length}</div></div>
+      <div class="kpi"><div class="lbl">Estado del día</div><div class="val" style="font-size:16px;">Sin confirmar</div></div>
+    `;
+    return;
+  }
+  const sect = Object.values(hoy.sectores);
+  const cumplieron = sect.filter(s=>s.cerrado >= s.objetivoMin).length;
+  const optimos = sect.filter(s=>s.cerrado >= s.objetivoOptimo).length;
+  const finLinea = hoy.sectores[state.sectorFinLinea];
+  const finLineaVal = finLinea ? fmt(finLinea.cerrado) : '—';
+  row.innerHTML = `
+    <div class="kpi"><div class="lbl">m² cerrados (${esc(state.sectorFinLinea||'Fin de Línea')})</div><div class="val">${finLineaVal}</div></div>
+    <div class="kpi"><div class="lbl">Sectores en mínimo</div><div class="val ${cumplieron===sect.length?'green':'amber'}">${cumplieron}/${sect.length}</div></div>
+    <div class="kpi"><div class="lbl">Sectores en óptimo</div><div class="val" style="color:var(--blue);">${optimos}/${sect.length}</div></div>
+  `;
+}
+
+function renderKpisLider(hoy){
+  const row = document.getElementById('kpiRow');
+  const miSector = sectorDelLider();
+  const cfgSector = state.sectores.find(s=>s.nombre===miSector);
+  const objMin = cfgSector ? cfgSector.objetivoMin : state.objetivoMinDefault;
+  const objOpt = cfgSector ? cfgSector.objetivoOptimo : state.objetivoOptimoDefault;
+
+  const datosHoy = hoy ? hoy.sectores[miSector] : (state.actual.resultado ? state.actual.resultado[miSector] : null);
+  const cerrado = datosHoy ? fmt(datosHoy.cerrado) : '—';
+  const estado = datosHoy ? estadoLogro(datosHoy.cerrado, objMin, objOpt) : null;
+  const colorVal = estado==='bajo' ? 'red' : (estado==='optimo' ? '' : 'green');
+
+  row.innerHTML = `
+    <div class="kpi"><div class="lbl">Mi sector</div><div class="val" style="font-size:18px;">${esc(miSector||'—')}</div></div>
+    <div class="kpi"><div class="lbl">m² cerrados hoy</div><div class="val ${colorVal}" style="${estado==='optimo'?'color:var(--blue);':''}">${cerrado}</div></div>
+    <div class="kpi"><div class="lbl">Objetivo</div><div class="val amber">${fmt(objMin)} / ${fmt(objOpt)}</div></div>
+  `;
+}
+
+function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+function fmt(n){ return Number(n).toLocaleString('es-AR',{maximumFractionDigits:1}); }
+
+document.getElementById('btnClearInicio').addEventListener('click', ()=>{
+  document.getElementById('pasteInicio').value='';
+});
+document.getElementById('btnClearFin').addEventListener('click', ()=>{
+  document.getElementById('pasteFin').value='';
+});
+
+document.getElementById('btnGuardarInicio').addEventListener('click', ()=>{
+  const texto = document.getElementById('pasteInicio').value;
+  if(!texto.trim()){ toast('Pegá la tabla de G_PRO primero', true); return; }
+  const {datos, warnings} = parsePegado(texto);
+  if(Object.keys(datos).length===0){ toast('No se reconoció ningún sector en el texto pegado', true); return; }
+  ensureActualDia();
+  state.actual.inicio = datos;
+  state.actual.resultado = null;
+  registrarPulmonHistorico(state.actual.fecha, datos);
+  saveState();
+  toast(`Inicio de turno guardado: ${Object.keys(datos).length} sectores`);
+  renderHoy();
+});
+
+function registrarPulmonHistorico(fecha, datosInicio){
+  // queda guardado siempre, aunque el día nunca se confirme — es la prueba objetiva del pulmón real
+  if(!state.pulmones[fecha]) state.pulmones[fecha] = {};
+  Object.entries(datosInicio).forEach(([nombre, d])=>{
+    state.pulmones[fecha][nombre] = d.supPul;
+  });
+}
+
+document.getElementById('btnGuardarFin').addEventListener('click', ()=>{
+  const texto = document.getElementById('pasteFin').value;
+  if(!texto.trim()){ toast('Pegá la tabla de fin de turno primero', true); return; }
+  if(!state.actual.inicio){ toast('Primero guardá el inicio de turno', true); return; }
+  const {datos} = parsePegado(texto);
+  if(Object.keys(datos).length===0){ toast('No se reconoció ningún sector en el texto pegado', true); return; }
+  ensureActualDia();
+  state.actual.fin = datos;
+  calcularResultado();
+  saveState();
+  toast('Cierre calculado');
+  renderHoy();
+});
+
+function calcularResultado(){
+  const inicio = state.actual.inicio;
+  const fin = state.actual.fin;
+  const resultadoAnterior = state.actual.resultado || {};
+  const resultado = {};
+  const nombresConfigurados = state.sectores.map(s=>s.nombre);
+
+  // unir todos los nombres que aparecen en inicio o fin
+  const nombres = new Set([...Object.keys(inicio), ...Object.keys(fin)]);
+
+  nombres.forEach(nombre=>{
+    const i = inicio[nombre];
+    const f = fin[nombre];
+    const supFinInicio = (i && i.supFin!=null) ? i.supFin : 0;
+    const supFinFin = (f && f.supFin!=null) ? f.supFin : supFinInicio;
+    const cerrado = Math.max(0, supFinFin - supFinInicio);
+    const pulmon = f ? f.supPul : (i ? i.supPul : 0);
+    const cfgSector = state.sectores.find(s=>s.nombre===nombre);
+    // si este sector ya tenía causas declaradas en el cálculo anterior del mismo día
+    // (ej: corrigiendo un tipeo en OTRO sector), las conservamos en vez de perderlas
+    const causasPrevias = resultadoAnterior[nombre] ? resultadoAnterior[nombre].motivoCausa : [];
+    resultado[nombre] = {
+      pulmon: pulmon,
+      objetivoMin: cfgSector ? cfgSector.objetivoMin : state.objetivoMinDefault,
+      objetivoOptimo: cfgSector ? cfgSector.objetivoOptimo : state.objetivoOptimoDefault,
+      cerrado: round1(cerrado),
+      motivoCausa: causasPrevias ? causasPrevias.map(c=>({...c})) : [],
+      noConfigurado: !nombresConfigurados.includes(nombre)
+    };
+  });
+
+  state.actual.resultado = resultado;
+}
+
+function round1(n){ return Math.round(n*10)/10; }
+
+function estadoLogro(cerrado, min, optimo){
+  if(cerrado < min) return 'bajo';
+  if(cerrado >= optimo) return 'optimo';
+  return 'cumple';
+}
+function colorEstado(estado){
+  if(estado==='bajo') return 'var(--red)';
+  if(estado==='optimo') return 'var(--blue)';
+  return 'var(--green)';
+}
+
+function renderResultado(){
+  const panel = document.getElementById('panelResultado');
+  panel.style.display = '';
+  const tbody = document.getElementById('resultadoBody');
+  tbody.innerHTML='';
+
+  const resultado = state.actual.resultado;
+  const nombresVisibles = Object.keys(resultado).filter(n => esAdmin() || n === sectorDelLider());
+  nombresVisibles.forEach(nombre=>{
+    const r = resultado[nombre];
+    const pct = r.objetivoMin>0 ? Math.round((r.cerrado/r.objetivoMin)*100) : 0;
+    const estado = estadoLogro(r.cerrado, r.objetivoMin, r.objetivoOptimo);
+    const cumple = estado !== 'bajo';
+    const tr = document.createElement('tr');
+    tr.className = cumple ? 'hl-ok' : 'hl-bad';
+
+    const barColor = colorEstado(estado);
+    const barPct = Math.min(100, Math.round((r.cerrado/r.objetivoOptimo)*100));
+
+    tr.innerHTML = `
+      <td><span class="sector-name">${esc(nombre)}</span>${r.noConfigurado?' <span class="tag-objetivo">(no configurado)</span>':''}</td>
+      <td class="num">${fmt(r.pulmon)} m²</td>
+      <td class="num tag-objetivo">${fmt(r.objetivoMin)} mín · ${fmt(r.objetivoOptimo)} ópt.</td>
+      <td class="num">
+        <div>${fmt(r.cerrado)} m² ${estado==='optimo'?'<span style="color:var(--blue);font-size:11px;">★ óptimo</span>':''}</div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
+      </td>
+      <td class="num" style="color:${colorEstado(estado)};font-weight:600;">${pct}%</td>
+      <td>
+        ${cumple
+          ? '<span class="tag-objetivo">—</span>'
+          : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
+        }
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll('[data-motivo]').forEach(btn=>{
+    btn.addEventListener('click', ()=>abrirModalCausa(btn.dataset.motivo));
+  });
+
+  // confirmar el día completo es una acción exclusiva del admin (depende de TODOS los sectores)
+  const btnConfirmar = document.getElementById('btnConfirmarDia');
+  if(!esAdmin()){
+    btnConfirmar.style.display='none';
+  } else {
+    btnConfirmar.style.display='';
+    // habilitar confirmar solo si todos los sectores que no cumplieron el mínimo tienen motivo
+    const faltanMotivos = Object.values(resultado).some(r => r.cerrado < r.objetivoMin && r.motivoCausa.length===0);
+    btnConfirmar.disabled = faltanMotivos;
+    btnConfirmar.title = faltanMotivos ? 'Declará el motivo de todos los sectores por debajo del objetivo mínimo' : '';
+  }
+}
+
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ----- modal causa 5M ----- */
+let causaSectorActivo = null;
+let causaContextoActivo = null; // 'hoy' o fecha ISO de state.dias, para saber qué re-renderizar
+let causasDetalle = []; // [{causa, detalle, m2}]
+
+function abrirModalCausa(nombreSector, contexto){
+  causaSectorActivo = nombreSector;
+  causaContextoActivo = contexto || 'hoy';
+  const r = (causaContextoActivo === 'hoy')
+    ? state.actual.resultado[nombreSector]
+    : state.dias[causaContextoActivo].sectores[nombreSector];
+
+  // clonamos para no mutar el resultado hasta guardar
+  causasDetalle = (r.motivoCausa || []).map(c=>({...c}));
+  const deficit = round1(Math.max(0, r.objetivoMin - r.cerrado));
+
+  document.getElementById('modalCausaTitle').textContent = `${nombreSector} — no alcanzó el objetivo`;
+  document.getElementById('modalCausaSub').textContent = `Cerró ${fmt(r.cerrado)} m² de ${fmt(r.objetivoMin)} m² objetivo mínimo.`;
+  document.getElementById('modalDeficitM2').textContent = fmt(deficit);
+
+  const cfgSector = state.sectores.find(s=>s.nombre===nombreSector);
+  const causas = cfgSector ? cfgSector.causas : DEFAULT_CAUSAS;
+
+  const chipsCont = document.getElementById('modalCausaChips');
+  chipsCont.innerHTML='';
+  Object.keys(causas).forEach(grupo=>{
+    const lbl = document.createElement('div');
+    lbl.className='causa-group-label';
+    lbl.textContent = grupo;
+    chipsCont.appendChild(lbl);
+    const wrap = document.createElement('div');
+    causas[grupo].forEach(c=>{
+      const chip = document.createElement('span');
+      const yaSel = causasDetalle.some(cd=>cd.causa===c);
+      chip.className = 'causa-chip' + (yaSel ? ' sel':'');
+      chip.textContent = c;
+      chip.addEventListener('click', ()=>{
+        const idx = causasDetalle.findIndex(cd=>cd.causa===c);
+        if(idx>-1){
+          causasDetalle.splice(idx,1);
+          chip.classList.remove('sel');
+        } else {
+          causasDetalle.push({causa:c, detalle:'', m2:0});
+          chip.classList.add('sel');
+        }
+        renderCausaDetalles(deficit);
+      });
+      wrap.appendChild(chip);
+    });
+    chipsCont.appendChild(wrap);
+  });
+
+  renderCausaDetalles(deficit);
+  document.getElementById('modalCausa').classList.add('show');
+}
+
+function renderCausaDetalles(deficit){
+  const cont = document.getElementById('modalCausaDetalles');
+  cont.innerHTML='';
+
+  if(causasDetalle.length===0){
+    cont.innerHTML = `<div class="hint">Todavía no seleccionaste ninguna causa.</div>`;
+  }
+
+  causasDetalle.forEach((cd, idx)=>{
+    const row = document.createElement('div');
+    row.className='causa-detalle-row';
+    row.innerHTML = `
+      <div class="cd-head"><span class="cd-name">${esc(cd.causa)}</span></div>
+      <div class="cd-grid">
+        <div>
+          <textarea data-detalle-idx="${idx}" placeholder="¿Qué pasó exactamente? Ej: CM1 y CM3 fuera de funcionamiento">${esc(cd.detalle)}</textarea>
+        </div>
+        <div>
+          <span class="cd-m2-label">m² que explica</span>
+          <input type="number" min="0" step="0.1" data-m2-idx="${idx}" value="${cd.m2}">
+        </div>
+      </div>
+    `;
+    cont.appendChild(row);
+  });
+
+  cont.querySelectorAll('[data-detalle-idx]').forEach(ta=>{
+    ta.addEventListener('input', ()=>{
+      causasDetalle[parseInt(ta.dataset.detalleIdx)].detalle = ta.value;
+    });
+  });
+  cont.querySelectorAll('[data-m2-idx]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      const idx = parseInt(inp.dataset.m2Idx);
+      const val = parseFloat(inp.value);
+      causasDetalle[idx].m2 = isNaN(val) ? 0 : val;
+      actualizarSumaModal(deficit);
+    });
+  });
+
+  actualizarSumaModal(deficit);
+}
+
+function actualizarSumaModal(deficit){
+  const suma = round1(causasDetalle.reduce((a,c)=>a+(c.m2||0),0));
+  document.getElementById('modalSumaM2').textContent = fmt(suma);
+  document.getElementById('modalDeficitM2').textContent = fmt(deficit);
+  const pill = document.getElementById('modalSumaEstado');
+  const dif = round1(suma - deficit);
+  if(causasDetalle.length===0){
+    pill.textContent = 'sin causas';
+    pill.className = 'status-pill';
+  } else if(Math.abs(dif) < 0.15){
+    pill.textContent = 'coincide';
+    pill.className = 'status-pill ok';
+  } else if(dif < 0){
+    pill.textContent = `faltan ${fmt(Math.abs(dif))} m²`;
+    pill.className = 'status-pill pending';
+  } else {
+    pill.textContent = `sobran ${fmt(dif)} m²`;
+    pill.className = 'status-pill pending';
+  }
+}
+
+document.getElementById('btnCausaCancel').addEventListener('click', ()=>{
+  document.getElementById('modalCausa').classList.remove('show');
+});
+
+document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
+  if(causasDetalle.length===0){ toast('Seleccioná al menos una causa', true); return; }
+  const sinDetalle = causasDetalle.some(c=>!c.detalle.trim());
+  if(sinDetalle){ toast('Completá el detalle de cada causa', true); return; }
+  const nuevasCausas = causasDetalle.map(c=>({...c, m2: round1(c.m2)}));
+
+  if(causaContextoActivo === 'hoy'){
+    state.actual.resultado[causaSectorActivo].motivoCausa = nuevasCausas;
+  } else {
+    state.dias[causaContextoActivo].sectores[causaSectorActivo].motivoCausa = nuevasCausas;
+  }
+  saveState();
+  document.getElementById('modalCausa').classList.remove('show');
+
+  if(causaContextoActivo === 'hoy'){
+    renderResultado();
+  }
+  // si la vista historial está activa (o por si afecta el gráfico/tarjetas), refrescarla también
+  if(document.getElementById('view-historial').classList.contains('active')){
+    renderHistorial();
+  }
+  toast('Motivo guardado');
+});
+
+document.getElementById('btnConfirmarDia').addEventListener('click', ()=>{
+  const fecha = state.actual.fecha;
+  const eraFechaAnterior = state.actual.fechaFijadaManual;
+  state.dias[fecha] = { sectores: structuredClone(state.actual.resultado) };
+  saveState();
+  toast(`Día ${fecha} confirmado y guardado`);
+
+  if(eraFechaAnterior){
+    volverAHoy();
+    document.getElementById('pasteInicio').value='';
+    document.getElementById('pasteFin').value='';
+    renderHoy();
+  } else {
+    renderKpis();
+  }
+  if(document.getElementById('view-historial').classList.contains('active')){
+    renderHistorial();
+  }
+});
+
+/* ============================================================
+   VISTA HISTORIAL
+   ============================================================ */
+function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
+  const sectoresTodos = Object.entries(sectoresObj);
+  const sectores = esAdmin() ? sectoresTodos : sectoresTodos.filter(([n])=>n===sectorDelLider());
+  const cumplieron = sectores.filter(([,s])=>s.cerrado>=s.objetivoMin).length;
+  const total = sectores.length;
+  const finLineaSec = sectoresObj[state.sectorFinLinea];
+  const m2FinLinea = (esAdmin() && finLineaSec) ? finLineaSec.cerrado : null;
+  const mostrarResumenGlobal = esAdmin();
+
+  const contexto = esEnCurso ? 'hoy' : fecha;
+  const div = document.createElement('div');
+  div.className='hist-day' + (esEnCurso ? ' en-curso' : '');
+  div.innerHTML = `
+    <div class="hist-day-head">
+      <div class="row" style="gap:14px;">
+        ${esEnCurso ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);">● EN CURSO</span>' : ''}
+        <span class="hd-date">${fecha}</span>
+        ${mostrarResumenGlobal ? `<span class="status-pill ${cumplieron===total?'ok':'pending'}">${cumplieron}/${total} sectores en objetivo</span>` : ''}
+        ${mostrarResumenGlobal ? `<span class="tag-objetivo">${m2FinLinea!==null ? fmt(m2FinLinea)+' m² (Fin de Línea)' : 'sin dato de Fin de Línea'}</span>` : ''}
+      </div>
+      <div class="row" style="gap:10px;">
+        <button class="btn btn-ghost btn-sm" data-pdf-dia="${esc(fecha)}">PDF del día</button>
+        <span class="chev">▶</span>
+      </div>
+    </div>
+    <div class="hist-day-body">
+      ${sectores.map(([nombre,s])=>{
+        const estado = estadoLogro(s.cerrado, s.objetivoMin, s.objetivoOptimo);
+        const color = colorEstado(estado);
+        const barPct = Math.min(100, Math.round((s.cerrado/s.objetivoOptimo)*100));
+        const causas = s.motivoCausa || [];
+        const mostrarBoton = estado==='bajo' || causas.length>0;
+        return `
+        <div class="hist-row" style="border-bottom:${causas.length?'none':'1px solid var(--line)'};">
+          <span class="hr-sector">${esc(nombre)}</span>
+          <div class="bar-wrap" style="margin-top:0;"><div class="bar-fill" style="width:${barPct}%;background:${color};"></div></div>
+          <span class="num" style="font-family:var(--mono);">${fmt(s.cerrado)} m² ${estado==='optimo'?'★':''}</span>
+          <span class="tag-objetivo">${fmt(s.objetivoMin)} mín · ${fmt(s.objetivoOptimo)} ópt.</span>
+          <span style="font-family:var(--mono);color:${color};font-weight:600;">${Math.round((s.cerrado/s.objetivoMin)*100)}%</span>
+          <span class="hr-motivo">
+            ${mostrarBoton
+              ? `<button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>`
+              : ''}
+          </span>
+        </div>
+        ${causas.length ? `
+        <div class="hist-causas" style="border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:6px;">
+          ${causas.map(c=>`
+            <div class="hist-causa-item">
+              <span class="hc-causa">${esc(c.causa)}</span>
+              <span class="hc-detalle">${esc(c.detalle||'')}</span>
+              <span class="hc-m2">${fmt(c.m2||0)} m²</span>
+            </div>
+          `).join('')}
+        </div>` : ''}
+      `;}).join('')}
+    </div>
+  `;
+  div.querySelector('.hist-day-head').addEventListener('click', ()=>div.classList.toggle('open'));
+  div.querySelectorAll('[data-edit-causa]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const [nombreSector, contextoBtn] = btn.dataset.editCausa.split('|');
+      abrirModalCausa(nombreSector, contextoBtn);
+    });
+  });
+  const btnPdfDia = div.querySelector('[data-pdf-dia]');
+  if(btnPdfDia){
+    btnPdfDia.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const objParaPdf = esAdmin() ? sectoresObj : Object.fromEntries(sectores);
+      generarPdfDia(fecha, objParaPdf);
+    });
+  }
+  return div;
+}
+
+function renderHistorial(){
+  const cont = document.getElementById('historialList');
+  renderGraficoCausas();
+  renderEvolucionPulmon();
+
+  const fechasConfirmadas = Object.keys(state.dias).sort().reverse();
+  const fechaHoyEnCurso = state.actual.resultado ? state.actual.fecha : null;
+  const hoyYaConfirmado = fechaHoyEnCurso && !!state.dias[fechaHoyEnCurso];
+
+  cont.innerHTML='';
+
+  // tarjeta "en curso" del día actual, si hay datos sin confirmar todavía
+  if(fechaHoyEnCurso && !hoyYaConfirmado){
+    cont.appendChild(crearTarjetaDia(fechaHoyEnCurso, state.actual.resultado, true));
+  }
+
+  if(fechasConfirmadas.length===0 && !fechaHoyEnCurso){
+    cont.innerHTML = `<div class="empty-state"><div class="big">—</div>Todavía no hay días cargados.</div>`;
+    return;
+  }
+
+  fechasConfirmadas.forEach(fecha=>{
+    cont.appendChild(crearTarjetaDia(fecha, state.dias[fecha].sectores, false));
+  });
+}
+
+/* ----- gráfico de causas más frecuentes (Pareto) ----- */
+let chartCausasInstance = null;
+
+function poblarFiltroSectorCausas(){
+  const sel = document.getElementById('filtroSectorCausas');
+  if(!esAdmin()){
+    sel.innerHTML = `<option value="${esc(sectorDelLider())}">${esc(sectorDelLider())}</option>`;
+    sel.value = sectorDelLider();
+    sel.disabled = true;
+    return;
+  }
+  sel.disabled = false;
+  const valorActual = sel.value;
+  const nombresEnHistorial = new Set();
+  Object.values(state.dias).forEach(dia=>{
+    Object.keys(dia.sectores).forEach(n=>nombresEnHistorial.add(n));
+  });
+  if(state.actual.resultado){
+    Object.keys(state.actual.resultado).forEach(n=>nombresEnHistorial.add(n));
+  }
+  sel.innerHTML = '<option value="">Todos los sectores</option>' +
+    [...nombresEnHistorial].sort().map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  sel.value = valorActual;
+}
+
+function renderGraficoCausas(){
+  poblarFiltroSectorCausas();
+  const filtroSector = document.getElementById('filtroSectorCausas').value;
+
+  // acumular m² por causa en todo el historial confirmado (o filtrado por sector)
+  const acumPorCausa = {}; // { 'Rotura / falla mecánica': m2total }
+  Object.values(state.dias).forEach(dia=>{
+    Object.entries(dia.sectores).forEach(([nombreSector, s])=>{
+      if(filtroSector && nombreSector !== filtroSector) return;
+      (s.motivoCausa||[]).forEach(c=>{
+        acumPorCausa[c.causa] = (acumPorCausa[c.causa]||0) + (c.m2||0);
+      });
+    });
+  });
+
+  // + causas del día de hoy en curso, si todavía no fue confirmado (no duplicar si ya está en state.dias)
+  const hoyEnCurso = state.actual.resultado;
+  const hoyYaConfirmado = state.actual.fecha && !!state.dias[state.actual.fecha];
+  if(hoyEnCurso && !hoyYaConfirmado){
+    Object.entries(hoyEnCurso).forEach(([nombreSector, s])=>{
+      if(filtroSector && nombreSector !== filtroSector) return;
+      (s.motivoCausa||[]).forEach(c=>{
+        acumPorCausa[c.causa] = (acumPorCausa[c.causa]||0) + (c.m2||0);
+      });
+    });
+  }
+
+  const entradas = Object.entries(acumPorCausa).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const emptyDiv = document.getElementById('causasFrecuentesEmpty');
+  const canvas = document.getElementById('chartCausas');
+
+  if(entradas.length===0){
+    emptyDiv.style.display='';
+    canvas.style.display='none';
+    if(chartCausasInstance){ chartCausasInstance.destroy(); chartCausasInstance=null; }
+    return;
+  }
+  emptyDiv.style.display='none';
+  canvas.style.display='';
+
+  const labels = entradas.map(e=>e[0]);
+  const valores = entradas.map(e=>round1(e[1]));
+
+  if(chartCausasInstance) chartCausasInstance.destroy();
+  chartCausasInstance = new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[{
+        label:'m² perdidos',
+        data: valores,
+        backgroundColor: '#e8a33d',
+        borderRadius: 4,
+        barThickness: 18
+      }]
+    },
+    options:{
+      indexAxis:'y',
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, title:{display:true,text:'m² perdidos',color:'#8d9199'} },
+        y:{ ticks:{color:'#e8e9ea',font:{size:11}}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+document.getElementById('filtroSectorCausas').addEventListener('change', renderGraficoCausas);
+
+/* ----- evolución del pulmón por sector ----- */
+let chartPulmonInstance = null;
+let sectoresPulmonSeleccionados = null; // null = todavía no inicializado
+
+const PALETA_LINEAS = ['#e8a33d','#5b9fd8','#4caf6e','#e8584d','#b88ce8','#e8d35b','#5be8c9','#e87fb0'];
+
+function nombresConPulmonRegistrado(){
+  const set = new Set();
+  Object.values(state.pulmones || {}).forEach(dia=>{
+    Object.keys(dia).forEach(n=>set.add(n));
+  });
+  const todos = [...set].sort();
+  return esAdmin() ? todos : todos.filter(n=>n===sectorDelLider());
+}
+
+function renderEvolucionPulmon(){
+  const nombres = nombresConPulmonRegistrado();
+  const checksCont = document.getElementById('checksPulmonSectores');
+  const emptyDiv = document.getElementById('pulmonEmpty');
+  const wrap = document.getElementById('pulmonChartWrap');
+
+  if(nombres.length===0){
+    checksCont.innerHTML='';
+    emptyDiv.style.display='';
+    wrap.style.display='none';
+    document.getElementById('pulmonAlertasResumen').innerHTML='';
+    if(chartPulmonInstance){ chartPulmonInstance.destroy(); chartPulmonInstance=null; }
+    return;
+  }
+  emptyDiv.style.display='none';
+  wrap.style.display='';
+
+  // líder: siempre fijo en su propio sector, sin selector
+  if(!esAdmin()){
+    sectoresPulmonSeleccionados = new Set(nombres);
+  } else if(sectoresPulmonSeleccionados===null){
+    // por defecto, seleccionar todos los sectores configurados (hasta 5 para no saturar el gráfico)
+    const configurados = state.sectores.map(s=>s.nombre).filter(n=>nombres.includes(n));
+    sectoresPulmonSeleccionados = new Set((configurados.length?configurados:nombres).slice(0,5));
+  }
+
+  checksCont.innerHTML = nombres.map(n=>{
+    const sel = sectoresPulmonSeleccionados.has(n);
+    return `<span class="causa-chip${sel?' sel':''}" data-chip-sector="${esc(n)}">${esc(n)}</span>`;
+  }).join('');
+  if(!esAdmin()) checksCont.style.display='none'; else checksCont.style.display='';
+
+  checksCont.querySelectorAll('[data-chip-sector]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const n = chip.dataset.chipSector;
+      if(sectoresPulmonSeleccionados.has(n)) sectoresPulmonSeleccionados.delete(n);
+      else sectoresPulmonSeleccionados.add(n);
+      renderEvolucionPulmon();
+    });
+  });
+
+  dibujarChartPulmon();
+  renderResumenAlertasPulmon();
+}
+
+function obtenerSerieFechasPulmon(){
+  return Object.keys(state.pulmones || {}).sort();
+}
+
+function dibujarChartPulmon(){
+  const fechas = obtenerSerieFechasPulmon();
+  const seleccionados = [...sectoresPulmonSeleccionados];
+  const canvas = document.getElementById('chartPulmon');
+
+  const datasets = seleccionados.map((nombre, i)=>{
+    const data = fechas.map(f => {
+      const v = state.pulmones[f] ? state.pulmones[f][nombre] : undefined;
+      return v===undefined ? null : v;
+    });
+    return {
+      label: nombre,
+      data,
+      borderColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+      backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+      tension: 0.25,
+      spanGaps: true,
+      pointRadius: 3,
+      borderWidth: 2,
+      order: 1
+    };
+  });
+
+  // línea de umbral: solo tiene sentido visualmente con 1-2 sectores seleccionados
+  // (con más, se superponen distintos umbrales y ensucia el gráfico — ahí preferimos las tarjetas de resumen)
+  if(seleccionados.length>0 && seleccionados.length<=2){
+    seleccionados.forEach((nombre,i)=>{
+      const cfgSector = state.sectores.find(s=>s.nombre===nombre);
+      const umbral = cfgSector ? cfgSector.umbralPulmonBajo : state.umbralPulmonBajoDefault;
+      datasets.push({
+        label: `Umbral ${nombre} (${fmt(umbral)} m²)`,
+        data: fechas.map(()=>umbral),
+        borderColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+        borderWidth: 1.3,
+        borderDash: [6,4],
+        pointRadius: 0,
+        fill: false,
+        order: 2
+      });
+    });
+  }
+
+  if(chartPulmonInstance) chartPulmonInstance.destroy();
+  chartPulmonInstance = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{ labels: fechas, datasets },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{color:'#e8e9ea', font:{size:11}, boxWidth:12} },
+        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.y)} m²` } }
+      },
+      scales:{
+        x:{ ticks:{color:'#8d9199', font:{size:10}}, grid:{color:'#2c3038'} },
+        y:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, title:{display:true,text:'m² de pulmón pendiente',color:'#8d9199'} }
+      }
+    }
+  });
+
+  const hint = document.getElementById('pulmonUmbralHint');
+  if(hint){
+    hint.textContent = seleccionados.length>2
+      ? 'Con más de 2 sectores seleccionados, la línea de umbral se oculta del gráfico para no saturarlo — el detalle queda en las tarjetas debajo.'
+      : '';
+  }
+}
+
+function renderResumenAlertasPulmon(){
+  const fechas = obtenerSerieFechasPulmon();
+  const cont = document.getElementById('pulmonAlertasResumen');
+  const seleccionados = [...sectoresPulmonSeleccionados];
+
+  if(seleccionados.length===0){
+    cont.innerHTML = `<div class="hint">Elegí al menos un sector para ver su resumen.</div>`;
+    return;
+  }
+
+  const tarjetas = seleccionados.map(nombre=>{
+    const cfgSector = state.sectores.find(s=>s.nombre===nombre);
+    const umbral = cfgSector ? cfgSector.umbralPulmonBajo : state.umbralPulmonBajoDefault;
+    const valores = fechas.map(f=>state.pulmones[f] ? state.pulmones[f][nombre] : undefined).filter(v=>v!==undefined);
+    const diasBajo = valores.filter(v=>v<umbral).length;
+    const promedio = valores.length ? round1(valores.reduce((a,v)=>a+v,0)/valores.length) : null;
+    const minimo = valores.length ? round1(Math.min(...valores)) : null;
+    const sinDatos = valores.length===0;
+    const colorEstado = sinDatos ? 'var(--ink-faint)' : (diasBajo>0 ? 'var(--red)' : 'var(--green)');
+    return `
+      <div style="background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:12px 14px;">
+        <div style="font-size:12px;color:var(--ink-dim);margin-bottom:4px;">${esc(nombre)}</div>
+        <div style="font-size:18px;font-weight:600;color:${colorEstado};">${sinDatos ? 'sin datos' : `${diasBajo} de ${valores.length} día(s) bajo umbral`}</div>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:4px;">${sinDatos ? `umbral ${fmt(umbral)} m²` : `promedio ${fmt(promedio)} m² · mínimo ${fmt(minimo)} m² · umbral ${fmt(umbral)} m²`}</div>
+      </div>
+    `;
+  }).join('');
+
+  cont.innerHTML = `
+    <div class="hint" style="margin-bottom:10px;">Resumen del período registrado (${fechas.length} día${fechas.length===1?'':'s'}):</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">${tarjetas}</div>
+  `;
+}
+
+document.getElementById('btnExportJSON').addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state.dias, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `cierre_sectores_${todayISO()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('btnAgregarDiaAnterior').addEventListener('click', ()=>{
+  const inp = document.getElementById('inputFechaAnterior');
+  inp.value = todayISO();
+  inp.max = todayISO();
+  document.getElementById('modalFecha').classList.add('show');
+});
+
+document.getElementById('btnFechaCancel').addEventListener('click', ()=>{
+  document.getElementById('modalFecha').classList.remove('show');
+});
+
+document.getElementById('btnFechaContinuar').addEventListener('click', ()=>{
+  const fecha = document.getElementById('inputFechaAnterior').value;
+  if(!fecha){ toast('Elegí una fecha', true); return; }
+  if(state.dias[fecha] && !confirm(`Ya existe un día confirmado para ${fecha}. ¿Querés sobreescribirlo?`)){
+    return;
+  }
+  iniciarCargaFecha(fecha);
+  document.getElementById('pasteInicio').value='';
+  document.getElementById('pasteFin').value='';
+  document.getElementById('modalFecha').classList.remove('show');
+  // ir a la vista Hoy
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelector('.tab-btn[data-view="hoy"]').classList.add('active');
+  document.getElementById('view-hoy').classList.add('active');
+  renderHoy();
+  toast(`Cargando datos para ${fecha}`);
+});
+
+/* ============================================================
+   VISTA CONFIG
+   ============================================================ */
+function renderConfig(){
+  document.getElementById('cfgObjetivoMin').value = state.objetivoMinDefault;
+  document.getElementById('cfgObjetivoOptimo').value = state.objetivoOptimoDefault;
+  document.getElementById('cfgUmbralPulmon').value = state.umbralPulmonBajoDefault;
+
+  const selFinLinea = document.getElementById('cfgSectorFinLinea');
+  selFinLinea.innerHTML = state.sectores.map(s=>`<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
+  if(state.sectorFinLinea && state.sectores.some(s=>s.nombre===state.sectorFinLinea)){
+    selFinLinea.value = state.sectorFinLinea;
+  }
+
+  const cont = document.getElementById('sectorConfigList');
+  cont.innerHTML='';
+
+  state.sectores.forEach((sector, idx)=>{
+    const div = document.createElement('div');
+    div.className='cfg-sector';
+    div.innerHTML = `
+      <div class="cfg-sector-head">
+        <input type="text" value="${esc(sector.nombre)}" data-idx="${idx}" class="sector-nombre-input">
+        <button class="btn btn-danger btn-sm" data-del-sector="${idx}">Eliminar</button>
+      </div>
+      <div class="row" style="gap:16px;margin-bottom:8px;">
+        <div class="field" style="margin-bottom:0;max-width:160px;">
+          <label>m² mínimo</label>
+          <input type="number" min="0" step="1" value="${sector.objetivoMin}" data-min-idx="${idx}">
+        </div>
+        <div class="field" style="margin-bottom:0;max-width:160px;">
+          <label>m² óptimo</label>
+          <input type="number" min="0" step="1" value="${sector.objetivoOptimo}" data-opt-idx="${idx}">
+        </div>
+        <div class="field" style="margin-bottom:0;max-width:160px;">
+          <label>Pulmón bajo (alerta)</label>
+          <input type="number" min="0" step="1" value="${sector.umbralPulmonBajo}" data-umbral-idx="${idx}">
+        </div>
+      </div>
+      <div class="causa-grupos" data-idx="${idx}"></div>
+    `;
+    cont.appendChild(div);
+
+    const grupoCont = div.querySelector('.causa-grupos');
+    Object.keys(sector.causas).forEach(grupo=>{
+      const g = document.createElement('div');
+      g.innerHTML = `<div class="causa-group-label">${esc(grupo)}</div>`;
+      const list = document.createElement('div');
+      list.className='causa-edit-list';
+      sector.causas[grupo].forEach((causa, cIdx)=>{
+        const item = document.createElement('span');
+        item.className='causa-edit-item';
+        item.innerHTML = `${esc(causa)} <button data-del-causa="${idx}|${grupo}|${cIdx}">×</button>`;
+        list.appendChild(item);
+      });
+      g.appendChild(list);
+      const addRow = document.createElement('div');
+      addRow.className='add-causa-row';
+      addRow.innerHTML = `<input type="text" placeholder="Agregar causa de ${esc(grupo)}..." data-add-causa="${idx}|${grupo}">`;
+      g.appendChild(addRow);
+      grupoCont.appendChild(g);
+    });
+  });
+
+  // listeners: cambiar nombre
+  cont.querySelectorAll('.sector-nombre-input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = parseInt(inp.dataset.idx);
+      state.sectores[idx].nombre = inp.value.trim();
+      saveState();
+      toast('Sector actualizado');
+    });
+  });
+
+  // listeners: cambiar objetivo mínimo por sector
+  cont.querySelectorAll('[data-min-idx]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = parseInt(inp.dataset.minIdx);
+      const val = parseFloat(inp.value);
+      if(isNaN(val) || val<0){ toast('Valor inválido', true); return; }
+      state.sectores[idx].objetivoMin = val;
+      saveState();
+      toast(`Mínimo de ${state.sectores[idx].nombre} actualizado`);
+    });
+  });
+
+  // listeners: cambiar objetivo óptimo por sector
+  cont.querySelectorAll('[data-opt-idx]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = parseInt(inp.dataset.optIdx);
+      const val = parseFloat(inp.value);
+      if(isNaN(val) || val<0){ toast('Valor inválido', true); return; }
+      state.sectores[idx].objetivoOptimo = val;
+      saveState();
+      toast(`Óptimo de ${state.sectores[idx].nombre} actualizado`);
+    });
+  });
+
+  // listener: cambiar umbral de pulmón bajo por sector
+  cont.querySelectorAll('[data-umbral-idx]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = parseInt(inp.dataset.umbralIdx);
+      const val = parseFloat(inp.value);
+      if(isNaN(val) || val<0){ toast('Valor inválido', true); return; }
+      state.sectores[idx].umbralPulmonBajo = val;
+      saveState();
+      toast(`Umbral de pulmón de ${state.sectores[idx].nombre} actualizado`);
+      if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+    });
+  });
+
+  // eliminar sector
+  cont.querySelectorAll('[data-del-sector]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.delSector);
+      if(confirm(`¿Eliminar el sector "${state.sectores[idx].nombre}"? No afecta días ya confirmados.`)){
+        state.sectores.splice(idx,1);
+        saveState();
+        renderConfig();
+        toast('Sector eliminado');
+      }
+    });
+  });
+
+  // eliminar causa
+  cont.querySelectorAll('[data-del-causa]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [idx, grupo, cIdx] = btn.dataset.delCausa.split('|');
+      state.sectores[parseInt(idx)].causas[grupo].splice(parseInt(cIdx),1);
+      saveState();
+      renderConfig();
+    });
+  });
+
+  // agregar causa
+  cont.querySelectorAll('[data-add-causa]').forEach(inp=>{
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='Enter' && inp.value.trim()){
+        const [idx, grupo] = inp.dataset.addCausa.split('|');
+        state.sectores[parseInt(idx)].causas[grupo].push(inp.value.trim());
+        saveState();
+        renderConfig();
+        toast('Causa agregada');
+      }
+    });
+  });
+
+  renderUsuariosConfig();
+}
+
+function renderUsuariosConfig(){
+  const cont = document.getElementById('usuariosConfigList');
+  if(!cont) return;
+  const lideres = (state.usuarios && state.usuarios.lideres) || [];
+  const nombresSectores = state.sectores.map(s=>s.nombre);
+
+  cont.innerHTML = lideres.map((l,idx)=>`
+    <div class="cfg-sector" style="display:flex;align-items:center;gap:12px;">
+      <input type="text" value="${esc(l.nombre)}" data-lider-nombre="${idx}" style="flex:1;background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:6px 8px;font-size:13px;">
+      <select data-lider-sector="${idx}" style="background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:6px 8px;font-size:13px;">
+        ${nombresSectores.map(n=>`<option value="${esc(n)}" ${n===l.sector?'selected':''}>${esc(n)}</option>`).join('')}
+      </select>
+      <button class="btn btn-danger btn-sm" data-del-lider="${idx}">Eliminar</button>
+    </div>
+  `).join('') + `<button class="btn btn-ghost btn-sm" id="btnAddLider" style="margin-top:8px;">+ Agregar líder</button>`;
+
+  cont.querySelectorAll('[data-lider-nombre]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const idx = parseInt(inp.dataset.liderNombre);
+      state.usuarios.lideres[idx].nombre = inp.value.trim();
+      saveState();
+      toast('Nombre actualizado');
+    });
+  });
+  cont.querySelectorAll('[data-lider-sector]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const idx = parseInt(sel.dataset.liderSector);
+      state.usuarios.lideres[idx].sector = sel.value;
+      saveState();
+      toast('Sector asignado actualizado');
+    });
+  });
+  cont.querySelectorAll('[data-del-lider]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.delLider);
+      if(confirm(`¿Eliminar a ${state.usuarios.lideres[idx].nombre}?`)){
+        state.usuarios.lideres.splice(idx,1);
+        saveState();
+        renderUsuariosConfig();
+        toast('Líder eliminado');
+      }
+    });
+  });
+  const btnAddLider = document.getElementById('btnAddLider');
+  if(btnAddLider){
+    btnAddLider.addEventListener('click', ()=>{
+      const nombre = prompt('Nombre del líder:');
+      if(!nombre || !nombre.trim()) return;
+      const nuevoId = 'u' + Date.now();
+      state.usuarios.lideres.push({id:nuevoId, nombre:nombre.trim(), sector: nombresSectores[0]||''});
+      saveState();
+      renderUsuariosConfig();
+      toast('Líder agregado');
+    });
+  }
+}
+
+document.getElementById('btnCambiarPasswordAdmin').addEventListener('click', async ()=>{
+  const actual = prompt('Ingresá tu contraseña actual:');
+  if(!actual) return;
+  const hashActual = await sha256Hex(actual);
+  if(hashActual !== state.usuarios.adminPassHash){
+    toast('Contraseña actual incorrecta', true);
+    return;
+  }
+  const nueva = prompt('Nueva contraseña:');
+  if(!nueva || nueva.length<4){ toast('La nueva contraseña debe tener al menos 4 caracteres', true); return; }
+  const confirmar = prompt('Repetí la nueva contraseña:');
+  if(nueva !== confirmar){ toast('Las contraseñas no coinciden', true); return; }
+  state.usuarios.adminPassHash = await sha256Hex(nueva);
+  saveState();
+  toast('Contraseña actualizada');
+});
+
+document.getElementById('btnAddSector').addEventListener('click', ()=>{
+  const nombre = prompt('Nombre exacto del sector (igual a como aparece en G_PRO, ej: "9-NUEVO"):');
+  if(!nombre || !nombre.trim()) return;
+  state.sectores.push({
+    nombre: nombre.trim(),
+    objetivoMin: state.objetivoMinDefault,
+    objetivoOptimo: state.objetivoOptimoDefault,
+    umbralPulmonBajo: state.umbralPulmonBajoDefault,
+    causas: structuredClone(DEFAULT_CAUSAS)
+  });
+  saveState();
+  renderConfig();
+  toast('Sector agregado');
+});
+
+document.getElementById('btnGuardarObjetivo').addEventListener('click', ()=>{
+  const valMin = parseFloat(document.getElementById('cfgObjetivoMin').value);
+  const valOpt = parseFloat(document.getElementById('cfgObjetivoOptimo').value);
+  const valUmbral = parseFloat(document.getElementById('cfgUmbralPulmon').value);
+  if(isNaN(valMin) || valMin<0 || isNaN(valOpt) || valOpt<0 || isNaN(valUmbral) || valUmbral<0){ toast('Ingresá valores válidos', true); return; }
+  if(valOpt < valMin){ toast('El óptimo no puede ser menor que el mínimo', true); return; }
+  state.objetivoMinDefault = valMin;
+  state.objetivoOptimoDefault = valOpt;
+  state.umbralPulmonBajoDefault = valUmbral;
+  saveState();
+  toast('Valores por defecto guardados (se aplican a sectores nuevos)');
+  renderHoy();
+});
+
+document.getElementById('btnGuardarFinLinea').addEventListener('click', ()=>{
+  const val = document.getElementById('cfgSectorFinLinea').value;
+  if(!val){ toast('Elegí un sector', true); return; }
+  state.sectorFinLinea = val;
+  saveState();
+  toast(`Fin de Línea fijado en ${val}`);
+  renderHoy();
+  if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+});
+
+document.getElementById('btnResetAll').addEventListener('click', ()=>{
+  if(confirm('¿Seguro? Esto borra TODO: historial, configuración y cargas. No se puede deshacer.')){
+    localStorage.removeItem(LS_KEY);
+    state = defaultState();
+    saveState();
+    renderHoy();
+    renderConfig();
+    renderHistorial();
+    toast('Datos borrados');
+  }
+});
+
+/* ============================================================
+   REPORTES PDF
+   ============================================================ */
+const PDF_COLORS = {
+  bgDark: [11,12,14],
+  amber: [232,163,61],
+  ink: [232,233,234],
+  inkDim: [140,144,151],
+  green: [76,175,110],
+  red: [232,88,77],
+  blue: [91,159,216],
+  panelBg: [26,29,34]
+};
+
+function pdfEstadoColor(estado){
+  if(estado==='bajo') return PDF_COLORS.red;
+  if(estado==='optimo') return PDF_COLORS.blue;
+  return PDF_COLORS.green;
+}
+
+function dibujarHeaderPdf(doc, W, subtitulo, periodo){
+  doc.setFillColor(...PDF_COLORS.bgDark);
+  doc.rect(0,0,W,46,'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(8);
+  doc.setTextColor(...PDF_COLORS.amber);
+  doc.text('LFDA · PRODUCCIÓN', 14, 12);
+  doc.setFontSize(19);
+  doc.setTextColor(255,255,255);
+  doc.text('Cierre de m² por Sector', 14, 26);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(9);
+  doc.setTextColor(...PDF_COLORS.inkDim);
+  doc.text(subtitulo, 14, 36);
+  doc.text(`Período: ${periodo}  ·  Generado: ${new Date().toLocaleDateString('es-AR')} ${new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})}`, 14, 43);
+  doc.setDrawColor(...PDF_COLORS.amber);
+  doc.setLineWidth(0.8);
+  doc.line(0,46,W,46);
+}
+
+function dibujarKpiCard(doc, x, y, w, h, label, valor, color){
+  doc.setFillColor(...PDF_COLORS.panelBg);
+  doc.roundedRect(x,y,w,h,2,2,'F');
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7);
+  doc.setTextColor(...PDF_COLORS.inkDim);
+  doc.text(label.toUpperCase(), x+5, y+8);
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(15);
+  doc.setTextColor(...color);
+  doc.text(String(valor), x+5, y+19);
+}
+
+function dibujarFooterPdf(doc, W, H, pag, totalPag){
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...PDF_COLORS.inkDim);
+  doc.text('LFDA · La Fábrica de Aberturas — Cierre Diario por Sector', 14, H-8);
+  doc.text(`Página ${pag} de ${totalPag}`, W-14, H-8, {align:'right'});
+}
+
+/* ---------- PDF de un día puntual ---------- */
+function generarPdfDia(fecha, sectoresObj){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+
+  const sectores = Object.entries(sectoresObj);
+  const finLineaSec = sectoresObj[state.sectorFinLinea];
+  const m2FinLinea = finLineaSec ? round1(finLineaSec.cerrado) : null;
+  const cumplieron = sectores.filter(([,s])=>s.cerrado>=s.objetivoMin).length;
+  const optimos = sectores.filter(([,s])=>s.cerrado>=s.objetivoOptimo).length;
+  const bajos = sectores.filter(([,s])=>s.cerrado<s.objetivoMin);
+
+  dibujarHeaderPdf(doc, W, 'Detalle de un día de producción', fecha);
+  let y = 54;
+
+  if(bajos.length>0){
+    doc.setFillColor(...PDF_COLORS.red);
+    doc.roundedRect(14,y,W-28,13,2,2,'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255,255,255);
+    doc.text(`ALERTA: ${bajos.length} de ${sectores.length} sectores no alcanzaron el objetivo mínimo`, 18, y+8.5);
+    y += 19;
+  } else {
+    doc.setFillColor(...PDF_COLORS.green);
+    doc.roundedRect(14,y,W-28,13,2,2,'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(255,255,255);
+    doc.text(`Todos los sectores alcanzaron el objetivo mínimo`, 18, y+8.5);
+    y += 19;
+  }
+
+  const kpiW = (W-28-3*6)/4;
+  dibujarKpiCard(doc, 14, y, kpiW, 24, `m² cerrados (${state.sectorFinLinea||'Fin Línea'})`, m2FinLinea!==null?fmt(m2FinLinea):'—', PDF_COLORS.amber);
+  dibujarKpiCard(doc, 14+kpiW+6, y, kpiW, 24, 'En mínimo', `${cumplieron}/${sectores.length}`, PDF_COLORS.green);
+  dibujarKpiCard(doc, 14+(kpiW+6)*2, y, kpiW, 24, 'En óptimo', `${optimos}/${sectores.length}`, PDF_COLORS.blue);
+  dibujarKpiCard(doc, 14+(kpiW+6)*3, y, kpiW, 24, 'Bajo mínimo', `${bajos.length}`, PDF_COLORS.red);
+  y += 32;
+
+  // tabla de sectores
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.setTextColor(20,20,20);
+  doc.text('Detalle por sector', 14, y);
+  y += 6;
+
+  const rows = sectores.map(([nombre,s])=>{
+    const estado = estadoLogro(s.cerrado, s.objetivoMin, s.objetivoOptimo);
+    const pct = s.objetivoMin>0 ? Math.round((s.cerrado/s.objetivoMin)*100) : 0;
+    const pulmonDia = (state.pulmones[fecha] && state.pulmones[fecha][nombre]!==undefined) ? state.pulmones[fecha][nombre] : s.pulmon;
+    const cfgSector = state.sectores.find(sc=>sc.nombre===nombre);
+    const umbral = cfgSector ? cfgSector.umbralPulmonBajo : state.umbralPulmonBajoDefault;
+    const pulmonBajo = pulmonDia!==undefined && pulmonDia < umbral;
+    return [nombre, fmt(s.cerrado)+' m²', `${fmt(s.objetivoMin)} / ${fmt(s.objetivoOptimo)}`, pct+'%', estado, pulmonDia, pulmonBajo];
+  });
+
+  doc.autoTable({
+    startY: y,
+    head: [['Sector','m² cerrados','Mín / Ópt','% objetivo','Estado','Pulmón inicio turno']],
+    body: rows.map(r=>[r[0],r[1],r[2],r[3], r[4]==='bajo'?'Bajo mínimo':(r[4]==='optimo'?'Óptimo':'Cumple'), r[5]!==undefined ? fmt(r[5])+' m²'+(r[6]?' (BAJO)':'') : '—']),
+    theme: 'plain',
+    styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+    headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
+    didParseCell: function(data){
+      if(data.section==='body' && data.column.index===4){
+        const estado = rows[data.row.index][4];
+        const c = pdfEstadoColor(estado);
+        data.cell.styles.textColor = c;
+        data.cell.styles.fontStyle = 'bold';
+      }
+      if(data.section==='body' && data.column.index===5){
+        if(rows[data.row.index][6]){
+          data.cell.styles.textColor = PDF_COLORS.red;
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    },
+    margin:{left:14, right:14}
+  });
+
+  y = doc.lastAutoTable.finalY + 12;
+
+  // desglose de causas (5M) por sector bajo mínimo
+  if(bajos.length>0){
+    if(y > H-50){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(20,20,20);
+    doc.text('Causas declaradas (5M)', 14, y);
+    y += 4;
+
+    const causaRows = [];
+    bajos.forEach(([nombre,s])=>{
+      (s.motivoCausa||[]).forEach(c=>{
+        causaRows.push([nombre, c.causa, c.detalle||'—', fmt(c.m2||0)+' m²']);
+      });
+      if(!(s.motivoCausa||[]).length){
+        causaRows.push([nombre, 'Sin declarar', '—', '—']);
+      }
+    });
+
+    doc.autoTable({
+      startY: y+2,
+      head: [['Sector','Causa','Detalle','m² que explica']],
+      body: causaRows,
+      theme: 'plain',
+      styles:{ fontSize:8.5, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+      headStyles:{ fillColor:[232,163,61], textColor:[20,20,20], fontStyle:'bold' },
+      columnStyles:{ 2:{cellWidth:75} },
+      margin:{left:14, right:14}
+    });
+  }
+
+  const totalPag = doc.internal.getNumberOfPages();
+  for(let p=1;p<=totalPag;p++){
+    doc.setPage(p);
+    dibujarFooterPdf(doc, W, H, p, totalPag);
+  }
+
+  doc.save(`LFDA_Cierre_${fecha}.pdf`);
+}
+
+/* ---------- PDF de rango de fechas (consolidado) ---------- */
+function generarPdfRango(desde, hasta){
+  const fechas = Object.keys(state.dias).filter(f=>f>=desde && f<=hasta).sort();
+  if(fechas.length===0){ toast('No hay días confirmados en ese rango', true); return; }
+
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+
+  // acumular datos
+  const porSector = {}; // { nombre: {m2total, dias, cumplidos, optimos} }
+  const porCausa = {};  // { causa: m2total }
+  let totalM2FinLinea = 0;
+  let diasConFinLinea = 0;
+  let totalSectorDias = 0;
+  let totalCumplidos = 0;
+  let totalOptimos = 0;
+
+  fechas.forEach(f=>{
+    Object.entries(state.dias[f].sectores).forEach(([nombre,s])=>{
+      if(!esAdmin() && nombre !== sectorDelLider()) return;
+      if(!porSector[nombre]) porSector[nombre] = {m2total:0, dias:0, cumplidos:0, optimos:0};
+      porSector[nombre].m2total += s.cerrado;
+      porSector[nombre].dias += 1;
+      const estado = estadoLogro(s.cerrado, s.objetivoMin, s.objetivoOptimo);
+      if(estado!=='bajo'){ porSector[nombre].cumplidos += 1; totalCumplidos++; }
+      if(estado==='optimo'){ porSector[nombre].optimos += 1; totalOptimos++; }
+      if(nombre === state.sectorFinLinea){ totalM2FinLinea += s.cerrado; diasConFinLinea++; }
+      totalSectorDias += 1;
+      (s.motivoCausa||[]).forEach(c=>{
+        porCausa[c.causa] = (porCausa[c.causa]||0) + (c.m2||0);
+      });
+    });
+  });
+
+  const periodoTxt = fechas.length===1 ? fechas[0] : `${fechas[0]} al ${fechas[fechas.length-1]} (${fechas.length} días)`;
+  dibujarHeaderPdf(doc, W, 'Informe consolidado de producción', periodoTxt);
+  let y = 54;
+
+  const pctCumplimiento = totalSectorDias>0 ? Math.round((totalCumplidos/totalSectorDias)*100) : 0;
+  doc.setFillColor(pctCumplimiento>=80 ? PDF_COLORS.green[0] : PDF_COLORS.amber[0], pctCumplimiento>=80 ? PDF_COLORS.green[1] : PDF_COLORS.amber[1], pctCumplimiento>=80 ? PDF_COLORS.green[2] : PDF_COLORS.amber[2]);
+  doc.roundedRect(14,y,W-28,13,2,2,'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(10);
+  doc.setTextColor(255,255,255);
+  doc.text(`${pctCumplimiento}% de cumplimiento del objetivo mínimo en el período (${totalCumplidos}/${totalSectorDias} sector-días)`, 18, y+8.5);
+  y += 19;
+
+  const kpiW = (W-28-3*6)/4;
+  dibujarKpiCard(doc, 14, y, kpiW, 24, `m² (${state.sectorFinLinea||'Fin Línea'})`, diasConFinLinea?fmt(round1(totalM2FinLinea)):'—', PDF_COLORS.amber);
+  dibujarKpiCard(doc, 14+kpiW+6, y, kpiW, 24, 'Días incluidos', String(fechas.length), PDF_COLORS.ink);
+  dibujarKpiCard(doc, 14+(kpiW+6)*2, y, kpiW, 24, 'Sector-días óptimo', `${totalOptimos}/${totalSectorDias}`, PDF_COLORS.blue);
+  dibujarKpiCard(doc, 14+(kpiW+6)*3, y, kpiW, 24, '% cumplimiento', `${pctCumplimiento}%`, pctCumplimiento>=80?PDF_COLORS.green:PDF_COLORS.red);
+  y += 32;
+
+  // tabla resumen por sector
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(11);
+  doc.setTextColor(20,20,20);
+  doc.text('Resumen por sector', 14, y);
+  y += 6;
+
+  const sectorRows = Object.entries(porSector).sort((a,b)=>b[1].m2total-a[1].m2total).map(([nombre,d])=>{
+    const pct = d.dias>0 ? Math.round((d.cumplidos/d.dias)*100) : 0;
+    return [nombre, fmt(round1(d.m2total))+' m²', `${d.cumplidos}/${d.dias}`, `${d.optimos}/${d.dias}`, pct+'%'];
+  });
+
+  doc.autoTable({
+    startY: y,
+    head: [['Sector','m² totales','Días en mínimo','Días óptimo','% cumplimiento']],
+    body: sectorRows,
+    theme: 'plain',
+    styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+    headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
+    margin:{left:14, right:14}
+  });
+
+  y = doc.lastAutoTable.finalY + 12;
+
+  // gráfico de Pareto de causas (renderizado a canvas oculto y convertido a imagen)
+  const entradasCausas = Object.entries(porCausa).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(entradasCausas.length>0){
+    if(y > H-90){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(20,20,20);
+    doc.text('Causas más frecuentes del período', 14, y);
+    y += 4;
+
+    const canvasTmp = document.createElement('canvas');
+    canvasTmp.width = 900; canvasTmp.height = 420;
+    const chartTmp = new Chart(canvasTmp.getContext('2d'), {
+      type:'bar',
+      data:{
+        labels: entradasCausas.map(e=>e[0]),
+        datasets:[{ data: entradasCausas.map(e=>round1(e[1])), backgroundColor:'#e8a33d', borderRadius:4 }]
+      },
+      options:{
+        indexAxis:'y',
+        responsive:false,
+        animation:false,
+        plugins:{ legend:{display:false} },
+        scales:{
+          x:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true },
+          y:{ ticks:{color:'#222',font:{size:13}}, grid:{display:false} }
+        }
+      }
+    });
+    // esperar al render del canvas antes de capturar imagen
+    const imgData = canvasTmp.toDataURL('image/png');
+    chartTmp.destroy();
+    const imgW = W-28;
+    const imgH = imgW * (420/900);
+    doc.addImage(imgData, 'PNG', 14, y+2, imgW, imgH);
+    y += imgH + 12;
+
+    if(y > H-50){ doc.addPage(); y = 20; }
+    const causaRows = entradasCausas.map(([causa,m2])=>[causa, fmt(round1(m2))+' m²']);
+    doc.autoTable({
+      startY: y,
+      head: [['Causa','m² explicados (período)']],
+      body: causaRows,
+      theme:'plain',
+      styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+      headStyles:{ fillColor:[232,163,61], textColor:[20,20,20], fontStyle:'bold' },
+      margin:{left:14, right:14}
+    });
+    y = doc.lastAutoTable.finalY + 12;
+  }
+
+  // evolución del pulmón en el período (evidencia objetiva de carga de trabajo disponible)
+  const fechasPulmonRango = Object.keys(state.pulmones||{}).filter(f=>f>=desde && f<=hasta).sort();
+  if(fechasPulmonRango.length>0){
+    doc.addPage();
+    y = 20;
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(13);
+    doc.setTextColor(20,20,20);
+    doc.text('Evolución del pulmón (carga de trabajo pendiente)', 14, y);
+    y += 5;
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(9);
+    doc.setTextColor(...PDF_COLORS.inkDim);
+    doc.text('Pulmón pendiente registrado al inicio de cada turno, por sector. Permite verificar objetivamente si hubo o no carga de trabajo disponible.', 14, y);
+    y += 10;
+
+    const nombresSectores = state.sectores.map(s=>s.nombre).filter(n=>
+      fechasPulmonRango.some(f=>state.pulmones[f][n]!==undefined)
+    );
+
+    const canvasPulmonTmp = document.createElement('canvas');
+    canvasPulmonTmp.width = 900; canvasPulmonTmp.height = 460;
+    const datasetsTmp = nombresSectores.map((nombre,i)=>({
+      label: nombre,
+      data: fechasPulmonRango.map(f=> state.pulmones[f][nombre]===undefined ? null : state.pulmones[f][nombre]),
+      borderColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+      backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+      tension:0.25, spanGaps:true, pointRadius:3, borderWidth:2
+    }));
+    const chartPulmonTmp = new Chart(canvasPulmonTmp.getContext('2d'), {
+      type:'line',
+      data:{ labels: fechasPulmonRango, datasets: datasetsTmp },
+      options:{
+        responsive:false, animation:false,
+        plugins:{ legend:{labels:{color:'#222',font:{size:12}}} },
+        scales:{
+          x:{ ticks:{color:'#333',font:{size:10}}, grid:{color:'#ddd'} },
+          y:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true }
+        }
+      }
+    });
+    const imgPulmonData = canvasPulmonTmp.toDataURL('image/png');
+    chartPulmonTmp.destroy();
+    const imgPW = W-28;
+    const imgPH = imgPW * (460/900);
+    doc.addImage(imgPulmonData, 'PNG', 14, y, imgPW, imgPH);
+    y += imgPH + 12;
+
+    // tabla resumen: días bajo umbral por sector
+    const filasUmbral = nombresSectores.map(nombre=>{
+      const cfgSector = state.sectores.find(s=>s.nombre===nombre);
+      const umbral = cfgSector ? cfgSector.umbralPulmonBajo : state.umbralPulmonBajoDefault;
+      const valores = fechasPulmonRango.map(f=>state.pulmones[f][nombre]).filter(v=>v!==undefined);
+      const diasBajo = valores.filter(v=>v<umbral).length;
+      const promedio = valores.length ? round1(valores.reduce((a,v)=>a+v,0)/valores.length) : 0;
+      const minimo = valores.length ? round1(Math.min(...valores)) : 0;
+      return [nombre, fmt(umbral)+' m²', fmt(promedio)+' m²', fmt(minimo)+' m²', String(diasBajo)];
+    });
+
+    if(y > H-50){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(20,20,20);
+    doc.text('Resumen de pulmón por sector', 14, y);
+    y += 4;
+    doc.autoTable({
+      startY: y+2,
+      head: [['Sector','Umbral configurado','Pulmón promedio','Pulmón mínimo','Días bajo umbral']],
+      body: filasUmbral,
+      theme:'plain',
+      styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+      headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
+      didParseCell: function(data){
+        if(data.section==='body' && data.column.index===4){
+          const diasBajo = parseInt(data.cell.raw);
+          if(diasBajo>0){ data.cell.styles.textColor = PDF_COLORS.red; data.cell.styles.fontStyle='bold'; }
+        }
+      },
+      margin:{left:14, right:14}
+    });
+  }
+
+  const totalPag = doc.internal.getNumberOfPages();
+  for(let p=1;p<=totalPag;p++){
+    doc.setPage(p);
+    dibujarFooterPdf(doc, W, H, p, totalPag);
+  }
+
+  doc.save(`LFDA_Informe_${desde}_a_${hasta}.pdf`);
+}
+
+document.getElementById('btnPdfRango').addEventListener('click', ()=>{
+  const hoy = todayISO();
+  document.getElementById('inputRangoHasta').value = hoy;
+  document.getElementById('inputRangoHasta').max = hoy;
+  document.getElementById('inputRangoDesde').max = hoy;
+  // default: últimos 7 días
+  const hace7 = new Date();
+  hace7.setDate(hace7.getDate()-7);
+  document.getElementById('inputRangoDesde').value = hace7.toISOString().slice(0,10);
+  document.getElementById('modalRangoPdf').classList.add('show');
+});
+
+document.getElementById('btnRangoCancel').addEventListener('click', ()=>{
+  document.getElementById('modalRangoPdf').classList.remove('show');
+});
+
+document.getElementById('btnRangoGenerar').addEventListener('click', ()=>{
+  const desde = document.getElementById('inputRangoDesde').value;
+  const hasta = document.getElementById('inputRangoHasta').value;
+  if(!desde || !hasta){ toast('Elegí ambas fechas', true); return; }
+  if(desde > hasta){ toast('La fecha "desde" no puede ser posterior a "hasta"', true); return; }
+  generarPdfRango(desde, hasta);
+  document.getElementById('modalRangoPdf').classList.remove('show');
+});
+
+/* ============================================================
+   INIT
+   ============================================================ */
+function structuredClone_polyfill(obj){ return JSON.parse(JSON.stringify(obj)); }
+if(typeof structuredClone === 'undefined'){ window.structuredClone = structuredClone_polyfill; }
+
+chequearSesionAlCargar();
+</script>
+</body>
+</html>
