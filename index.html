@@ -1572,30 +1572,28 @@ function renderGraficoCausas(){
   poblarFiltroSectorCausas();
   const filtroSector = document.getElementById('filtroSectorCausas').value;
 
-  // acumular m² por causa en todo el historial confirmado (o filtrado por sector)
-  const acumPorCausa = {}; // { 'Rotura / falla mecánica': m2total }
-  Object.values(state.dias).forEach(dia=>{
-    Object.entries(dia.sectores).forEach(([nombreSector, s])=>{
-      if(filtroSector && nombreSector !== filtroSector) return;
-      (s.motivoCausa||[]).forEach(c=>{
-        acumPorCausa[c.causa] = (acumPorCausa[c.causa]||0) + (c.m2||0);
-      });
+  // acumular m² por causa, discriminado por sector: { causa: { sector: m2 } }
+  const acumPorCausa = {};
+  function acumular(nombreSector, s){
+    if(filtroSector && nombreSector !== filtroSector) return;
+    (s.motivoCausa||[]).forEach(c=>{
+      if(!acumPorCausa[c.causa]) acumPorCausa[c.causa] = {};
+      acumPorCausa[c.causa][nombreSector] = (acumPorCausa[c.causa][nombreSector]||0) + (c.m2||0);
     });
+  }
+  Object.values(state.dias).forEach(dia=>{
+    Object.entries(dia.sectores).forEach(([nombreSector, s])=>acumular(nombreSector, s));
   });
-
   // + causas del día de hoy en curso, si todavía no fue confirmado (no duplicar si ya está en state.dias)
   const hoyEnCurso = state.actual.resultado;
   const hoyYaConfirmado = state.actual.fecha && !!state.dias[state.actual.fecha];
   if(hoyEnCurso && !hoyYaConfirmado){
-    Object.entries(hoyEnCurso).forEach(([nombreSector, s])=>{
-      if(filtroSector && nombreSector !== filtroSector) return;
-      (s.motivoCausa||[]).forEach(c=>{
-        acumPorCausa[c.causa] = (acumPorCausa[c.causa]||0) + (c.m2||0);
-      });
-    });
+    Object.entries(hoyEnCurso).forEach(([nombreSector, s])=>acumular(nombreSector, s));
   }
 
-  const entradas = Object.entries(acumPorCausa).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const totalPorCausa = Object.entries(acumPorCausa).map(([causa,porSector])=>[causa, Object.values(porSector).reduce((a,v)=>a+v,0)]);
+  const entradas = totalPorCausa.sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const causasOrdenadas = entradas.map(e=>e[0]);
   const emptyDiv = document.getElementById('causasFrecuentesEmpty');
   const canvas = document.getElementById('chartCausas');
 
@@ -1608,30 +1606,37 @@ function renderGraficoCausas(){
   emptyDiv.style.display='none';
   canvas.style.display='';
 
-  const labels = entradas.map(e=>e[0]);
-  const valores = entradas.map(e=>round1(e[1]));
+  // si hay un sector filtrado, una sola serie simple; si son "todos", barras apiladas por sector
+  let datasets;
+  if(filtroSector){
+    datasets = [{
+      label: filtroSector,
+      data: causasOrdenadas.map(c=>round1(acumPorCausa[c][filtroSector]||0)),
+      backgroundColor: '#e8a33d',
+      borderRadius: 4,
+      barThickness: 18
+    }];
+  } else {
+    const sectoresPresentes = [...new Set(causasOrdenadas.flatMap(c=>Object.keys(acumPorCausa[c])))].sort();
+    datasets = sectoresPresentes.map((nombreSector,i)=>({
+      label: nombreSector,
+      data: causasOrdenadas.map(c=>round1(acumPorCausa[c][nombreSector]||0)),
+      backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length]
+    }));
+  }
 
   if(chartCausasInstance) chartCausasInstance.destroy();
   chartCausasInstance = new Chart(canvas.getContext('2d'), {
     type:'bar',
-    data:{
-      labels,
-      datasets:[{
-        label:'m² perdidos',
-        data: valores,
-        backgroundColor: '#e8a33d',
-        borderRadius: 4,
-        barThickness: 18
-      }]
-    },
+    data:{ labels: causasOrdenadas, datasets },
     options:{
       indexAxis:'y',
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{ legend:{display:false} },
+      plugins:{ legend:{display: !filtroSector, labels:{color:'#e8e9ea', font:{size:11}}} },
       scales:{
-        x:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, title:{display:true,text:'m² perdidos',color:'#8d9199'} },
-        y:{ ticks:{color:'#e8e9ea',font:{size:11}}, grid:{display:false} }
+        x:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, stacked:!filtroSector, title:{display:true,text:'m² perdidos',color:'#8d9199'} },
+        y:{ ticks:{color:'#e8e9ea',font:{size:11}}, grid:{display:false}, stacked:!filtroSector }
       }
     }
   });
@@ -2318,7 +2323,7 @@ function generarPdfRango(desde, hasta){
 
   // acumular datos
   const porSector = {}; // { nombre: {m2total, dias, cumplidos, optimos} }
-  const porCausa = {};  // { causa: m2total }
+  const porCausa = {};  // { causa: { total, porSector: {nombreSector: m2} } }
   let totalM2FinLinea = 0;
   let diasConFinLinea = 0;
   let totalSectorDias = 0;
@@ -2337,7 +2342,9 @@ function generarPdfRango(desde, hasta){
       if(nombre === state.sectorFinLinea){ totalM2FinLinea += s.cerrado; diasConFinLinea++; }
       totalSectorDias += 1;
       (s.motivoCausa||[]).forEach(c=>{
-        porCausa[c.causa] = (porCausa[c.causa]||0) + (c.m2||0);
+        if(!porCausa[c.causa]) porCausa[c.causa] = {total:0, porSector:{}};
+        porCausa[c.causa].total += (c.m2||0);
+        porCausa[c.causa].porSector[nombre] = (porCausa[c.causa].porSector[nombre]||0) + (c.m2||0);
       });
     });
   });
@@ -2386,51 +2393,70 @@ function generarPdfRango(desde, hasta){
 
   y = doc.lastAutoTable.finalY + 12;
 
-  // gráfico de Pareto de causas (renderizado a canvas oculto y convertido a imagen)
-  const entradasCausas = Object.entries(porCausa).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  // gráfico de Pareto de causas, discriminado por sector (barras apiladas)
+  const entradasCausas = Object.entries(porCausa).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
   if(entradasCausas.length>0){
     if(y > H-90){ doc.addPage(); y = 20; }
     doc.setFont('helvetica','bold');
     doc.setFontSize(11);
     doc.setTextColor(20,20,20);
-    doc.text('Causas más frecuentes del período', 14, y);
+    doc.text('Causas más frecuentes del período, por sector', 14, y);
     y += 4;
 
+    const sectoresEnCausas = [...new Set(entradasCausas.flatMap(([,d])=>Object.keys(d.porSector)))].sort();
+    const coloresSector = ['#e8a33d','#5b9fd8','#4caf6e','#e8584d','#b88ce8','#e8d35b','#5be8c9','#e87fb0'];
+
     const canvasTmp = document.createElement('canvas');
-    canvasTmp.width = 900; canvasTmp.height = 420;
+    canvasTmp.width = 900; canvasTmp.height = 460;
     const chartTmp = new Chart(canvasTmp.getContext('2d'), {
       type:'bar',
       data:{
         labels: entradasCausas.map(e=>e[0]),
-        datasets:[{ data: entradasCausas.map(e=>round1(e[1])), backgroundColor:'#e8a33d', borderRadius:4 }]
+        datasets: sectoresEnCausas.map((nombreSector,i)=>({
+          label: nombreSector,
+          data: entradasCausas.map(([,d])=>round1(d.porSector[nombreSector]||0)),
+          backgroundColor: coloresSector[i % coloresSector.length]
+        }))
       },
       options:{
         indexAxis:'y',
         responsive:false,
         animation:false,
-        plugins:{ legend:{display:false} },
+        plugins:{ legend:{display:true, position:'bottom', labels:{font:{size:11}}} },
         scales:{
-          x:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true },
-          y:{ ticks:{color:'#222',font:{size:13}}, grid:{display:false} }
+          x:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true, stacked:true },
+          y:{ ticks:{color:'#222',font:{size:12}}, grid:{display:false}, stacked:true }
         }
       }
     });
-    // esperar al render del canvas antes de capturar imagen
     const imgData = canvasTmp.toDataURL('image/png');
     chartTmp.destroy();
     const imgW = W-28;
-    const imgH = imgW * (420/900);
+    const imgH = imgW * (460/900);
     doc.addImage(imgData, 'PNG', 14, y+2, imgW, imgH);
     y += imgH + 12;
 
     if(y > H-50){ doc.addPage(); y = 20; }
-    const causaRows = entradasCausas.map(([causa,m2])=>[causa, fmt(round1(m2))+' m²']);
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(20,20,20);
+    doc.text('Detalle: causa por sector', 14, y);
+    y += 4;
+
+    // una fila por combinación causa + sector, para que quede trazable de dónde vino cada m²
+    const causaSectorRows = [];
+    entradasCausas.forEach(([causa, d])=>{
+      Object.entries(d.porSector).sort((a,b)=>b[1]-a[1]).forEach(([sector, m2])=>{
+        causaSectorRows.push([causa, sector, fmt(round1(m2))+' m²']);
+      });
+    });
+
     doc.autoTable({
-      startY: y,
-      head: [['Causa','m² explicados (período)']],
-      body: causaRows,
+      startY: y+2,
+      head: [['Causa','Sector','m² explicados']],
+      body: causaSectorRows,
       theme:'plain',
-      styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+      styles:{ fontSize:8.5, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
       headStyles:{ fillColor:[232,163,61], textColor:[20,20,20], fontStyle:'bold' },
       margin:{left:14, right:14}
     });
