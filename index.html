@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LFDA · Cierre Diario por Sector</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -30,6 +33,24 @@
   --blue:#5b9fd8;
   --mono: 'IBM Plex Mono','SF Mono',Consolas,monospace;
   --sans: -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+body.tema-claro{
+  --bg:#f4f5f6;
+  --bg2:#e8e9eb;
+  --panel:#ffffff;
+  --panel2:#f0f1f3;
+  --line:#dcdee2;
+  --line2:#c5c8cd;
+  --ink:#1a1d22;
+  --ink-dim:#5a5e66;
+  --ink-faint:#8d9199;
+  --amber:#b97316;
+  --amber-dim:#b9731622;
+  --green:#2f8a52;
+  --green-dim:#2f8a521a;
+  --red:#c43d33;
+  --red-dim:#c43d331a;
+  --blue:#2d6fa8;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;}
@@ -226,7 +247,10 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <span class="sub">m² objetivo vs. real · G_PRO</span>
     </div>
     <div class="dateline">
-      <div id="syncIndicator" style="font-size:11px;margin-bottom:3px;color:var(--ink-faint);">○ Solo local</div>
+      <div class="row" style="justify-content:flex-end;gap:8px;margin-bottom:3px;">
+        <span id="syncIndicator" style="font-size:11px;color:var(--ink-faint);">○ Solo local</span>
+        <button class="btn btn-ghost btn-sm" id="btnToggleTema" style="padding:2px 8px;font-size:11px;" title="Cambiar tema claro/oscuro">🌙</button>
+      </div>
       Hoy: <b id="todayLabel">—</b>
       <div style="margin-top:4px;">
         <span id="usuarioActualLabel" style="font-size:11px;color:var(--ink-dim);"></span>
@@ -471,6 +495,19 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
     <div class="row end">
       <button class="btn btn-ghost" id="btnRangoCancel">Cancelar</button>
       <button class="btn btn-primary" id="btnRangoGenerar">Generar PDF</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: editar pulmón de un día puntual -->
+<div class="modal-overlay" id="modalEditarPulmon">
+  <div class="modal" style="max-width:440px;">
+    <h3>Editar pulmón — <span id="modalPulmonFecha"></span></h3>
+    <div class="modal-sub">Corregí el m² de pulmón pendiente registrado para ese día. No afecta los m² cerrados ni las causas declaradas.</div>
+    <div id="modalPulmonCampos"></div>
+    <div class="row end">
+      <button class="btn btn-ghost" id="btnPulmonCancel">Cancelar</button>
+      <button class="btn btn-primary" id="btnPulmonGuardar">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -1461,6 +1498,7 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
         ${mostrarResumenGlobal ? `<span class="tag-objetivo">${m2FinLinea!==null ? fmt(m2FinLinea)+' m² (Fin de Línea)' : 'sin dato de Fin de Línea'}</span>` : ''}
       </div>
       <div class="row" style="gap:10px;">
+        ${esAdmin() ? `<button class="btn btn-ghost btn-sm" data-editar-pulmon="${esc(fecha)}">Editar pulmón</button>` : ''}
         <button class="btn btn-ghost btn-sm" data-pdf-dia="${esc(fecha)}">PDF del día</button>
         <span class="chev">▶</span>
       </div>
@@ -1512,6 +1550,13 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
       e.stopPropagation();
       const objParaPdf = esAdmin() ? sectoresObj : Object.fromEntries(sectores);
       generarPdfDia(fecha, objParaPdf);
+    });
+  }
+  const btnEditarPulmon = div.querySelector('[data-editar-pulmon]');
+  if(btnEditarPulmon){
+    btnEditarPulmon.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      abrirModalEditarPulmon(fecha, esEnCurso ? 'hoy' : fecha);
     });
   }
   return div;
@@ -1621,7 +1666,9 @@ function renderGraficoCausas(){
     datasets = sectoresPresentes.map((nombreSector,i)=>({
       label: nombreSector,
       data: causasOrdenadas.map(c=>round1(acumPorCausa[c][nombreSector]||0)),
-      backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length]
+      backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+      borderColor: '#0b0c0e',
+      borderWidth: 2
     }));
   }
 
@@ -1633,7 +1680,10 @@ function renderGraficoCausas(){
       indexAxis:'y',
       responsive:true,
       maintainAspectRatio:false,
-      plugins:{ legend:{display: !filtroSector, labels:{color:'#e8e9ea', font:{size:11}}} },
+      plugins:{
+        legend:{display: !filtroSector, labels:{color:'#e8e9ea', font:{size:11}, boxWidth:12}},
+        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.x)} m²` } }
+      },
       scales:{
         x:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, stacked:!filtroSector, title:{display:true,text:'m² perdidos',color:'#8d9199'} },
         y:{ ticks:{color:'#e8e9ea',font:{size:11}}, grid:{display:false}, stacked:!filtroSector }
@@ -2415,7 +2465,9 @@ function generarPdfRango(desde, hasta){
         datasets: sectoresEnCausas.map((nombreSector,i)=>({
           label: nombreSector,
           data: entradasCausas.map(([,d])=>round1(d.porSector[nombreSector]||0)),
-          backgroundColor: coloresSector[i % coloresSector.length]
+          backgroundColor: coloresSector[i % coloresSector.length],
+          borderColor: '#ffffff',
+          borderWidth: 1.5
         }))
       },
       options:{
@@ -2578,6 +2630,99 @@ document.getElementById('btnRangoGenerar').addEventListener('click', ()=>{
   generarPdfRango(desde, hasta);
   document.getElementById('modalRangoPdf').classList.remove('show');
 });
+
+/* ----- editar pulmón de un día puntual ----- */
+let pulmonEditFecha = null;
+let pulmonEditContexto = null;
+
+function abrirModalEditarPulmon(fecha, contexto){
+  pulmonEditFecha = fecha;
+  pulmonEditContexto = contexto;
+  document.getElementById('modalPulmonFecha').textContent = fecha;
+
+  // unimos los sectores que tengan pulmón registrado ese día (de pulmones[] o del día confirmado)
+  const desdeHistorico = state.pulmones[fecha] || {};
+  const diaConfirmado = state.dias[fecha];
+  const nombres = new Set([
+    ...Object.keys(desdeHistorico),
+    ...(diaConfirmado ? Object.keys(diaConfirmado.sectores) : [])
+  ]);
+
+  const cont = document.getElementById('modalPulmonCampos');
+  cont.innerHTML = [...nombres].sort().map(nombre=>{
+    const valorActual = desdeHistorico[nombre] !== undefined
+      ? desdeHistorico[nombre]
+      : (diaConfirmado && diaConfirmado.sectores[nombre] ? diaConfirmado.sectores[nombre].pulmon : 0);
+    return `
+      <div class="field">
+        <label>${esc(nombre)}</label>
+        <input type="number" min="0" step="0.1" value="${valorActual}" data-pulmon-sector="${esc(nombre)}">
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('modalEditarPulmon').classList.add('show');
+}
+
+document.getElementById('btnPulmonCancel').addEventListener('click', ()=>{
+  document.getElementById('modalEditarPulmon').classList.remove('show');
+});
+
+document.getElementById('btnPulmonGuardar').addEventListener('click', ()=>{
+  const inputs = document.querySelectorAll('[data-pulmon-sector]');
+  if(!state.pulmones[pulmonEditFecha]) state.pulmones[pulmonEditFecha] = {};
+
+  inputs.forEach(inp=>{
+    const nombre = inp.dataset.pulmonSector;
+    const val = parseFloat(inp.value);
+    if(isNaN(val) || val<0) return;
+
+    // actualizamos el histórico de pulmones (fuente de la evolución y alertas)
+    state.pulmones[pulmonEditFecha][nombre] = val;
+
+    // y, si el día ya está confirmado, también el valor que quedó copiado dentro de ese día
+    if(state.dias[pulmonEditFecha] && state.dias[pulmonEditFecha].sectores[nombre]){
+      state.dias[pulmonEditFecha].sectores[nombre].pulmon = val;
+    }
+    // si es el día en curso (hoy, sin confirmar todavía), también el resultado en memoria
+    if(pulmonEditContexto === 'hoy' && state.actual.resultado && state.actual.resultado[nombre]){
+      state.actual.resultado[nombre].pulmon = val;
+    }
+  });
+
+  saveState();
+  document.getElementById('modalEditarPulmon').classList.remove('show');
+  toast('Pulmón actualizado');
+
+  renderHoy();
+  if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+});
+
+/* ============================================================
+   TEMA CLARO / OSCURO (preferencia por dispositivo, no se sincroniza)
+   ============================================================ */
+const TEMA_KEY = 'lfda_tema_v1';
+
+function aplicarTemaGuardado(){
+  const guardado = localStorage.getItem(TEMA_KEY);
+  const esClaro = guardado === 'claro';
+  document.body.classList.toggle('tema-claro', esClaro);
+  const btn = document.getElementById('btnToggleTema');
+  if(btn) btn.textContent = esClaro ? '☀️' : '🌙';
+}
+
+document.getElementById('btnToggleTema').addEventListener('click', ()=>{
+  const esClaroAhora = document.body.classList.contains('tema-claro');
+  localStorage.setItem(TEMA_KEY, esClaroAhora ? 'oscuro' : 'claro');
+  aplicarTemaGuardado();
+  // los gráficos de Chart.js usan colores fijos en hex, así que los re-renderizamos
+  // para que tomen los tonos correctos del tema nuevo
+  if(document.getElementById('view-historial').classList.contains('active')){
+    renderHistorial();
+  }
+});
+
+aplicarTemaGuardado();
 
 /* ============================================================
    INIT
