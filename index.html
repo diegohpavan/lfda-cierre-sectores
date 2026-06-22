@@ -851,6 +851,31 @@ function migrarSectorPlanificacionFaltante(s){
     if(!s.usuarios.lideres) s.usuarios.lideres = [];
     s.usuarios.lideres.push({id:'u_planif_'+Date.now(), nombre:'Alfredo Vera', sector:'Planificación'});
   }
+
+  // recalcular retroactivamente el estado de Planificación en días ya confirmados
+  // que se cerraron antes de que este sector existiera
+  const sectoresPlanif = (s.sectores||[]).filter(sec=>sec.tipo==='planificacion');
+  Object.entries(s.dias || {}).forEach(([fecha, dia])=>{
+    sectoresPlanif.forEach(secPlanif=>{
+      if(dia.sectores[secPlanif.nombre]) return; // ya tiene el dato, no lo pisamos
+      const dependientes = secPlanif.sectoresDependientes || [];
+      const detalleDependientes = dependientes.map(nombreDep=>{
+        const cfgDep = (s.sectores||[]).find(sc=>sc.nombre===nombreDep);
+        const umbral = cfgDep ? cfgDep.umbralPulmonBajo : (s.umbralPulmonBajoDefault||50);
+        const rDep = dia.sectores[nombreDep];
+        const sinDatos = !rDep;
+        const pulmonDep = rDep ? rDep.pulmon : null;
+        return { sector: nombreDep, pulmon: pulmonDep, umbral, sinDatos, bajoUmbral: !sinDatos && pulmonDep < umbral };
+      });
+      const algunoBajo = detalleDependientes.some(d=>d.bajoUmbral);
+      dia.sectores[secPlanif.nombre] = {
+        tipo:'planificacion',
+        dependientes: detalleDependientes,
+        sostenido: !algunoBajo,
+        motivoCausa: []
+      };
+    });
+  });
 }
 
 function loadState(){
@@ -1099,14 +1124,18 @@ function renderHoy(){
 
   // restaurar textareas si había algo cargado (mostramos resumen, no el texto crudo)
   renderKpis();
+  const yaConfirmado = !!state.dias[state.actual.fecha];
   if(state.actual.resultado){
     renderResultado();
+  } else if(yaConfirmado){
+    // el día ya fue confirmado (posiblemente desde otra sesión/dispositivo) pero esta
+    // sesión nunca calculó un borrador propio — mostramos directamente lo ya guardado
+    renderResultado(state.dias[state.actual.fecha].sectores);
   } else {
     document.getElementById('panelResultado').style.display = 'none';
   }
 
   // si el día ya fue confirmado, mostrarlo; si no, recordar que falta confirmar
-  const yaConfirmado = !!state.dias[state.actual.fecha];
   document.getElementById('resumenHint').textContent = yaConfirmado ? 'Día ya confirmado — podés volver a calcular si corregís datos.' : '';
   const aviso = document.getElementById('avisoSinConfirmar');
   if(aviso) aviso.style.display = (state.actual.resultado && !yaConfirmado) ? '' : 'none';
@@ -1317,7 +1346,7 @@ function colorEstado(estado){
   return 'var(--green)';
 }
 
-function crearFilaResultadoPlanificacion(nombre, r){
+function crearFilaResultadoPlanificacion(nombre, r, contextoCausa){
   const tr = document.createElement('tr');
   tr.className = r.sostenido ? 'hl-ok' : 'hl-bad';
   const dependientesTxt = r.dependientes.map(d=>{
@@ -1332,25 +1361,28 @@ function crearFilaResultadoPlanificacion(nombre, r){
     <td>
       ${r.sostenido
         ? '<span class="tag-objetivo">—</span>'
-        : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
+        : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa||'hoy')}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
       }
     </td>
   `;
   return tr;
 }
 
-function renderResultado(){
+function renderResultado(resultadoExterno){
   const panel = document.getElementById('panelResultado');
   panel.style.display = '';
   const tbody = document.getElementById('resultadoBody');
   tbody.innerHTML='';
 
-  const resultado = state.actual.resultado;
+  const resultado = resultadoExterno || state.actual.resultado;
+  // si estamos mostrando el resultado ya confirmado (no el borrador en curso de esta sesión),
+  // el botón de causa debe editar directamente ese día guardado, no 'hoy' en memoria
+  const contextoCausa = resultadoExterno ? state.actual.fecha : 'hoy';
   const nombresVisibles = Object.keys(resultado).filter(n => esAdmin() || n === sectorDelLider());
   nombresVisibles.forEach(nombre=>{
     const r = resultado[nombre];
     if(r.tipo === 'planificacion'){
-      tbody.appendChild(crearFilaResultadoPlanificacion(nombre, r));
+      tbody.appendChild(crearFilaResultadoPlanificacion(nombre, r, contextoCausa));
       return;
     }
     const pct = r.objetivoMin>0 ? Math.round((r.cerrado/r.objetivoMin)*100) : 0;
@@ -1374,7 +1406,7 @@ function renderResultado(){
       <td>
         ${cumple
           ? '<span class="tag-objetivo">—</span>'
-          : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
+          : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa)}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
         }
       </td>
     `;
@@ -1382,7 +1414,7 @@ function renderResultado(){
   });
 
   tbody.querySelectorAll('[data-motivo]').forEach(btn=>{
-    btn.addEventListener('click', ()=>abrirModalCausa(btn.dataset.motivo));
+    btn.addEventListener('click', ()=>abrirModalCausa(btn.dataset.motivo, btn.dataset.motivoContexto));
   });
 
   // confirmar el día completo es una acción exclusiva del admin (depende de TODOS los sectores)
