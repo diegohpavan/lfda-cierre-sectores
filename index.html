@@ -835,6 +835,24 @@ function chequearSesionAlCargar(){
   }
 }
 
+function migrarSectorPlanificacionFaltante(s){
+  const yaExiste = (s.sectores||[]).some(sec=>sec.tipo==='planificacion');
+  if(!yaExiste){
+    s.sectores.push({
+      nombre:'Planificación',
+      tipo:'planificacion',
+      sectoresDependientes:['1-ALM','4-VID'],
+      causas: structuredClone(CAUSAS_PLANIFICACION)
+    });
+  }
+  const yaTieneLider = (s.usuarios && s.usuarios.lideres || []).some(l=>l.sector==='Planificación');
+  if(!yaTieneLider){
+    if(!s.usuarios) s.usuarios = {lideres:[]};
+    if(!s.usuarios.lideres) s.usuarios.lideres = [];
+    s.usuarios.lideres.push({id:'u_planif_'+Date.now(), nombre:'Alfredo Vera', sector:'Planificación'});
+  }
+}
+
 function loadState(){
   try{
     const raw = localStorage.getItem(LS_KEY);
@@ -844,6 +862,7 @@ function loadState(){
     migrarMotivoCausaAArray(merged);
     migrarObjetivosPorSector(merged);
     migrarHistoricoPulmones(merged);
+    migrarSectorPlanificacionFaltante(merged);
     return merged;
   }catch(e){
     console.error('Error cargando estado', e);
