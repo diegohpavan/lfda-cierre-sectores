@@ -8,6 +8,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LFDA · Cierre Diario por Sector</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -409,6 +410,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div class="panel-head">
         <h2>Sectores, objetivos y causas 5M</h2>
         <button class="btn btn-ghost btn-sm" id="btnAddSector">+ Agregar sector</button>
+        <button class="btn btn-ghost btn-sm" id="btnAddPlanificacion">+ Agregar sector de planificación</button>
       </div>
       <div class="hint" style="margin-bottom:12px;">El nombre del sector debe coincidir EXACTAMENTE con el texto que aparece en la tabla de G_PRO (ej: "1-ALM"). Mínimo: piso aceptable, dispara declaración de causa si no se llega. Óptimo: a partir de este valor el día se marca como rendimiento óptimo.</div>
       <div id="sectorConfigList"></div>
@@ -668,6 +670,13 @@ const DEFAULT_CAUSAS = {
   'Medio ambiente': ['Corte de energía','Espacio / layout insuficiente','Condiciones climáticas','Orden y limpieza']
 };
 
+const CAUSAS_PLANIFICACION = {
+  'Mano de obra (Planificación)': ['Ausentismo del operario','Falta de personal en Planificación','Capacitación insuficiente'],
+  'Método (Planificación)': ['Falta de planos / no se generaron a tiempo','Cambio de prioridad / urgencia','Reproceso de plano por error','Demora en aprobación de plano'],
+  'Material (Planificación)': ['Falta de datos del pedido / venta','Información incompleta del cliente'],
+  'Ajeno a Planificación': ['Pulmón bajo por consumo del sector, no por falta de planos','Falta de personal en el sector productivo','Rotura / falla mecánica en el sector','Otra causa ajena a Planificación']
+};
+
 function defaultState(){
   return {
     objetivoMinDefault: 120,
@@ -684,7 +693,8 @@ function defaultState(){
         {id:'u5', nombre:'Líder 5-DVH', sector:'5-DVH'},
         {id:'u6', nombre:'Líder 6-ARM', sector:'6-ARM'},
         {id:'u7', nombre:'Líder 7-ACR', sector:'7-ACR'},
-        {id:'u8', nombre:'Líder 8-LI', sector:'8-LI'}
+        {id:'u8', nombre:'Líder 8-LI', sector:'8-LI'},
+        {id:'u9', nombre:'Alfredo Vera', sector:'Planificación'}
       ]
     },
     sectores: [
@@ -695,7 +705,8 @@ function defaultState(){
       {nombre:'5-DVH', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'6-ARM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'7-ACR', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'8-LI',  objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)}
+      {nombre:'8-LI',  objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'Planificación', tipo:'planificacion', sectoresDependientes:['1-ALM','4-VID'], causas: structuredClone(CAUSAS_PLANIFICACION)}
     ],
     dias: {},          // { '2026-06-22': { sectores: { '1-ALM': {pulmon, objetivoMin, objetivoOptimo, cerrado, motivoCausa:[{causa,detalle,m2}]} } } }
     pulmones: {},      // { '2026-06-22': { '1-ALM': {udsPul, supPul} } } — histórico de lo pegado en INICIO de turno, independiente de si el día se confirma
@@ -870,14 +881,17 @@ function migrarObjetivosPorSector(s){
   const optLegacy = s.objetivoOptimoDefault || 160;
   const umbralLegacy = s.umbralPulmonBajoDefault || 50;
   (s.sectores || []).forEach(sec=>{
+    if(sec.tipo === 'planificacion') return; // no aplica objetivo de m² a este tipo de sector
     if(typeof sec.objetivoMin !== 'number') sec.objetivoMin = minLegacy;
     if(typeof sec.objetivoOptimo !== 'number') sec.objetivoOptimo = optLegacy;
     if(typeof sec.umbralPulmonBajo !== 'number') sec.umbralPulmonBajo = umbralLegacy;
   });
   // días ya confirmados: si no tenían objetivoOptimo guardado, completamos con el default
   // para que se puedan mostrar correctamente (no afecta lo ya cumplido/no cumplido del mínimo)
+  const nombresPlanificacion = (s.sectores||[]).filter(sec=>sec.tipo==='planificacion').map(sec=>sec.nombre);
   Object.values(s.dias || {}).forEach(dia=>{
-    Object.values(dia.sectores || {}).forEach(sec=>{
+    Object.entries(dia.sectores || {}).forEach(([nombreSec, sec])=>{
+      if(nombresPlanificacion.includes(nombreSec) || sec.tipo==='planificacion') return;
       if(typeof sec.objetivoMin !== 'number') sec.objetivoMin = sec.objetivo ?? minLegacy;
       if(typeof sec.objetivoOptimo !== 'number') sec.objetivoOptimo = optLegacy;
     });
@@ -1141,6 +1155,18 @@ function renderKpisLider(hoy){
   const row = document.getElementById('kpiRow');
   const miSector = sectorDelLider();
   const cfgSector = state.sectores.find(s=>s.nombre===miSector);
+
+  if(cfgSector && cfgSector.tipo === 'planificacion'){
+    const datosHoy = hoy ? hoy.sectores[miSector] : (state.actual.resultado ? state.actual.resultado[miSector] : null);
+    const sostenido = datosHoy ? datosHoy.sostenido : null;
+    row.innerHTML = `
+      <div class="kpi"><div class="lbl">Mi sector</div><div class="val" style="font-size:18px;">${esc(miSector)}</div></div>
+      <div class="kpi"><div class="lbl">Pulmón ALM/VID hoy</div><div class="val" style="${sostenido===null?'':sostenido?'color:var(--green);':'color:var(--red);'}font-size:18px;">${sostenido===null?'—':(sostenido?'Sostenido':'No sostenido')}</div></div>
+      <div class="kpi"><div class="lbl">Sectores que dependen</div><div class="val" style="font-size:16px;">${(cfgSector.sectoresDependientes||[]).join(' · ')}</div></div>
+    `;
+    return;
+  }
+
   const objMin = cfgSector ? cfgSector.objetivoMin : state.objetivoMinDefault;
   const objOpt = cfgSector ? cfgSector.objetivoOptimo : state.objetivoOptimoDefault;
 
@@ -1233,6 +1259,29 @@ function calcularResultado(){
     };
   });
 
+  // sectores especiales tipo "planificacion": no tienen fila propia en G_PRO, su resultado
+  // se deriva de si los sectores que dependen de sus planos quedaron con pulmón bajo umbral
+  state.sectores.filter(s=>s.tipo==='planificacion').forEach(sec=>{
+    const dependientes = sec.sectoresDependientes || [];
+    const detalleDependientes = dependientes.map(nombreDep=>{
+      const r = resultado[nombreDep];
+      const cfgDep = state.sectores.find(s=>s.nombre===nombreDep);
+      const umbral = cfgDep ? cfgDep.umbralPulmonBajo : state.umbralPulmonBajoDefault;
+      const sinDatos = !r;
+      const pulmonDep = r ? r.pulmon : null;
+      return { sector: nombreDep, pulmon: pulmonDep, umbral, sinDatos, bajoUmbral: !sinDatos && pulmonDep < umbral };
+    });
+    const algunoBajo = detalleDependientes.some(d=>d.bajoUmbral);
+    const causasPrevias = resultadoAnterior[sec.nombre] ? resultadoAnterior[sec.nombre].motivoCausa : [];
+    resultado[sec.nombre] = {
+      tipo: 'planificacion',
+      dependientes: detalleDependientes,
+      sostenido: !algunoBajo,
+      motivoCausa: causasPrevias ? causasPrevias.map(c=>({...c})) : [],
+      noConfigurado: false
+    };
+  });
+
   state.actual.resultado = resultado;
 }
 
@@ -1249,6 +1298,28 @@ function colorEstado(estado){
   return 'var(--green)';
 }
 
+function crearFilaResultadoPlanificacion(nombre, r){
+  const tr = document.createElement('tr');
+  tr.className = r.sostenido ? 'hl-ok' : 'hl-bad';
+  const dependientesTxt = r.dependientes.map(d=>{
+    if(d.sinDatos) return `${esc(d.sector)}: <span class="tag-objetivo">sin datos aún</span>`;
+    return `${esc(d.sector)}: ${fmt(d.pulmon)} m² ${d.bajoUmbral ? '<span style="color:var(--red);">(bajo '+fmt(d.umbral)+')</span>' : '<span style="color:var(--green);">(ok)</span>'}`;
+  }).join(' · ');
+
+  tr.innerHTML = `
+    <td><span class="sector-name">${esc(nombre)}</span> <span class="tag-objetivo">(sostiene pulmón)</span></td>
+    <td class="num" colspan="3" style="font-size:12px;">${dependientesTxt}</td>
+    <td class="num" style="color:${r.sostenido?'var(--green)':'var(--red)'};font-weight:600;">${r.sostenido ? 'Sostenido' : 'No sostenido'}</td>
+    <td>
+      ${r.sostenido
+        ? '<span class="tag-objetivo">—</span>'
+        : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
+      }
+    </td>
+  `;
+  return tr;
+}
+
 function renderResultado(){
   const panel = document.getElementById('panelResultado');
   panel.style.display = '';
@@ -1259,6 +1330,10 @@ function renderResultado(){
   const nombresVisibles = Object.keys(resultado).filter(n => esAdmin() || n === sectorDelLider());
   nombresVisibles.forEach(nombre=>{
     const r = resultado[nombre];
+    if(r.tipo === 'planificacion'){
+      tbody.appendChild(crearFilaResultadoPlanificacion(nombre, r));
+      return;
+    }
     const pct = r.objetivoMin>0 ? Math.round((r.cerrado/r.objetivoMin)*100) : 0;
     const estado = estadoLogro(r.cerrado, r.objetivoMin, r.objetivoOptimo);
     const cumple = estado !== 'bajo';
@@ -1297,8 +1372,12 @@ function renderResultado(){
     btnConfirmar.style.display='none';
   } else {
     btnConfirmar.style.display='';
-    // habilitar confirmar solo si todos los sectores que no cumplieron el mínimo tienen motivo
-    const faltanMotivos = Object.values(resultado).some(r => r.cerrado < r.objetivoMin && r.motivoCausa.length===0);
+    // habilitar confirmar solo si todos los sectores que no cumplieron el mínimo (o, para
+    // planificación, que no sostuvieron el pulmón de sus dependientes) tienen motivo
+    const faltanMotivos = Object.values(resultado).some(r => {
+      const enFalta = r.tipo==='planificacion' ? !r.sostenido : (r.cerrado < r.objetivoMin);
+      return enFalta && r.motivoCausa.length===0;
+    });
     btnConfirmar.disabled = faltanMotivos;
     btnConfirmar.title = faltanMotivos ? 'Declará el motivo de todos los sectores por debajo del objetivo mínimo' : '';
   }
@@ -1320,11 +1399,21 @@ function abrirModalCausa(nombreSector, contexto){
 
   // clonamos para no mutar el resultado hasta guardar
   causasDetalle = (r.motivoCausa || []).map(c=>({...c}));
-  const deficit = round1(Math.max(0, r.objetivoMin - r.cerrado));
+  const esPlanificacion = r.tipo === 'planificacion';
+  const deficit = esPlanificacion ? null : round1(Math.max(0, r.objetivoMin - r.cerrado));
 
-  document.getElementById('modalCausaTitle').textContent = `${nombreSector} — no alcanzó el objetivo`;
-  document.getElementById('modalCausaSub').textContent = `Cerró ${fmt(r.cerrado)} m² de ${fmt(r.objetivoMin)} m² objetivo mínimo.`;
-  document.getElementById('modalDeficitM2').textContent = fmt(deficit);
+  const sumaRow = document.getElementById('modalCausaSumaRow');
+  if(esPlanificacion){
+    document.getElementById('modalCausaTitle').textContent = `${nombreSector} — pulmón de sector(es) dependiente(s) bajo umbral`;
+    const dependientesTxt = r.dependientes.filter(d=>d.bajoUmbral).map(d=>`${d.sector} (${fmt(d.pulmon)} m², umbral ${fmt(d.umbral)})`).join(', ');
+    document.getElementById('modalCausaSub').textContent = `Quedó bajo umbral: ${dependientesTxt}. Indicá si fue por falta de planos u otra causa ajena a Planificación.`;
+    if(sumaRow) sumaRow.style.display = 'none';
+  } else {
+    document.getElementById('modalCausaTitle').textContent = `${nombreSector} — no alcanzó el objetivo`;
+    document.getElementById('modalCausaSub').textContent = `Cerró ${fmt(r.cerrado)} m² de ${fmt(r.objetivoMin)} m² objetivo mínimo.`;
+    document.getElementById('modalDeficitM2').textContent = fmt(deficit);
+    if(sumaRow) sumaRow.style.display = '';
+  }
 
   const cfgSector = state.sectores.find(s=>s.nombre===nombreSector);
   const causas = cfgSector ? cfgSector.causas : DEFAULT_CAUSAS;
@@ -1351,7 +1440,7 @@ function abrirModalCausa(nombreSector, contexto){
           causasDetalle.push({causa:c, detalle:'', m2:0});
           chip.classList.add('sel');
         }
-        renderCausaDetalles(deficit);
+        renderCausaDetalles(deficit, esPlanificacion);
       });
       wrap.appendChild(chip);
     });
@@ -1362,7 +1451,7 @@ function abrirModalCausa(nombreSector, contexto){
   document.getElementById('modalCausa').classList.add('show');
 }
 
-function renderCausaDetalles(deficit){
+function renderCausaDetalles(deficit, esPlanificacion){
   const cont = document.getElementById('modalCausaDetalles');
   cont.innerHTML='';
 
@@ -1375,14 +1464,15 @@ function renderCausaDetalles(deficit){
     row.className='causa-detalle-row';
     row.innerHTML = `
       <div class="cd-head"><span class="cd-name">${esc(cd.causa)}</span></div>
-      <div class="cd-grid">
+      <div class="cd-grid" style="${esPlanificacion?'grid-template-columns:1fr;':''}">
         <div>
           <textarea data-detalle-idx="${idx}" placeholder="¿Qué pasó exactamente? Ej: CM1 y CM3 fuera de funcionamiento">${esc(cd.detalle)}</textarea>
         </div>
+        ${esPlanificacion ? '' : `
         <div>
           <span class="cd-m2-label">m² que explica</span>
           <input type="number" min="0" step="0.1" data-m2-idx="${idx}" value="${cd.m2}">
-        </div>
+        </div>`}
       </div>
     `;
     cont.appendChild(row);
@@ -1393,16 +1483,17 @@ function renderCausaDetalles(deficit){
       causasDetalle[parseInt(ta.dataset.detalleIdx)].detalle = ta.value;
     });
   });
-  cont.querySelectorAll('[data-m2-idx]').forEach(inp=>{
-    inp.addEventListener('input', ()=>{
-      const idx = parseInt(inp.dataset.m2Idx);
-      const val = parseFloat(inp.value);
-      causasDetalle[idx].m2 = isNaN(val) ? 0 : val;
-      actualizarSumaModal(deficit);
+  if(!esPlanificacion){
+    cont.querySelectorAll('[data-m2-idx]').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        const idx = parseInt(inp.dataset.m2Idx);
+        const val = parseFloat(inp.value);
+        causasDetalle[idx].m2 = isNaN(val) ? 0 : val;
+        actualizarSumaModal(deficit);
+      });
     });
-  });
-
-  actualizarSumaModal(deficit);
+    actualizarSumaModal(deficit);
+  }
 }
 
 function actualizarSumaModal(deficit){
@@ -1477,11 +1568,43 @@ document.getElementById('btnConfirmarDia').addEventListener('click', ()=>{
 /* ============================================================
    VISTA HISTORIAL
    ============================================================ */
+function filaHistorialPlanificacion(nombre, s, contexto){
+  const causas = s.motivoCausa || [];
+  const dependientesTxt = (s.dependientes||[]).map(d=>{
+    if(d.sinDatos || d.pulmon===null || d.pulmon===undefined) return `${esc(d.sector)}: <span class="tag-objetivo">sin datos</span>`;
+    return `${esc(d.sector)}: ${fmt(d.pulmon)} m² ${d.bajoUmbral?'<span style="color:var(--red);">(bajo umbral)</span>':'<span style="color:var(--green);">(ok)</span>'}`;
+  }).join(' · ');
+  const mostrarBoton = !s.sostenido || causas.length>0;
+  return `
+    <div class="hist-row" style="border-bottom:${causas.length?'none':'1px solid var(--line)'};">
+      <span class="hr-sector">${esc(nombre)}</span>
+      <span class="tag-objetivo" style="grid-column:span 2;font-size:12px;">${dependientesTxt}</span>
+      <span style="font-family:var(--mono);color:${s.sostenido?'var(--green)':'var(--red)'};font-weight:600;">${s.sostenido?'Sostenido':'No sostenido'}</span>
+      <span class="hr-motivo">
+        ${mostrarBoton
+          ? `<button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>`
+          : ''}
+      </span>
+    </div>
+    ${causas.length ? `
+    <div class="hist-causas" style="border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:6px;">
+      ${causas.map(c=>`
+        <div class="hist-causa-item">
+          <span class="hc-causa">${esc(c.causa)}</span>
+          <span class="hc-detalle">${esc(c.detalle||'')}</span>
+          <span class="hc-m2">—</span>
+        </div>
+      `).join('')}
+    </div>` : ''}
+  `;
+}
+
 function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   const sectoresTodos = Object.entries(sectoresObj);
   const sectores = esAdmin() ? sectoresTodos : sectoresTodos.filter(([n])=>n===sectorDelLider());
-  const cumplieron = sectores.filter(([,s])=>s.cerrado>=s.objetivoMin).length;
-  const total = sectores.length;
+  const sectoresNormales = sectores.filter(([,s])=>s.tipo!=='planificacion');
+  const cumplieron = sectoresNormales.filter(([,s])=>s.cerrado>=s.objetivoMin).length;
+  const total = sectoresNormales.length;
   const finLineaSec = sectoresObj[state.sectorFinLinea];
   const m2FinLinea = (esAdmin() && finLineaSec) ? finLineaSec.cerrado : null;
   const mostrarResumenGlobal = esAdmin();
@@ -1505,6 +1628,9 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
     </div>
     <div class="hist-day-body">
       ${sectores.map(([nombre,s])=>{
+        if(s.tipo === 'planificacion'){
+          return filaHistorialPlanificacion(nombre, s, contexto);
+        }
         const estado = estadoLogro(s.cerrado, s.objetivoMin, s.objetivoOptimo);
         const color = colorEstado(estado);
         const barPct = Math.min(100, Math.round((s.cerrado/s.objetivoOptimo)*100));
@@ -1682,7 +1808,17 @@ function renderGraficoCausas(){
       maintainAspectRatio:false,
       plugins:{
         legend:{display: !filtroSector, labels:{color:'#e8e9ea', font:{size:11}, boxWidth:12}},
-        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.x)} m²` } }
+        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.x)} m²` } },
+        datalabels:{
+          color:'#0b0c0e',
+          font:{ weight:'600', size:11 },
+          formatter:(val)=> val>0 ? fmt(val) : '',
+          display:(ctx)=>{
+            // ocultar la etiqueta si el segmento es muy angosto para que entre el número
+            const meta = ctx.chart.getDatasetMeta(ctx.datasetIndex).data[ctx.dataIndex];
+            return meta && meta.width > 22;
+          }
+        }
       },
       scales:{
         x:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, stacked:!filtroSector, title:{display:true,text:'m² perdidos',color:'#8d9199'} },
@@ -1810,7 +1946,8 @@ function dibujarChartPulmon(){
       interaction:{ mode:'index', intersect:false },
       plugins:{
         legend:{ labels:{color:'#e8e9ea', font:{size:11}, boxWidth:12} },
-        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.y)} m²` } }
+        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.y)} m²` } },
+        datalabels:{ display:false }
       },
       scales:{
         x:{ ticks:{color:'#8d9199', font:{size:10}}, grid:{color:'#2c3038'} },
@@ -1920,11 +2057,20 @@ function renderConfig(){
   state.sectores.forEach((sector, idx)=>{
     const div = document.createElement('div');
     div.className='cfg-sector';
-    div.innerHTML = `
-      <div class="cfg-sector-head">
-        <input type="text" value="${esc(sector.nombre)}" data-idx="${idx}" class="sector-nombre-input">
-        <button class="btn btn-danger btn-sm" data-del-sector="${idx}">Eliminar</button>
+    const esPlanif = sector.tipo === 'planificacion';
+
+    const camposEspecificos = esPlanif ? `
+      <div class="field" style="margin-bottom:8px;">
+        <label>Sectores que dependen de sus planos (m² de pulmón a sostener)</label>
+        <div class="causa-edit-list" data-dependientes-idx="${idx}">
+          ${state.sectores.filter(s=>s.tipo!=='planificacion').map(s=>{
+            const marcado = (sector.sectoresDependientes||[]).includes(s.nombre);
+            return `<span class="causa-chip${marcado?' sel':''}" data-dep-chip="${idx}|${esc(s.nombre)}">${esc(s.nombre)}</span>`;
+          }).join('')}
+        </div>
+        <div class="hint" style="margin-top:6px;">Usa el mismo umbral de pulmón bajo ya configurado en cada uno de esos sectores.</div>
       </div>
+    ` : `
       <div class="row" style="gap:16px;margin-bottom:8px;">
         <div class="field" style="margin-bottom:0;max-width:160px;">
           <label>m² mínimo</label>
@@ -1939,9 +2085,34 @@ function renderConfig(){
           <input type="number" min="0" step="1" value="${sector.umbralPulmonBajo}" data-umbral-idx="${idx}">
         </div>
       </div>
+    `;
+
+    div.innerHTML = `
+      <div class="cfg-sector-head">
+        <input type="text" value="${esc(sector.nombre)}" data-idx="${idx}" class="sector-nombre-input">
+        ${esPlanif ? '<span class="tag-objetivo">tipo: planificación</span>' : ''}
+        <button class="btn btn-danger btn-sm" data-del-sector="${idx}">Eliminar</button>
+      </div>
+      ${camposEspecificos}
       <div class="causa-grupos" data-idx="${idx}"></div>
     `;
     cont.appendChild(div);
+
+    if(esPlanif){
+      div.querySelectorAll('[data-dep-chip]').forEach(chip=>{
+        chip.addEventListener('click', ()=>{
+          const [idxStr, nombreDep] = chip.dataset.depChip.split('|');
+          const i = parseInt(idxStr);
+          if(!state.sectores[i].sectoresDependientes) state.sectores[i].sectoresDependientes = [];
+          const lista = state.sectores[i].sectoresDependientes;
+          const pos = lista.indexOf(nombreDep);
+          if(pos>-1){ lista.splice(pos,1); chip.classList.remove('sel'); }
+          else { lista.push(nombreDep); chip.classList.add('sel'); }
+          saveState();
+          toast('Sectores dependientes actualizados');
+        });
+      });
+    }
 
     const grupoCont = div.querySelector('.causa-grupos');
     Object.keys(sector.causas).forEach(grupo=>{
@@ -2139,6 +2310,23 @@ document.getElementById('btnAddSector').addEventListener('click', ()=>{
   toast('Sector agregado');
 });
 
+const btnAddPlanificacion = document.getElementById('btnAddPlanificacion');
+if(btnAddPlanificacion){
+  btnAddPlanificacion.addEventListener('click', ()=>{
+    const nombre = prompt('Nombre del sector de planificación (ej: "Planificación"):');
+    if(!nombre || !nombre.trim()) return;
+    state.sectores.push({
+      nombre: nombre.trim(),
+      tipo: 'planificacion',
+      sectoresDependientes: [],
+      causas: structuredClone(CAUSAS_PLANIFICACION)
+    });
+    saveState();
+    renderConfig();
+    toast('Sector de planificación agregado — marcá qué sectores dependen de él');
+  });
+}
+
 document.getElementById('btnGuardarObjetivo').addEventListener('click', ()=>{
   const valMin = parseFloat(document.getElementById('cfgObjetivoMin').value);
   const valOpt = parseFloat(document.getElementById('cfgObjetivoOptimo').value);
@@ -2243,7 +2431,9 @@ function generarPdfDia(fecha, sectoresObj){
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
 
-  const sectores = Object.entries(sectoresObj);
+  const sectoresTodos = Object.entries(sectoresObj);
+  const sectoresPlanificacion = sectoresTodos.filter(([,s])=>s.tipo==='planificacion');
+  const sectores = sectoresTodos.filter(([,s])=>s.tipo!=='planificacion');
   const finLineaSec = sectoresObj[state.sectorFinLinea];
   const m2FinLinea = finLineaSec ? round1(finLineaSec.cerrado) : null;
   const cumplieron = sectores.filter(([,s])=>s.cerrado>=s.objetivoMin).length;
@@ -2350,6 +2540,38 @@ function generarPdfDia(fecha, sectoresObj){
       columnStyles:{ 2:{cellWidth:75} },
       margin:{left:14, right:14}
     });
+    y = doc.lastAutoTable.finalY + 12;
+  }
+
+  // sectores de tipo planificación: no producen m², se evalúan por si sostuvieron el pulmón
+  if(sectoresPlanificacion.length>0){
+    if(y > H-50){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(20,20,20);
+    doc.text('Planificación (sostenimiento de pulmón)', 14, y);
+    y += 6;
+
+    sectoresPlanificacion.forEach(([nombre, s])=>{
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(...(s.sostenido ? PDF_COLORS.green : PDF_COLORS.red));
+      doc.text(`${nombre}: ${s.sostenido ? 'Sostenido' : 'No sostenido'}`, 14, y);
+      y += 5;
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(9);
+      doc.setTextColor(60,60,60);
+      (s.dependientes||[]).forEach(d=>{
+        doc.text(`  · ${d.sector}: ${fmt(d.pulmon)} m² (umbral ${fmt(d.umbral)} m²) ${d.bajoUmbral?'— BAJO':''}`, 14, y);
+        y += 4.5;
+      });
+      (s.motivoCausa||[]).forEach(c=>{
+        doc.setTextColor(20,20,20);
+        doc.text(`  Causa: ${c.causa}${c.detalle ? ' — '+c.detalle : ''}`, 14, y);
+        y += 4.5;
+      });
+      y += 4;
+    });
   }
 
   const totalPag = doc.internal.getNumberOfPages();
@@ -2374,6 +2596,7 @@ function generarPdfRango(desde, hasta){
   // acumular datos
   const porSector = {}; // { nombre: {m2total, dias, cumplidos, optimos} }
   const porCausa = {};  // { causa: { total, porSector: {nombreSector: m2} } }
+  const planificacionResumen = {}; // { nombre: {diasSostenido, diasTotal, causas:[]} }
   let totalM2FinLinea = 0;
   let diasConFinLinea = 0;
   let totalSectorDias = 0;
@@ -2383,6 +2606,15 @@ function generarPdfRango(desde, hasta){
   fechas.forEach(f=>{
     Object.entries(state.dias[f].sectores).forEach(([nombre,s])=>{
       if(!esAdmin() && nombre !== sectorDelLider()) return;
+      const cfgSector = state.sectores.find(sc=>sc.nombre===nombre);
+      const esPlanificacion = s.tipo === 'planificacion' || (cfgSector && cfgSector.tipo === 'planificacion');
+      if(esPlanificacion){
+        if(!planificacionResumen[nombre]) planificacionResumen[nombre] = {diasSostenido:0, diasTotal:0, causas:[]};
+        planificacionResumen[nombre].diasTotal += 1;
+        if(s.sostenido) planificacionResumen[nombre].diasSostenido += 1;
+        (s.motivoCausa||[]).forEach(c=> planificacionResumen[nombre].causas.push({fecha:f, causa:c.causa, detalle:c.detalle}));
+        return;
+      }
       if(!porSector[nombre]) porSector[nombre] = {m2total:0, dias:0, cumplidos:0, optimos:0};
       porSector[nombre].m2total += s.cerrado;
       porSector[nombre].dias += 1;
@@ -2474,7 +2706,18 @@ function generarPdfRango(desde, hasta){
         indexAxis:'y',
         responsive:false,
         animation:false,
-        plugins:{ legend:{display:true, position:'bottom', labels:{font:{size:11}}} },
+        plugins:{
+          legend:{display:true, position:'bottom', labels:{font:{size:11}}},
+          datalabels:{
+            color:'#1a1505',
+            font:{ weight:'600', size:11 },
+            formatter:(val)=> val>0 ? fmt(val) : '',
+            display:(ctx)=>{
+              const meta = ctx.chart.getDatasetMeta(ctx.datasetIndex).data[ctx.dataIndex];
+              return meta && meta.width > 22;
+            }
+          }
+        },
         scales:{
           x:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true, stacked:true },
           y:{ ticks:{color:'#222',font:{size:12}}, grid:{display:false}, stacked:true }
@@ -2515,6 +2758,60 @@ function generarPdfRango(desde, hasta){
     y = doc.lastAutoTable.finalY + 12;
   }
 
+  // resumen de Planificación (sostenimiento de pulmón) en el período
+  const nombresPlanif = Object.keys(planificacionResumen);
+  if(nombresPlanif.length>0){
+    if(y > H-60){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(20,20,20);
+    doc.text('Planificación (sostenimiento de pulmón) en el período', 14, y);
+    y += 6;
+
+    const planifRows = nombresPlanif.map(nombre=>{
+      const d = planificacionResumen[nombre];
+      const pct = d.diasTotal>0 ? Math.round((d.diasSostenido/d.diasTotal)*100) : 0;
+      return [nombre, `${d.diasSostenido}/${d.diasTotal}`, pct+'%'];
+    });
+
+    doc.autoTable({
+      startY: y,
+      head: [['Sector','Días sostenido','% del período']],
+      body: planifRows,
+      theme:'plain',
+      styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+      headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
+      margin:{left:14, right:14}
+    });
+    y = doc.lastAutoTable.finalY + 8;
+
+    const causasPlanifRows = [];
+    nombresPlanif.forEach(nombre=>{
+      planificacionResumen[nombre].causas.forEach(c=>{
+        causasPlanifRows.push([nombre, c.fecha, c.causa, c.detalle||'—']);
+      });
+    });
+    if(causasPlanifRows.length>0){
+      if(y > H-50){ doc.addPage(); y = 20; }
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10);
+      doc.setTextColor(20,20,20);
+      doc.text('Causas declaradas por Planificación', 14, y);
+      y += 4;
+      doc.autoTable({
+        startY: y+2,
+        head: [['Sector','Fecha','Causa','Detalle']],
+        body: causasPlanifRows,
+        theme:'plain',
+        styles:{ fontSize:8.5, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+        headStyles:{ fillColor:[232,163,61], textColor:[20,20,20], fontStyle:'bold' },
+        columnStyles:{ 3:{cellWidth:70} },
+        margin:{left:14, right:14}
+      });
+      y = doc.lastAutoTable.finalY + 12;
+    }
+  }
+
   // evolución del pulmón en el período (evidencia objetiva de carga de trabajo disponible)
   const fechasPulmonRango = Object.keys(state.pulmones||{}).filter(f=>f>=desde && f<=hasta).sort();
   if(fechasPulmonRango.length>0){
@@ -2549,7 +2846,7 @@ function generarPdfRango(desde, hasta){
       data:{ labels: fechasPulmonRango, datasets: datasetsTmp },
       options:{
         responsive:false, animation:false,
-        plugins:{ legend:{labels:{color:'#222',font:{size:12}}} },
+        plugins:{ legend:{labels:{color:'#222',font:{size:12}}}, datalabels:{display:false} },
         scales:{
           x:{ ticks:{color:'#333',font:{size:10}}, grid:{color:'#ddd'} },
           y:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true }
