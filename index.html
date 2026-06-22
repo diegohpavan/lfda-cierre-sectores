@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <style>
 :root{
   --bg:#0b0c0e;
@@ -488,6 +489,8 @@ let firestoreDb = null;
 let firestoreListenerActivo = false;
 let firestoreGuardadoTimer = null;
 let firestoreUltimoGuardadoLocal = 0;
+let firebaseAuthListo = false;
+let firestoreSubidaPendiente = false;
 
 function inicializarFirebase(){
   try{
@@ -497,8 +500,29 @@ function inicializarFirebase(){
     }
     firebase.initializeApp(firebaseConfig);
     firestoreDb = firebase.firestore();
-    escucharCambiosFirestore();
     actualizarIndicadorSync('conectando');
+
+    firebase.auth().signInAnonymously()
+      .then(()=>{
+        firebaseAuthListo = true;
+        escucharCambiosFirestore();
+        // si hubo un intento de guardado mientras todavía nos autenticábamos, lo reintentamos ahora
+        if(firestoreSubidaPendiente){
+          firestoreSubidaPendiente = false;
+          subirEstadoAFirestore();
+        }
+      })
+      .catch((e)=>{
+        console.error('No se pudo autenticar de forma anónima — revisá que esté activado en Firebase > Authentication > Sign-in method > Anonymous.', e);
+        actualizarIndicadorSync('local');
+      });
+
+    firebase.auth().onAuthStateChanged((user)=>{
+      if(!user){
+        firebaseAuthListo = false;
+        firestoreListenerActivo = false;
+      }
+    });
   }catch(e){
     console.error('No se pudo inicializar Firebase, la app sigue funcionando localmente.', e);
     actualizarIndicadorSync('local');
@@ -551,6 +575,11 @@ function aplicarEstadoRemoto(data){
 
 function subirEstadoAFirestore(){
   if(!firestoreDb) return;
+  if(!firebaseAuthListo){
+    // todavía no terminó el login anónimo — lo reintentamos en cuanto esté listo
+    firestoreSubidaPendiente = true;
+    return;
+  }
   clearTimeout(firestoreGuardadoTimer);
   firestoreGuardadoTimer = setTimeout(()=>{
     firestoreUltimoGuardadoLocal = Date.now();
