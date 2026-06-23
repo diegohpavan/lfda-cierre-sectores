@@ -718,14 +718,14 @@ function defaultState(){
       ]
     },
     sectores: [
-      {nombre:'1-ALM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'2-MEC', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'3-SOL', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'4-VID', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'5-DVH', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'6-ARM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'7-ACR', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'8-LI',  objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'1-ALM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'Planificación', causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'2-MEC', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'1-ALM', causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'3-SOL', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'2-MEC', causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'4-VID', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'Planificación', causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'5-DVH', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:null, causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'6-ARM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'3-SOL', causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'7-ACR', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'6-ARM', proveedoresAdicionales:['4-VID','5-DVH'], causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'8-LI',  objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'7-ACR', causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'Planificación', tipo:'planificacion', sectoresDependientes:['1-ALM','4-VID'], causas: structuredClone(CAUSAS_PLANIFICACION)}
     ],
     dias: {},          // { '2026-06-22': { sectores: { '1-ALM': {pulmon, objetivoMin, objetivoOptimo, cerrado, motivoCausa:[{causa,detalle,m2}]} } } }
@@ -927,6 +927,7 @@ function loadState(){
     migrarObjetivosPorSector(merged);
     migrarHistoricoPulmones(merged);
     migrarSectorPlanificacionFaltante(merged);
+    migrarCadenaProveedores(merged);
     return merged;
   }catch(e){
     console.error('Error cargando estado', e);
@@ -981,6 +982,40 @@ function migrarObjetivosPorSector(s){
   });
   delete s.objetivo;
   if(!s.umbralPulmonBajoDefault) s.umbralPulmonBajoDefault = umbralLegacy;
+}
+
+// cadena de producción real de LFDA: cada sector recibe pulmón de su proveedor anterior.
+// Solo se asigna si el sector todavía no tiene sectorProveedor definido (no pisa configuración manual).
+const CADENA_PROVEEDORES_DEFAULT = {
+  '1-ALM': {sectorProveedor:'0-Planificación'},
+  '4-VID': {sectorProveedor:'0-Planificación'},
+  '2-MEC': {sectorProveedor:'1-ALM'},
+  '3-SOL': {sectorProveedor:'2-MEC'},
+  '6-ARM': {sectorProveedor:'3-SOL'},
+  '7-ACR': {sectorProveedor:'6-ARM', proveedoresAdicionales:['4-VID','5-DVH']},
+  '8-LI':  {sectorProveedor:'7-ACR'}
+};
+
+function migrarCadenaProveedores(s){
+  const nombresExistentes = (s.sectores||[]).map(sec=>sec.nombre);
+  // resolvemos el nombre real de planificación (puede tener prefijo numérico distinto, ej "0-Planificación")
+  const nombrePlanifReal = (s.sectores||[]).find(sec=>sec.tipo==='planificacion');
+  (s.sectores||[]).forEach(sec=>{
+    if(sec.tipo==='planificacion') return;
+    const def = CADENA_PROVEEDORES_DEFAULT[sec.nombre];
+    if(!def) return;
+    if(sec.sectorProveedor===undefined){
+      let proveedor = def.sectorProveedor;
+      // si el proveedor definido es "Planificación" pero el nombre real es otro (ej "0-Planificación")
+      if(proveedor && proveedor.includes('Planificación') && nombrePlanifReal && nombresExistentes.includes(nombrePlanifReal.nombre)){
+        proveedor = nombrePlanifReal.nombre;
+      }
+      sec.sectorProveedor = nombresExistentes.includes(proveedor) ? proveedor : null;
+    }
+    if(sec.proveedoresAdicionales===undefined && def.proveedoresAdicionales){
+      sec.proveedoresAdicionales = def.proveedoresAdicionales.filter(n=>nombresExistentes.includes(n));
+    }
+  });
 }
 
 function migrarHistoricoPulmones(s){
@@ -2062,7 +2097,10 @@ function renderEvolucionPulmon(){
 
   checksCont.innerHTML = nombres.map(n=>{
     const sel = sectoresPulmonSeleccionados.has(n);
-    return `<span class="causa-chip${sel?' sel':''}" data-chip-sector="${esc(n)}">${esc(n)}</span>`;
+    const cfgSec = state.sectores.find(s=>s.nombre===n);
+    const proveedor = cfgSec ? cfgSec.sectorProveedor : null;
+    const tieneProveedorDisponible = proveedor && nombres.includes(proveedor) && !sectoresPulmonSeleccionados.has(proveedor);
+    return `<span class="causa-chip${sel?' sel':''}" data-chip-sector="${esc(n)}">${esc(n)}</span>${tieneProveedorDisponible ? `<button class="btn btn-ghost btn-sm" data-add-proveedor="${esc(proveedor)}" style="padding:2px 8px;font-size:11px;margin-left:-4px;" title="Agregar proveedor ${esc(proveedor)} para comparar">+ ${esc(proveedor)}</button>` : ''}`;
   }).join('');
   if(!esAdmin()) checksCont.style.display='none'; else checksCont.style.display='';
 
@@ -2071,6 +2109,13 @@ function renderEvolucionPulmon(){
       const n = chip.dataset.chipSector;
       if(sectoresPulmonSeleccionados.has(n)) sectoresPulmonSeleccionados.delete(n);
       else sectoresPulmonSeleccionados.add(n);
+      renderEvolucionPulmon();
+    });
+  });
+  checksCont.querySelectorAll('[data-add-proveedor]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      sectoresPulmonSeleccionados.add(btn.dataset.addProveedor);
       renderEvolucionPulmon();
     });
   });
@@ -2274,6 +2319,15 @@ function renderConfig(){
           <input type="number" min="0" step="1" value="${sector.umbralPulmonBajo}" data-umbral-idx="${idx}">
         </div>
       </div>
+      <div class="field" style="margin-bottom:8px;max-width:260px;">
+        <label>Sector proveedor (de quién depende su pulmón)</label>
+        <select data-proveedor-idx="${idx}">
+          <option value="">— ninguno / entrada externa —</option>
+          ${state.sectores.filter(s=>s.nombre!==sector.nombre && s.tipo!=='planificacion').map(s=>
+            `<option value="${esc(s.nombre)}" ${sector.sectorProveedor===s.nombre?'selected':''}>${esc(s.nombre)}</option>`
+          ).join('')}
+        </select>
+      </div>
     `;
 
     div.innerHTML = `
@@ -2367,6 +2421,17 @@ function renderConfig(){
       state.sectores[idx].umbralPulmonBajo = val;
       saveState();
       toast(`Umbral de pulmón de ${state.sectores[idx].nombre} actualizado`);
+      if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+    });
+  });
+
+  // listener: cambiar sector proveedor
+  cont.querySelectorAll('[data-proveedor-idx]').forEach(sel=>{
+    sel.addEventListener('change', ()=>{
+      const idx = parseInt(sel.dataset.proveedorIdx);
+      state.sectores[idx].sectorProveedor = sel.value || null;
+      saveState();
+      toast(`Proveedor de ${state.sectores[idx].nombre} actualizado`);
       if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
     });
   });
