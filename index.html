@@ -1116,7 +1116,10 @@ function procesarBloque(cols, offset, out, warnings){
   const udsPul = parseNum(cols[offset+1]);
   const supPul = parseNum(cols[offset+2]);
   const supFin = parseNum(cols[offset+3]);
-  if(udsPul===null && supPul===null) {
+  // descartamos la fila solo si los TRES valores numéricos vinieron vacíos —
+  // antes se descartaba con solo que faltaran udsPul y supPul, perdiendo casos reales
+  // donde G_PRO trae únicamente el SUP FIN (ej: "3-SOL\t\t\t111")
+  if(udsPul===null && supPul===null && supFin===null) {
     return; // no parece una fila de datos válida
   }
   out[nombre] = {
