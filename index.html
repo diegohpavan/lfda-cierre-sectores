@@ -125,6 +125,24 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 .delta-neg{color:var(--red);font-weight:600;}
 .tag-objetivo{font-family:var(--mono);font-size:11px;color:var(--ink-faint);}
 
+/* ===== bloques de sector (uno por sector, sin mezclar) ===== */
+.sector-block{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line2);border-radius:8px;padding:16px 18px;}
+.sector-block.bloque-bajo{border-left-color:var(--red);}
+.sector-block.bloque-ok{border-left-color:var(--green);}
+.sector-block.bloque-optimo{border-left-color:var(--blue);}
+.sb-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;flex-wrap:wrap;gap:6px;}
+.sb-name{font-weight:600;font-size:15px;}
+.sb-value{font-size:20px;font-weight:600;font-family:var(--mono);}
+.sb-value .sb-target{font-size:12px;color:var(--ink-faint);font-weight:400;}
+.sb-sub{font-size:12px;color:var(--ink-dim);margin-bottom:10px;}
+.sb-bar{width:100%;height:6px;background:var(--bg2);border-radius:4px;overflow:hidden;margin-bottom:12px;}
+.sb-bar-fill{height:100%;border-radius:4px;}
+.sb-causas{display:flex;flex-direction:column;gap:6px;}
+.sb-causa-row{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--red-dim);border-radius:6px;padding:8px 12px;flex-wrap:wrap;}
+.sb-causa-row .sc-text{font-size:12px;color:var(--red);}
+.sb-causa-row .sc-text b{color:var(--ink);}
+.sb-pendiente-row{display:flex;justify-content:flex-end;margin-top:4px;}
+
 /* ===== KPI cards ===== */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;}
 .kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
@@ -280,19 +298,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         <span style="color:var(--amber);">⚠</span>
         <span style="font-size:13px;">Este día todavía <b>NO está guardado</b> en el Historial. Las causas que declares acá quedan en borrador hasta que toques "Confirmar y guardar día" más abajo.</span>
       </div>
-      <table class="sectors">
-        <thead>
-          <tr>
-            <th>Sector</th>
-            <th>Pulmón pendiente</th>
-            <th>m² objetivo</th>
-            <th>m² cerrados</th>
-            <th>% objetivo</th>
-            <th>Motivo (si aplica)</th>
-          </tr>
-        </thead>
-        <tbody id="resultadoBody"></tbody>
-      </table>
+      <div id="resultadoBody" style="display:flex;flex-direction:column;gap:12px;"></div>
       <div class="row end" style="margin-top:14px;">
         <button class="btn btn-primary" id="btnConfirmarDia">Confirmar y guardar día</button>
       </div>
@@ -341,7 +347,13 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         </div>
       </div>
       <div id="causasFrecuentesEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Todavía no hay causas declaradas.</div>
-      <div style="height:280px;"><canvas id="chartCausas"></canvas></div>
+      <div id="causasFrecuentesContenido" style="display:none;">
+        <div class="hint" style="margin-bottom:6px;">Pareto: barras = m² perdidos por causa · línea = % acumulado del total</div>
+        <div style="height:280px;margin-bottom:14px;"><canvas id="chartCausas"></canvas></div>
+        <div id="recomendacionParetoCausas" style="margin-bottom:22px;"></div>
+        <div class="hint" style="margin-bottom:8px;">Matriz causa × sector (m² explicados)</div>
+        <div style="overflow-x:auto;"><table id="tablaMatrizCausas" class="sectors" style="font-size:12px;"></table></div>
+      </div>
     </div>
 
     <div class="panel" id="panelEvolucionPulmon">
@@ -481,7 +493,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 
 <!-- MODAL: elegir rango de fechas para informe PDF consolidado -->
 <div class="modal-overlay" id="modalRangoPdf">
-  <div class="modal" style="max-width:400px;">
+  <div class="modal" style="max-width:440px;">
     <h3>Informe PDF por rango</h3>
     <div class="modal-sub">Elegí el período. Se incluyen solo los días confirmados dentro del rango.</div>
     <div class="row" style="gap:12px;">
@@ -493,6 +505,14 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         <label>Hasta</label>
         <input type="date" id="inputRangoHasta">
       </div>
+    </div>
+    <div class="field">
+      <label>Sectores a incluir (con detalle individual de Pareto por sector)</label>
+      <div class="row" style="gap:8px;margin-bottom:8px;">
+        <button class="btn btn-ghost btn-sm" id="btnRangoTodos" type="button">Todos</button>
+        <button class="btn btn-ghost btn-sm" id="btnRangoNinguno" type="button">Ninguno</button>
+      </div>
+      <div id="checksRangoSectores" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
     </div>
     <div class="row end">
       <button class="btn btn-ghost" id="btnRangoCancel">Cancelar</button>
@@ -852,9 +872,28 @@ function migrarSectorPlanificacionFaltante(s){
     s.usuarios.lideres.push({id:'u_planif_'+Date.now(), nombre:'Alfredo Vera', sector:'Planificación'});
   }
 
+  const sectoresPlanif = (s.sectores||[]).filter(sec=>sec.tipo==='planificacion');
+  const nombresVigentesPlanif = sectoresPlanif.map(sec=>sec.nombre);
+
+  // si el sector de planificación fue renombrado en algún momento, los días históricos
+  // pueden tener la entrada guardada bajo un nombre VIEJO que ya no existe en state.sectores.
+  // La reasignamos al nombre vigente en vez de duplicarla, para no perder el dato real.
+  Object.values(s.dias || {}).forEach(dia=>{
+    Object.keys(dia.sectores).forEach(nombreGuardado=>{
+      const entrada = dia.sectores[nombreGuardado];
+      const esEntradaPlanifHuerfana = entrada && entrada.tipo==='planificacion' && !nombresVigentesPlanif.includes(nombreGuardado);
+      if(esEntradaPlanifHuerfana){
+        const nombreNuevo = nombresVigentesPlanif[0]; // único sector de planificación en la práctica
+        if(nombreNuevo && !dia.sectores[nombreNuevo]){
+          dia.sectores[nombreNuevo] = entrada;
+        }
+        delete dia.sectores[nombreGuardado];
+      }
+    });
+  });
+
   // recalcular retroactivamente el estado de Planificación en días ya confirmados
   // que se cerraron antes de que este sector existiera
-  const sectoresPlanif = (s.sectores||[]).filter(sec=>sec.tipo==='planificacion');
   Object.entries(s.dias || {}).forEach(([fecha, dia])=>{
     sectoresPlanif.forEach(secPlanif=>{
       if(dia.sectores[secPlanif.nombre]) return; // ya tiene el dato, no lo pisamos
@@ -1335,6 +1374,20 @@ function calcularResultado(){
 
 function round1(n){ return Math.round(n*10)/10; }
 
+// dado un array de valores YA ordenados de mayor a menor, devuelve cuántos de los
+// primeros son necesarios para alcanzar (o superar por primera vez) el 80% del total —
+// el criterio clásico de Pareto para identificar "las pocas causas vitales".
+function calcularCorteVital80(valoresOrdenadosDesc){
+  const total = valoresOrdenadosDesc.reduce((a,v)=>a+v,0);
+  if(total<=0) return 0;
+  let acumulado = 0;
+  for(let i=0;i<valoresOrdenadosDesc.length;i++){
+    acumulado += valoresOrdenadosDesc[i];
+    if(acumulado/total >= 0.8) return i+1;
+  }
+  return valoresOrdenadosDesc.length;
+}
+
 function estadoLogro(cerrado, min, optimo){
   if(cerrado < min) return 'bajo';
   if(cerrado >= optimo) return 'optimo';
@@ -1346,26 +1399,38 @@ function colorEstado(estado){
   return 'var(--green)';
 }
 
-function crearFilaResultadoPlanificacion(nombre, r, contextoCausa){
-  const tr = document.createElement('tr');
-  tr.className = r.sostenido ? 'hl-ok' : 'hl-bad';
-  const dependientesTxt = r.dependientes.map(d=>{
-    if(d.sinDatos) return `${esc(d.sector)}: <span class="tag-objetivo">sin datos aún</span>`;
-    return `${esc(d.sector)}: ${fmt(d.pulmon)} m² ${d.bajoUmbral ? '<span style="color:var(--red);">(bajo '+fmt(d.umbral)+')</span>' : '<span style="color:var(--green);">(ok)</span>'}`;
-  }).join(' · ');
+function crearBloquePlanificacion(nombre, r, contextoCausa){
+  const claseBloque = r.sostenido ? 'bloque-ok' : 'bloque-bajo';
+  const div = document.createElement('div');
+  div.className = `sector-block ${claseBloque}`;
+  const depHtml = r.dependientes.map(d=>{
+    if(d.sinDatos) return `<span class="tag-objetivo">${esc(d.sector)}: sin datos aún</span>`;
+    return `<span style="font-size:13px;${d.bajoUmbral?'color:var(--red);':'color:var(--green);'}">${esc(d.sector)}: ${fmt(d.pulmon)} m² ${d.bajoUmbral ? '(bajo '+fmt(d.umbral)+')' : '(ok)'}</span>`;
+  }).join(' &nbsp;·&nbsp; ');
 
-  tr.innerHTML = `
-    <td><span class="sector-name">${esc(nombre)}</span> <span class="tag-objetivo">(sostiene pulmón)</span></td>
-    <td class="num" colspan="3" style="font-size:12px;">${dependientesTxt}</td>
-    <td class="num" style="color:${r.sostenido?'var(--green)':'var(--red)'};font-weight:600;">${r.sostenido ? 'Sostenido' : 'No sostenido'}</td>
-    <td>
-      ${r.sostenido
-        ? '<span class="tag-objetivo">—</span>'
-        : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa||'hoy')}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
-      }
-    </td>
+  div.innerHTML = `
+    <div class="sb-head">
+      <span class="sb-name">${esc(nombre)} <span class="tag-objetivo">(sostiene pulmón)</span></span>
+      <span class="sb-value" style="font-size:15px;color:${r.sostenido?'var(--green)':'var(--red)'};">${r.sostenido ? 'Sostenido' : 'No sostenido'}</span>
+    </div>
+    <div class="sb-sub" style="margin-bottom:${r.sostenido?'0':'10px'};">${depHtml}</div>
+    ${r.sostenido ? '' : `
+      <div class="sb-causas">
+        ${r.motivoCausa.length>0
+          ? r.motivoCausa.map(c=>`
+            <div class="sb-causa-row">
+              <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
+            </div>
+          `).join('')
+          : ''
+        }
+        <div class="sb-pendiente-row">
+          <button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa||'hoy')}">${r.motivoCausa.length ? '✎ Editar causa(s)' : 'Declarar causa'}</button>
+        </div>
+      </div>
+    `}
   `;
-  return tr;
+  return div;
 }
 
 function renderResultado(resultadoExterno){
@@ -1382,35 +1447,10 @@ function renderResultado(resultadoExterno){
   nombresVisibles.forEach(nombre=>{
     const r = resultado[nombre];
     if(r.tipo === 'planificacion'){
-      tbody.appendChild(crearFilaResultadoPlanificacion(nombre, r, contextoCausa));
+      tbody.appendChild(crearBloquePlanificacion(nombre, r, contextoCausa));
       return;
     }
-    const pct = r.objetivoMin>0 ? Math.round((r.cerrado/r.objetivoMin)*100) : 0;
-    const estado = estadoLogro(r.cerrado, r.objetivoMin, r.objetivoOptimo);
-    const cumple = estado !== 'bajo';
-    const tr = document.createElement('tr');
-    tr.className = cumple ? 'hl-ok' : 'hl-bad';
-
-    const barColor = colorEstado(estado);
-    const barPct = Math.min(100, Math.round((r.cerrado/r.objetivoOptimo)*100));
-
-    tr.innerHTML = `
-      <td><span class="sector-name">${esc(nombre)}</span>${r.noConfigurado?' <span class="tag-objetivo">(no configurado)</span>':''}</td>
-      <td class="num">${fmt(r.pulmon)} m²</td>
-      <td class="num tag-objetivo">${fmt(r.objetivoMin)} mín · ${fmt(r.objetivoOptimo)} ópt.</td>
-      <td class="num">
-        <div>${fmt(r.cerrado)} m² ${estado==='optimo'?'<span style="color:var(--blue);font-size:11px;">★ óptimo</span>':''}</div>
-        <div class="bar-wrap"><div class="bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
-      </td>
-      <td class="num" style="color:${colorEstado(estado)};font-weight:600;">${pct}%</td>
-      <td>
-        ${cumple
-          ? '<span class="tag-objetivo">—</span>'
-          : `<button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa)}">${r.motivoCausa.length ? '✓ '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>`
-        }
-      </td>
-    `;
-    tbody.appendChild(tr);
+    tbody.appendChild(crearBloqueSector(nombre, r, contextoCausa, state.actual.fecha));
   });
 
   tbody.querySelectorAll('[data-motivo]').forEach(btn=>{
@@ -1423,15 +1463,58 @@ function renderResultado(resultadoExterno){
     btnConfirmar.style.display='none';
   } else {
     btnConfirmar.style.display='';
-    // habilitar confirmar solo si todos los sectores que no cumplieron el mínimo (o, para
-    // planificación, que no sostuvieron el pulmón de sus dependientes) tienen motivo
-    const faltanMotivos = Object.values(resultado).some(r => {
+    // ya no bloqueamos el botón: el día se puede cerrar igual con causas pendientes,
+    // y completarlas después editando el día desde Historial. Solo avisamos.
+    const sectoresSinCausa = Object.entries(resultado).filter(([,r]) => {
       const enFalta = r.tipo==='planificacion' ? !r.sostenido : (r.cerrado < r.objetivoMin);
       return enFalta && r.motivoCausa.length===0;
-    });
-    btnConfirmar.disabled = faltanMotivos;
-    btnConfirmar.title = faltanMotivos ? 'Declará el motivo de todos los sectores por debajo del objetivo mínimo' : '';
+    }).map(([nombre])=>nombre);
+    btnConfirmar.disabled = false;
+    btnConfirmar.dataset.sectoresSinCausa = JSON.stringify(sectoresSinCausa);
+    btnConfirmar.title = sectoresSinCausa.length>0 ? `Faltan causas en: ${sectoresSinCausa.join(', ')}. Se puede confirmar igual y completarlas después.` : '';
   }
+}
+
+function crearBloqueSector(nombre, r, contextoCausa, fechaParaPulmonInicio){
+  const pct = r.objetivoMin>0 ? Math.round((r.cerrado/r.objetivoMin)*100) : 0;
+  const estado = estadoLogro(r.cerrado, r.objetivoMin, r.objetivoOptimo);
+  const cumple = estado !== 'bajo';
+  const barColor = colorEstado(estado);
+  const barPct = Math.min(100, Math.round((r.cerrado/r.objetivoOptimo)*100));
+  const claseBloque = estado==='bajo' ? 'bloque-bajo' : (estado==='optimo' ? 'bloque-optimo' : 'bloque-ok');
+
+  const pulmonInicio = (fechaParaPulmonInicio && state.pulmones[fechaParaPulmonInicio]) ? state.pulmones[fechaParaPulmonInicio][nombre] : undefined;
+  const pulmonInicioTxt = pulmonInicio!==undefined ? `pulmón inicio ${fmt(pulmonInicio)} m² · pulmón cierre ${fmt(r.pulmon)} m²` : `pulmón ${fmt(r.pulmon)} m²`;
+
+  const div = document.createElement('div');
+  div.className = `sector-block ${claseBloque}`;
+  div.innerHTML = `
+    <div class="sb-head">
+      <span class="sb-name">${esc(nombre)}${r.noConfigurado?' <span class="tag-objetivo">(no configurado)</span>':''}</span>
+      <span class="sb-value">${fmt(r.cerrado)} m² <span class="sb-target">/ ${fmt(r.objetivoMin)} m²</span></span>
+    </div>
+    <div class="sb-sub">
+      ${estado==='optimo' ? '<span style="color:var(--blue);">★ óptimo</span> · ' : ''}
+      <span style="color:${colorEstado(estado)};font-weight:600;">${pct}%</span> del objetivo mínimo · óptimo ${fmt(r.objetivoOptimo)} m² · ${pulmonInicioTxt}
+    </div>
+    <div class="sb-bar"><div class="sb-bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
+    ${cumple ? '' : `
+      <div class="sb-causas">
+        ${r.motivoCausa.length>0
+          ? r.motivoCausa.map(c=>`
+            <div class="sb-causa-row">
+              <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
+            </div>
+          `).join('')
+          : ''
+        }
+        <div class="sb-pendiente-row">
+          <button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa)}">${r.motivoCausa.length ? '✎ Editar causa(s)' : 'Declarar causa'}</button>
+        </div>
+      </div>
+    `}
+  `;
+  return div;
 }
 
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -1582,6 +1665,11 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
     state.actual.resultado[causaSectorActivo].motivoCausa = nuevasCausas;
   } else {
     state.dias[causaContextoActivo].sectores[causaSectorActivo].motivoCausa = nuevasCausas;
+    // si este sector estaba en la lista de pendientes del día confirmado, lo sacamos
+    const dia = state.dias[causaContextoActivo];
+    if(dia.sectoresPendientesCausa){
+      dia.sectoresPendientesCausa = dia.sectoresPendientesCausa.filter(n=>n!==causaSectorActivo);
+    }
   }
   saveState();
   document.getElementById('modalCausa').classList.remove('show');
@@ -1597,11 +1685,19 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
 });
 
 document.getElementById('btnConfirmarDia').addEventListener('click', ()=>{
+  const btnConfirmar = document.getElementById('btnConfirmarDia');
+  const sectoresSinCausa = JSON.parse(btnConfirmar.dataset.sectoresSinCausa || '[]');
+
+  if(sectoresSinCausa.length>0){
+    const ok = confirm(`Todavía faltan causas en: ${sectoresSinCausa.join(', ')}.\n\n¿Confirmar el día igual? Vas a poder completar las causas pendientes después, editando el día desde Historial.`);
+    if(!ok) return;
+  }
+
   const fecha = state.actual.fecha;
   const eraFechaAnterior = state.actual.fechaFijadaManual;
-  state.dias[fecha] = { sectores: structuredClone(state.actual.resultado) };
+  state.dias[fecha] = { sectores: structuredClone(state.actual.resultado), sectoresPendientesCausa: sectoresSinCausa };
   saveState();
-  toast(`Día ${fecha} confirmado y guardado`);
+  toast(sectoresSinCausa.length>0 ? `Día ${fecha} confirmado — quedaron ${sectoresSinCausa.length} causa(s) pendiente(s)` : `Día ${fecha} confirmado y guardado`);
 
   if(eraFechaAnterior){
     volverAHoy();
@@ -1619,34 +1715,34 @@ document.getElementById('btnConfirmarDia').addEventListener('click', ()=>{
 /* ============================================================
    VISTA HISTORIAL
    ============================================================ */
-function filaHistorialPlanificacion(nombre, s, contexto){
+function bloqueHistorialPlanificacion(nombre, s, contexto){
   const causas = s.motivoCausa || [];
+  const claseBloque = s.sostenido ? 'bloque-ok' : 'bloque-bajo';
   const dependientesTxt = (s.dependientes||[]).map(d=>{
-    if(d.sinDatos || d.pulmon===null || d.pulmon===undefined) return `${esc(d.sector)}: <span class="tag-objetivo">sin datos</span>`;
-    return `${esc(d.sector)}: ${fmt(d.pulmon)} m² ${d.bajoUmbral?'<span style="color:var(--red);">(bajo umbral)</span>':'<span style="color:var(--green);">(ok)</span>'}`;
-  }).join(' · ');
+    if(d.sinDatos || d.pulmon===null || d.pulmon===undefined) return `<span class="tag-objetivo">${esc(d.sector)}: sin datos</span>`;
+    return `<span style="font-size:13px;${d.bajoUmbral?'color:var(--red);':'color:var(--green);'}">${esc(d.sector)}: ${fmt(d.pulmon)} m² ${d.bajoUmbral?'(bajo umbral)':'(ok)'}</span>`;
+  }).join(' &nbsp;·&nbsp; ');
   const mostrarBoton = !s.sostenido || causas.length>0;
   return `
-    <div class="hist-row" style="border-bottom:${causas.length?'none':'1px solid var(--line)'};">
-      <span class="hr-sector">${esc(nombre)}</span>
-      <span class="tag-objetivo" style="grid-column:span 2;font-size:12px;">${dependientesTxt}</span>
-      <span style="font-family:var(--mono);color:${s.sostenido?'var(--green)':'var(--red)'};font-weight:600;">${s.sostenido?'Sostenido':'No sostenido'}</span>
-      <span class="hr-motivo">
-        ${mostrarBoton
-          ? `<button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>`
-          : ''}
-      </span>
-    </div>
-    ${causas.length ? `
-    <div class="hist-causas" style="border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:6px;">
-      ${causas.map(c=>`
-        <div class="hist-causa-item">
-          <span class="hc-causa">${esc(c.causa)}</span>
-          <span class="hc-detalle">${esc(c.detalle||'')}</span>
-          <span class="hc-m2">—</span>
+    <div class="sector-block ${claseBloque}">
+      <div class="sb-head">
+        <span class="sb-name">${esc(nombre)} <span class="tag-objetivo">(sostiene pulmón)</span></span>
+        <span class="sb-value" style="font-size:15px;color:${s.sostenido?'var(--green)':'var(--red)'};">${s.sostenido?'Sostenido':'No sostenido'}</span>
+      </div>
+      <div class="sb-sub" style="margin-bottom:${mostrarBoton?'10px':'0'};">${dependientesTxt}</div>
+      ${mostrarBoton ? `
+        <div class="sb-causas">
+          ${causas.map(c=>`
+            <div class="sb-causa-row">
+              <span class="sc-text"><b>${esc(c.causa)}</b>${c.detalle?' · '+esc(c.detalle):''}</span>
+            </div>
+          `).join('')}
+          <div class="sb-pendiente-row">
+            <button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>
+          </div>
         </div>
-      `).join('')}
-    </div>` : ''}
+      ` : ''}
+    </div>
   `;
 }
 
@@ -1660,6 +1756,14 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   const m2FinLinea = (esAdmin() && finLineaSec) ? finLineaSec.cerrado : null;
   const mostrarResumenGlobal = esAdmin();
 
+  const diaGuardado = !esEnCurso ? state.dias[fecha] : null;
+  const pendientesGuardados = diaGuardado ? (diaGuardado.sectoresPendientesCausa || []) : [];
+  // recalculamos contra el estado actual, por si ya se completaron causas después de confirmar
+  const pendientesVigentes = pendientesGuardados.filter(nombre => {
+    const s = sectoresObj[nombre];
+    return s && (s.motivoCausa||[]).length===0;
+  });
+
   const contexto = esEnCurso ? 'hoy' : fecha;
   const div = document.createElement('div');
   div.className='hist-day' + (esEnCurso ? ' en-curso' : '');
@@ -1667,6 +1771,7 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
     <div class="hist-day-head">
       <div class="row" style="gap:14px;">
         ${esEnCurso ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);">● EN CURSO</span>' : ''}
+        ${pendientesVigentes.length>0 ? `<span class="status-pill" style="border-color:var(--red);color:var(--red);background:var(--red-dim);">⚠ Incompleto — ${pendientesVigentes.length} causa(s) pendiente(s)</span>` : ''}
         <span class="hd-date">${fecha}</span>
         ${mostrarResumenGlobal ? `<span class="status-pill ${cumplieron===total?'ok':'pending'}">${cumplieron}/${total} sectores en objetivo</span>` : ''}
         ${mostrarResumenGlobal ? `<span class="tag-objetivo">${m2FinLinea!==null ? fmt(m2FinLinea)+' m² (Fin de Línea)' : 'sin dato de Fin de Línea'}</span>` : ''}
@@ -1677,39 +1782,45 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
         <span class="chev">▶</span>
       </div>
     </div>
-    <div class="hist-day-body">
+    <div class="hist-day-body" style="display:flex;flex-direction:column;gap:10px;padding-top:10px;">
       ${sectores.map(([nombre,s])=>{
         if(s.tipo === 'planificacion'){
-          return filaHistorialPlanificacion(nombre, s, contexto);
+          return bloqueHistorialPlanificacion(nombre, s, contexto);
         }
         const estado = estadoLogro(s.cerrado, s.objetivoMin, s.objetivoOptimo);
+        const cumple = estado !== 'bajo';
         const color = colorEstado(estado);
+        const pct = s.objetivoMin>0 ? Math.round((s.cerrado/s.objetivoMin)*100) : 0;
         const barPct = Math.min(100, Math.round((s.cerrado/s.objetivoOptimo)*100));
         const causas = s.motivoCausa || [];
         const mostrarBoton = estado==='bajo' || causas.length>0;
+        const claseBloque = estado==='bajo' ? 'bloque-bajo' : (estado==='optimo' ? 'bloque-optimo' : 'bloque-ok');
+        const pulmonInicioHist = state.pulmones[fecha] ? state.pulmones[fecha][nombre] : undefined;
+        const pulmonTxtHist = pulmonInicioHist!==undefined ? `pulmón inicio ${fmt(pulmonInicioHist)} m² · pulmón cierre ${fmt(s.pulmon)} m²` : `pulmón ${fmt(s.pulmon)} m²`;
         return `
-        <div class="hist-row" style="border-bottom:${causas.length?'none':'1px solid var(--line)'};">
-          <span class="hr-sector">${esc(nombre)}</span>
-          <div class="bar-wrap" style="margin-top:0;"><div class="bar-fill" style="width:${barPct}%;background:${color};"></div></div>
-          <span class="num" style="font-family:var(--mono);">${fmt(s.cerrado)} m² ${estado==='optimo'?'★':''}</span>
-          <span class="tag-objetivo">${fmt(s.objetivoMin)} mín · ${fmt(s.objetivoOptimo)} ópt.</span>
-          <span style="font-family:var(--mono);color:${color};font-weight:600;">${Math.round((s.cerrado/s.objetivoMin)*100)}%</span>
-          <span class="hr-motivo">
-            ${mostrarBoton
-              ? `<button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>`
-              : ''}
-          </span>
-        </div>
-        ${causas.length ? `
-        <div class="hist-causas" style="border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:6px;">
-          ${causas.map(c=>`
-            <div class="hist-causa-item">
-              <span class="hc-causa">${esc(c.causa)}</span>
-              <span class="hc-detalle">${esc(c.detalle||'')}</span>
-              <span class="hc-m2">${fmt(c.m2||0)} m²</span>
+        <div class="sector-block ${claseBloque}">
+          <div class="sb-head">
+            <span class="sb-name">${esc(nombre)}</span>
+            <span class="sb-value">${fmt(s.cerrado)} m² <span class="sb-target">/ ${fmt(s.objetivoMin)} m²</span></span>
+          </div>
+          <div class="sb-sub">
+            ${estado==='optimo' ? '<span style="color:var(--blue);">★ óptimo</span> · ' : ''}
+            <span style="color:${color};font-weight:600;">${pct}%</span> del objetivo mínimo · óptimo ${fmt(s.objetivoOptimo)} m² · ${pulmonTxtHist}
+          </div>
+          <div class="sb-bar"><div class="sb-bar-fill" style="width:${barPct}%;background:${color};"></div></div>
+          ${mostrarBoton ? `
+            <div class="sb-causas">
+              ${causas.map(c=>`
+                <div class="sb-causa-row">
+                  <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
+                </div>
+              `).join('')}
+              <div class="sb-pendiente-row">
+                <button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>
+              </div>
             </div>
-          `).join('')}
-        </div>` : ''}
+          ` : ''}
+        </div>
       `;}).join('')}
     </div>
   `;
@@ -1813,70 +1924,97 @@ function renderGraficoCausas(){
     Object.entries(hoyEnCurso).forEach(([nombreSector, s])=>acumular(nombreSector, s));
   }
 
-  const totalPorCausa = Object.entries(acumPorCausa).map(([causa,porSector])=>[causa, Object.values(porSector).reduce((a,v)=>a+v,0)]);
+  const totalPorCausa = Object.entries(acumPorCausa).map(([causa,porSector])=>[causa, round1(Object.values(porSector).reduce((a,v)=>a+v,0))]);
   const entradas = totalPorCausa.sort((a,b)=>b[1]-a[1]).slice(0,10);
   const causasOrdenadas = entradas.map(e=>e[0]);
   const emptyDiv = document.getElementById('causasFrecuentesEmpty');
+  const cont = document.getElementById('causasFrecuentesContenido');
   const canvas = document.getElementById('chartCausas');
 
   if(entradas.length===0){
     emptyDiv.style.display='';
-    canvas.style.display='none';
+    cont.style.display='none';
     if(chartCausasInstance){ chartCausasInstance.destroy(); chartCausasInstance=null; }
     return;
   }
   emptyDiv.style.display='none';
-  canvas.style.display='';
+  cont.style.display='';
 
-  // si hay un sector filtrado, una sola serie simple; si son "todos", barras apiladas por sector
-  let datasets;
-  if(filtroSector){
-    datasets = [{
-      label: filtroSector,
-      data: causasOrdenadas.map(c=>round1(acumPorCausa[c][filtroSector]||0)),
-      backgroundColor: '#e8a33d',
-      borderRadius: 4,
-      barThickness: 18
-    }];
-  } else {
-    const sectoresPresentes = [...new Set(causasOrdenadas.flatMap(c=>Object.keys(acumPorCausa[c])))].sort();
-    datasets = sectoresPresentes.map((nombreSector,i)=>({
-      label: nombreSector,
-      data: causasOrdenadas.map(c=>round1(acumPorCausa[c][nombreSector]||0)),
-      backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
-      borderColor: '#0b0c0e',
-      borderWidth: 2
-    }));
-  }
+  // ----- Pareto: una sola serie de barras (sin mezclar sectores) + línea de % acumulado -----
+  const valores = causasOrdenadas.map(c=>entradas.find(e=>e[0]===c)[1]);
+  const totalGeneral = valores.reduce((a,v)=>a+v,0);
+  let acumulado = 0;
+  const pctAcumulado = valores.map(v=>{ acumulado += v; return totalGeneral>0 ? round1((acumulado/totalGeneral)*100) : 0; });
+  const corteVital = calcularCorteVital80(valores);
+  const coloresBarras = valores.map((v,i)=> i<corteVital ? '#e8584d' : '#e8a33d');
 
   if(chartCausasInstance) chartCausasInstance.destroy();
   chartCausasInstance = new Chart(canvas.getContext('2d'), {
-    type:'bar',
-    data:{ labels: causasOrdenadas, datasets },
+    data:{
+      labels: causasOrdenadas,
+      datasets:[
+        { type:'bar', label:'m² perdidos', data: valores, backgroundColor: coloresBarras, borderRadius:4, order:2, yAxisID:'y' },
+        { type:'line', label:'% acumulado', data: pctAcumulado, borderColor:'#5b9fd8', borderWidth:2, pointRadius:3, pointBackgroundColor:'#5b9fd8', tension:0, order:1, yAxisID:'y1' }
+      ]
+    },
     options:{
-      indexAxis:'y',
       responsive:true,
       maintainAspectRatio:false,
       plugins:{
-        legend:{display: !filtroSector, labels:{color:'#e8e9ea', font:{size:11}, boxWidth:12}},
-        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.x)} m²` } },
+        legend:{display:true, position:'top', labels:{color:'#e8e9ea', font:{size:11}, boxWidth:10}},
+        tooltip:{ callbacks:{ label: (ctx)=> ctx.dataset.yAxisID==='y1' ? `% acumulado: ${fmt(ctx.parsed.y)}%` : `${fmt(ctx.parsed.y)} m²` } },
         datalabels:{
-          color:'#0b0c0e',
-          font:{ weight:'600', size:11 },
-          formatter:(val)=> val>0 ? fmt(val) : '',
-          display:(ctx)=>{
-            // ocultar la etiqueta si el segmento es muy angosto para que entre el número
-            const meta = ctx.chart.getDatasetMeta(ctx.datasetIndex).data[ctx.dataIndex];
-            return meta && meta.width > 22;
-          }
+          color:(ctx)=> ctx.dataset.yAxisID==='y1' ? '#5b9fd8' : '#1a1505',
+          font:{ weight:'600', size:10 },
+          formatter:(val, ctx)=> ctx.dataset.yAxisID==='y1' ? fmt(val)+'%' : fmt(val),
+          align:(ctx)=> ctx.dataset.yAxisID==='y1' ? 'top' : 'center'
         }
       },
       scales:{
-        x:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, stacked:!filtroSector, title:{display:true,text:'m² perdidos',color:'#8d9199'} },
-        y:{ ticks:{color:'#e8e9ea',font:{size:11}}, grid:{display:false}, stacked:!filtroSector }
+        x:{ ticks:{color:'#8d9199', font:{size:10}, maxRotation:30, minRotation:0}, grid:{display:false} },
+        y:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, title:{display:true,text:'m² perdidos',color:'#8d9199'} },
+        y1:{ position:'right', min:0, max:100, ticks:{color:'#5b9fd8', callback:(v)=>v+'%'}, grid:{drawOnChartArea:false} }
       }
     }
   });
+
+  // ----- recomendación: las pocas causas vitales que explican el 80% -----
+  const causasVitales = causasOrdenadas.slice(0, corteVital);
+  const pctVital = pctAcumulado[corteVital-1] || 0;
+  const recoDiv = document.getElementById('recomendacionParetoCausas');
+  recoDiv.innerHTML = `
+    <div style="background:var(--red-dim);border:1px solid var(--red);border-radius:8px;padding:12px 16px;">
+      <div style="font-size:12px;color:var(--red);font-weight:600;margin-bottom:4px;">⚑ Para ser eficientes, atacar primero:</div>
+      <div style="font-size:13px;">
+        ${causasVitales.length===1
+          ? `Resolver <b>"${esc(causasVitales[0])}"</b> sola explica el <b>${fmt(pctVital)}%</b> de todo lo perdido en el período.`
+          : `Estas <b>${causasVitales.length} causas</b> explican el <b>${fmt(pctVital)}%</b> del total perdido: ${causasVitales.map(c=>`<b>${esc(c)}</b>`).join(', ')}.`
+        }
+      </div>
+      <div class="hint" style="margin-top:6px;">El resto de las causas (en ámbar en el gráfico) suman apenas el ${fmt(round1(100-pctVital))}% restante — menor prioridad.</div>
+    </div>
+  `;
+
+  // ----- matriz causa × sector (tabla, sin gráfico) -----
+  const sectoresPresentes = filtroSector ? [filtroSector] : [...new Set(causasOrdenadas.flatMap(c=>Object.keys(acumPorCausa[c])))].sort();
+  const tabla = document.getElementById('tablaMatrizCausas');
+  tabla.innerHTML = `
+    <thead><tr>
+      <th>Causa</th>
+      ${sectoresPresentes.map(s=>`<th class="num">${esc(s)}</th>`).join('')}
+      <th class="num">Total</th>
+    </tr></thead>
+    <tbody>
+      ${causasOrdenadas.map(causa=>{
+        const fila = sectoresPresentes.map(s=>{
+          const v = acumPorCausa[causa][s];
+          return v ? `<td class="num" style="background:var(--amber-dim);">${fmt(round1(v))}</td>` : `<td class="num tag-objetivo">—</td>`;
+        }).join('');
+        const totalFila = entradas.find(e=>e[0]===causa)[1];
+        return `<tr><td>${esc(causa)}</td>${fila}<td class="num" style="font-weight:600;">${fmt(totalFila)}</td></tr>`;
+      }).join('')}
+    </tbody>
+  `;
 }
 
 document.getElementById('filtroSectorCausas').addEventListener('change', renderGraficoCausas);
@@ -2475,6 +2613,35 @@ function dibujarFooterPdf(doc, W, H, pag, totalPag){
   doc.text(`Página ${pag} de ${totalPag}`, W-14, H-8, {align:'right'});
 }
 
+// dibuja el cuadro "atacar primero" con las causas vitales (80/20) debajo de un Pareto.
+// devuelve la nueva posición Y, ya con el espacio del cuadro consumido.
+function dibujarRecomendacionPareto(doc, W, y, causasOrdenadas, valores){
+  const corteVital = calcularCorteVital80(valores);
+  const total = valores.reduce((a,v)=>a+v,0);
+  const acumVital = valores.slice(0,corteVital).reduce((a,v)=>a+v,0);
+  const pctVital = total>0 ? round1((acumVital/total)*100) : 0;
+  const causasVitales = causasOrdenadas.slice(0,corteVital);
+
+  const tituloTxt = causasVitales.length===1
+    ? `Resolver "${causasVitales[0]}" sola explica el ${fmt(pctVital)}% de todo lo perdido en este recorte.`
+    : `Estas ${causasVitales.length} causas explican el ${fmt(pctVital)}% del total perdido: ${causasVitales.join(', ')}.`;
+  const lineasTexto = doc.splitTextToSize(tituloTxt, W-40);
+  const alturaCaja = 14 + lineasTexto.length*4.2;
+
+  doc.setFillColor(252,235,235);
+  doc.roundedRect(14, y, W-28, alturaCaja, 2, 2, 'F');
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(9);
+  doc.setTextColor(...PDF_COLORS.red);
+  doc.text('Para ser eficientes, atacar primero:', 18, y+7);
+  doc.setFont('helvetica','normal');
+  doc.setFontSize(8.5);
+  doc.setTextColor(60,30,30);
+  doc.text(lineasTexto, 18, y+12.5);
+
+  return y + alturaCaja + 8;
+}
+
 /* ---------- PDF de un día puntual ---------- */
 function generarPdfDia(fecha, sectoresObj){
   const {jsPDF} = window.jspdf;
@@ -2635,9 +2802,21 @@ function generarPdfDia(fecha, sectoresObj){
 }
 
 /* ---------- PDF de rango de fechas (consolidado) ---------- */
-function generarPdfRango(desde, hasta){
+function generarPdfRango(desde, hasta, sectoresElegidos){
+  const todasLasFechasEnRango = [];
+  {
+    let cursor = new Date(desde+'T00:00:00');
+    const limite = new Date(hasta+'T00:00:00');
+    while(cursor <= limite){
+      todasLasFechasEnRango.push(cursor.toISOString().slice(0,10));
+      cursor.setDate(cursor.getDate()+1);
+    }
+  }
   const fechas = Object.keys(state.dias).filter(f=>f>=desde && f<=hasta).sort();
+  const fechasExcluidas = todasLasFechasEnRango.filter(f=>!fechas.includes(f));
   if(fechas.length===0){ toast('No hay días confirmados en ese rango', true); return; }
+
+  const setSectoresElegidos = sectoresElegidos ? new Set(sectoresElegidos) : null;
 
   const {jsPDF} = window.jspdf;
   const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
@@ -2647,6 +2826,7 @@ function generarPdfRango(desde, hasta){
   // acumular datos
   const porSector = {}; // { nombre: {m2total, dias, cumplidos, optimos} }
   const porCausa = {};  // { causa: { total, porSector: {nombreSector: m2} } }
+  const porCausaPorSectorIndividual = {}; // { nombreSector: { causa: { total, filas:[] } } } — para el detalle por sector
   const planificacionResumen = {}; // { nombre: {diasSostenido, diasTotal, causas:[]} }
   let totalM2FinLinea = 0;
   let diasConFinLinea = 0;
@@ -2657,6 +2837,7 @@ function generarPdfRango(desde, hasta){
   fechas.forEach(f=>{
     Object.entries(state.dias[f].sectores).forEach(([nombre,s])=>{
       if(!esAdmin() && nombre !== sectorDelLider()) return;
+      if(setSectoresElegidos && !setSectoresElegidos.has(nombre)) return;
       const cfgSector = state.sectores.find(sc=>sc.nombre===nombre);
       const esPlanificacion = s.tipo === 'planificacion' || (cfgSector && cfgSector.tipo === 'planificacion');
       if(esPlanificacion){
@@ -2675,16 +2856,38 @@ function generarPdfRango(desde, hasta){
       if(nombre === state.sectorFinLinea){ totalM2FinLinea += s.cerrado; diasConFinLinea++; }
       totalSectorDias += 1;
       (s.motivoCausa||[]).forEach(c=>{
-        if(!porCausa[c.causa]) porCausa[c.causa] = {total:0, porSector:{}};
+        if(!porCausa[c.causa]) porCausa[c.causa] = {total:0, porSector:{}, filas:[]};
         porCausa[c.causa].total += (c.m2||0);
         porCausa[c.causa].porSector[nombre] = (porCausa[c.causa].porSector[nombre]||0) + (c.m2||0);
+        porCausa[c.causa].filas.push({fecha:f, sector:nombre, m2:c.m2||0, detalle:c.detalle||''});
+
+        if(!porCausaPorSectorIndividual[nombre]) porCausaPorSectorIndividual[nombre] = {};
+        if(!porCausaPorSectorIndividual[nombre][c.causa]) porCausaPorSectorIndividual[nombre][c.causa] = {total:0, filas:[]};
+        porCausaPorSectorIndividual[nombre][c.causa].total += (c.m2||0);
+        porCausaPorSectorIndividual[nombre][c.causa].filas.push({fecha:f, m2:c.m2||0, detalle:c.detalle||''});
       });
     });
   });
 
-  const periodoTxt = fechas.length===1 ? fechas[0] : `${fechas[0]} al ${fechas[fechas.length-1]} (${fechas.length} días)`;
+  const periodoTxt = fechas.length===1 ? fechas[0] : `${fechas[0]} al ${fechas[fechas.length-1]}`;
   dibujarHeaderPdf(doc, W, 'Informe consolidado de producción', periodoTxt);
   let y = 54;
+
+  // aviso explícito de qué días se pidieron vs. cuáles se incluyeron realmente
+  if(fechasExcluidas.length>0){
+    doc.setFillColor(...PDF_COLORS.amber);
+    const alturaAviso = 11 + Math.ceil(fechasExcluidas.length/6)*5;
+    doc.roundedRect(14,y,W-28,alturaAviso,2,2,'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(9);
+    doc.setTextColor(40,30,10);
+    doc.text(`Se pidió el rango ${desde} al ${hasta} (${todasLasFechasEnRango.length} días). Se incluyen ${fechas.length} día(s) confirmado(s).`, 18, y+7);
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8.5);
+    const lineaExcluidos = doc.splitTextToSize(`No incluidos (sin confirmar todavía): ${fechasExcluidas.join(', ')}`, W-36);
+    doc.text(lineaExcluidos, 18, y+13);
+    y += alturaAviso + 7;
+  }
 
   const pctCumplimiento = totalSectorDias>0 ? Math.round((totalCumplidos/totalSectorDias)*100) : 0;
   doc.setFillColor(pctCumplimiento>=80 ? PDF_COLORS.green[0] : PDF_COLORS.amber[0], pctCumplimiento>=80 ? PDF_COLORS.green[1] : PDF_COLORS.amber[1], pctCumplimiento>=80 ? PDF_COLORS.green[2] : PDF_COLORS.amber[2]);
@@ -2706,7 +2909,7 @@ function generarPdfRango(desde, hasta){
   doc.setFont('helvetica','bold');
   doc.setFontSize(11);
   doc.setTextColor(20,20,20);
-  doc.text('Resumen por sector', 14, y);
+  doc.text('Resumen por sector (todo el período)', 14, y);
   y += 6;
 
   const sectorRows = Object.entries(porSector).sort((a,b)=>b[1].m2total-a[1].m2total).map(([nombre,d])=>{
@@ -2726,52 +2929,49 @@ function generarPdfRango(desde, hasta){
 
   y = doc.lastAutoTable.finalY + 12;
 
-  // gráfico de Pareto de causas, discriminado por sector (barras apiladas)
+  // Pareto real de causas (una sola serie + % acumulado) + matriz causa×sector como tabla
   const entradasCausas = Object.entries(porCausa).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
   if(entradasCausas.length>0){
     if(y > H-90){ doc.addPage(); y = 20; }
     doc.setFont('helvetica','bold');
     doc.setFontSize(11);
     doc.setTextColor(20,20,20);
-    doc.text('Causas más frecuentes del período, por sector', 14, y);
+    doc.text('Pareto de causas del período', 14, y);
     y += 4;
 
-    const sectoresEnCausas = [...new Set(entradasCausas.flatMap(([,d])=>Object.keys(d.porSector)))].sort();
-    const coloresSector = ['#e8a33d','#5b9fd8','#4caf6e','#e8584d','#b88ce8','#e8d35b','#5be8c9','#e87fb0'];
+    const valoresCausas = entradasCausas.map(([,d])=>round1(d.total));
+    const totalGeneralCausas = valoresCausas.reduce((a,v)=>a+v,0);
+    let acumuladoPdf = 0;
+    const pctAcumPdf = valoresCausas.map(v=>{ acumuladoPdf += v; return totalGeneralCausas>0 ? round1((acumuladoPdf/totalGeneralCausas)*100) : 0; });
+    const corteVitalGlobal = calcularCorteVital80(valoresCausas);
+    const coloresBarrasPdf = valoresCausas.map((v,i)=> i<corteVitalGlobal ? '#e8584d' : '#e8a33d');
 
     const canvasTmp = document.createElement('canvas');
     canvasTmp.width = 900; canvasTmp.height = 460;
     const chartTmp = new Chart(canvasTmp.getContext('2d'), {
-      type:'bar',
       data:{
         labels: entradasCausas.map(e=>e[0]),
-        datasets: sectoresEnCausas.map((nombreSector,i)=>({
-          label: nombreSector,
-          data: entradasCausas.map(([,d])=>round1(d.porSector[nombreSector]||0)),
-          backgroundColor: coloresSector[i % coloresSector.length],
-          borderColor: '#ffffff',
-          borderWidth: 1.5
-        }))
+        datasets:[
+          { type:'bar', label:'m² perdidos', data: valoresCausas, backgroundColor: coloresBarrasPdf, yAxisID:'y', order:2 },
+          { type:'line', label:'% acumulado', data: pctAcumPdf, borderColor:'#185fa5', borderWidth:2, pointRadius:3, pointBackgroundColor:'#185fa5', tension:0, yAxisID:'y1', order:1 }
+        ]
       },
       options:{
-        indexAxis:'y',
         responsive:false,
         animation:false,
         plugins:{
-          legend:{display:true, position:'bottom', labels:{font:{size:11}}},
+          legend:{display:true, position:'top', labels:{font:{size:11}}},
           datalabels:{
-            color:'#1a1505',
-            font:{ weight:'600', size:11 },
-            formatter:(val)=> val>0 ? fmt(val) : '',
-            display:(ctx)=>{
-              const meta = ctx.chart.getDatasetMeta(ctx.datasetIndex).data[ctx.dataIndex];
-              return meta && meta.width > 22;
-            }
+            color:(ctx)=> ctx.dataset.yAxisID==='y1' ? '#185fa5' : '#1a1505',
+            font:{ weight:'600', size:10 },
+            formatter:(val, ctx)=> ctx.dataset.yAxisID==='y1' ? fmt(val)+'%' : fmt(val),
+            align:(ctx)=> ctx.dataset.yAxisID==='y1' ? 'top' : 'center'
           }
         },
         scales:{
-          x:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true, stacked:true },
-          y:{ ticks:{color:'#222',font:{size:12}}, grid:{display:false}, stacked:true }
+          x:{ ticks:{color:'#333', font:{size:10}, maxRotation:30}, grid:{display:false} },
+          y:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true, title:{display:true,text:'m² perdidos',font:{size:10}} },
+          y1:{ position:'right', min:0, max:100, ticks:{color:'#185fa5', callback:(v)=>v+'%'}, grid:{drawOnChartArea:false} }
         }
       }
     });
@@ -2780,26 +2980,54 @@ function generarPdfRango(desde, hasta){
     const imgW = W-28;
     const imgH = imgW * (460/900);
     doc.addImage(imgData, 'PNG', 14, y+2, imgW, imgH);
-    y += imgH + 12;
+    y += imgH + 8;
+
+    y = dibujarRecomendacionPareto(doc, W, y, entradasCausas.map(e=>e[0]), valoresCausas);
+
+    // matriz causa × sector (tabla, sin mezclar colores)
+    if(y > H-50){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(20,20,20);
+    doc.text('Matriz causa × sector (m² explicados)', 14, y);
+    y += 4;
+
+    const sectoresEnCausas = [...new Set(entradasCausas.flatMap(([,d])=>Object.keys(d.porSector)))].sort();
+    const matrizRows = entradasCausas.map(([causa,d])=>{
+      const fila = sectoresEnCausas.map(s=> d.porSector[s] ? fmt(round1(d.porSector[s])) : '—');
+      return [causa, ...fila, fmt(round1(d.total))];
+    });
+
+    doc.autoTable({
+      startY: y+2,
+      head: [['Causa', ...sectoresEnCausas, 'Total']],
+      body: matrizRows,
+      theme:'plain',
+      styles:{ fontSize:8, cellPadding:3.5, lineColor:[220,220,220], lineWidth:0.2, halign:'right' },
+      headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold', halign:'right' },
+      columnStyles:{ 0:{halign:'left', cellWidth:50} },
+      margin:{left:14, right:14}
+    });
+    y = doc.lastAutoTable.finalY + 12;
 
     if(y > H-50){ doc.addPage(); y = 20; }
     doc.setFont('helvetica','bold');
     doc.setFontSize(10);
     doc.setTextColor(20,20,20);
-    doc.text('Detalle: causa por sector', 14, y);
+    doc.text('Detalle: causa por sector y día', 14, y);
     y += 4;
 
-    // una fila por combinación causa + sector, para que quede trazable de dónde vino cada m²
+    // una fila por (causa, sector, día), con la fecha exacta para poder rastrear cuándo pasó
     const causaSectorRows = [];
     entradasCausas.forEach(([causa, d])=>{
-      Object.entries(d.porSector).sort((a,b)=>b[1]-a[1]).forEach(([sector, m2])=>{
-        causaSectorRows.push([causa, sector, fmt(round1(m2))+' m²']);
+      d.filas.sort((a,b)=>a.fecha.localeCompare(b.fecha) || a.sector.localeCompare(b.sector)).forEach(f=>{
+        causaSectorRows.push([f.fecha, causa, f.sector, fmt(round1(f.m2))+' m²']);
       });
     });
 
     doc.autoTable({
       startY: y+2,
-      head: [['Causa','Sector','m² explicados']],
+      head: [['Fecha','Causa','Sector','m² explicados']],
       body: causaSectorRows,
       theme:'plain',
       styles:{ fontSize:8.5, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
@@ -2863,8 +3091,160 @@ function generarPdfRango(desde, hasta){
     }
   }
 
+  // análisis individual por sector — un Pareto + matriz propio para cada sector elegido,
+  // para poder profundizar en uno puntual sin la mezcla del panorama global
+  const sectoresParaDetalle = Object.keys(porSector).sort();
+  if(sectoresParaDetalle.length>0){
+    sectoresParaDetalle.forEach(nombreSector=>{
+      doc.addPage();
+      y = 20;
+      doc.setFillColor(20,20,20);
+      doc.roundedRect(14, y, W-28, 11, 1.5, 1.5, 'F');
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(12);
+      doc.setTextColor(255,255,255);
+      doc.text(`Análisis individual — ${nombreSector}`, 18, y+7.5);
+      y += 18;
+
+      const dSector = porSector[nombreSector];
+      const pctSector = dSector.dias>0 ? Math.round((dSector.cumplidos/dSector.dias)*100) : 0;
+      const kpiWS = (W-28-3*6)/4;
+      dibujarKpiCard(doc, 14, y, kpiWS, 22, 'm² totales', fmt(round1(dSector.m2total)), PDF_COLORS.amber);
+      dibujarKpiCard(doc, 14+kpiWS+6, y, kpiWS, 22, 'Días en mínimo', `${dSector.cumplidos}/${dSector.dias}`, pctSector>=80?PDF_COLORS.green:PDF_COLORS.red);
+      dibujarKpiCard(doc, 14+(kpiWS+6)*2, y, kpiWS, 22, 'Días óptimo', `${dSector.optimos}/${dSector.dias}`, PDF_COLORS.blue);
+      dibujarKpiCard(doc, 14+(kpiWS+6)*3, y, kpiWS, 22, '% cumplimiento', `${pctSector}%`, pctSector>=80?PDF_COLORS.green:PDF_COLORS.red);
+      y += 30;
+
+      // pulmón al inicio de jornada + m² cerrados, día por día — la trazabilidad básica
+      // antes de entrar al detalle de causas
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10);
+      doc.setTextColor(20,20,20);
+      doc.text('Pulmón al inicio de jornada y cierre diario', 14, y);
+      y += 4;
+
+      const filasPulmonSector = fechas
+        .filter(f => state.dias[f].sectores[nombreSector])
+        .map(f=>{
+          const sDia = state.dias[f].sectores[nombreSector];
+          const pulmonIni = state.pulmones[f] ? state.pulmones[f][nombreSector] : undefined;
+          const estadoDia = estadoLogro(sDia.cerrado, sDia.objetivoMin, sDia.objetivoOptimo);
+          const estadoTxt = estadoDia==='bajo' ? 'Bajo mínimo' : (estadoDia==='optimo' ? 'Óptimo' : 'Cumple');
+          return [f, pulmonIni!==undefined ? fmt(round1(pulmonIni))+' m²' : 'sin dato', fmt(round1(sDia.cerrado))+' m²', estadoTxt, estadoDia];
+        });
+
+      doc.autoTable({
+        startY: y+2,
+        head: [['Fecha','Pulmón inicio','m² cerrados','Estado']],
+        body: filasPulmonSector.map(f=>[f[0],f[1],f[2],f[3]]),
+        theme:'plain',
+        styles:{ fontSize:8.5, cellPadding:3.5, lineColor:[225,225,225], lineWidth:0.2 },
+        headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
+        didParseCell: function(data){
+          if(data.section==='body' && data.column.index===3){
+            const c = pdfEstadoColor(filasPulmonSector[data.row.index][4]);
+            data.cell.styles.textColor = c;
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        margin:{left:14, right:14}
+      });
+      y = doc.lastAutoTable.finalY + 12;
+
+      const causasDeEsteSector = porCausaPorSectorIndividual[nombreSector] || {};
+      const entradasSector = Object.entries(causasDeEsteSector).sort((a,b)=>b[1].total-a[1].total);
+
+      if(entradasSector.length===0){
+        doc.setFont('helvetica','normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...PDF_COLORS.inkDim);
+        doc.text('Este sector no tuvo causas declaradas en el período (cumplió el objetivo todos los días, o no se registró el motivo).', 14, y);
+        return;
+      }
+
+      if(y > H-90){ doc.addPage(); y = 20; }
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(11);
+      doc.setTextColor(20,20,20);
+      doc.text('Pareto de causas de este sector', 14, y);
+      y += 4;
+
+      const valoresSector = entradasSector.map(([,d])=>round1(d.total));
+      const totalSectorCausas = valoresSector.reduce((a,v)=>a+v,0);
+      let acumSector = 0;
+      const pctAcumSector = valoresSector.map(v=>{ acumSector += v; return totalSectorCausas>0 ? round1((acumSector/totalSectorCausas)*100) : 0; });
+      const corteVitalSector = calcularCorteVital80(valoresSector);
+      const coloresBarrasSector = valoresSector.map((v,i)=> i<corteVitalSector ? '#e8584d' : '#e8a33d');
+
+      const canvasSectorTmp = document.createElement('canvas');
+      canvasSectorTmp.width = 900; canvasSectorTmp.height = 380;
+      const chartSectorTmp = new Chart(canvasSectorTmp.getContext('2d'), {
+        data:{
+          labels: entradasSector.map(e=>e[0]),
+          datasets:[
+            { type:'bar', label:'m² perdidos', data: valoresSector, backgroundColor: coloresBarrasSector, yAxisID:'y', order:2 },
+            { type:'line', label:'% acumulado', data: pctAcumSector, borderColor:'#185fa5', borderWidth:2, pointRadius:3, pointBackgroundColor:'#185fa5', tension:0, yAxisID:'y1', order:1 }
+          ]
+        },
+        options:{
+          responsive:false,
+          animation:false,
+          plugins:{
+            legend:{display:true, position:'top', labels:{font:{size:10}}},
+            datalabels:{
+              color:(ctx)=> ctx.dataset.yAxisID==='y1' ? '#185fa5' : '#1a1505',
+              font:{ weight:'600', size:9 },
+              formatter:(val, ctx)=> ctx.dataset.yAxisID==='y1' ? fmt(val)+'%' : fmt(val),
+              align:(ctx)=> ctx.dataset.yAxisID==='y1' ? 'top' : 'center'
+            }
+          },
+          scales:{
+            x:{ ticks:{color:'#333', font:{size:9}, maxRotation:30}, grid:{display:false} },
+            y:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true },
+            y1:{ position:'right', min:0, max:100, ticks:{color:'#185fa5', callback:(v)=>v+'%'}, grid:{drawOnChartArea:false} }
+          }
+        }
+      });
+      const imgSectorData = canvasSectorTmp.toDataURL('image/png');
+      chartSectorTmp.destroy();
+      const imgSW = W-28;
+      const imgSH = imgSW * (380/900);
+      doc.addImage(imgSectorData, 'PNG', 14, y+2, imgSW, imgSH);
+      y += imgSH + 8;
+
+      y = dibujarRecomendacionPareto(doc, W, y, entradasSector.map(e=>e[0]), valoresSector);
+
+      if(y > H-50){ doc.addPage(); y = 20; }
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(10);
+      doc.setTextColor(20,20,20);
+      doc.text(`Detalle día por día — ${nombreSector}`, 14, y);
+      y += 4;
+
+      const filasDetalleSector = [];
+      entradasSector.forEach(([causa,d])=>{
+        d.filas.sort((a,b)=>a.fecha.localeCompare(b.fecha)).forEach(f=>{
+          filasDetalleSector.push([f.fecha, causa, fmt(round1(f.m2))+' m²', f.detalle||'—']);
+        });
+      });
+
+      doc.autoTable({
+        startY: y+2,
+        head: [['Fecha','Causa','m²','Detalle']],
+        body: filasDetalleSector,
+        theme:'plain',
+        styles:{ fontSize:8, cellPadding:3.5, lineColor:[225,225,225], lineWidth:0.2 },
+        headStyles:{ fillColor:[232,163,61], textColor:[20,20,20], fontStyle:'bold' },
+        columnStyles:{ 3:{cellWidth:65} },
+        margin:{left:14, right:14}
+      });
+    });
+  }
+
   // evolución del pulmón en el período (evidencia objetiva de carga de trabajo disponible)
-  const fechasPulmonRango = Object.keys(state.pulmones||{}).filter(f=>f>=desde && f<=hasta).sort();
+  // usamos las MISMAS fechas confirmadas que el resto del informe, para que no se mezclen
+  // días en curso (sin confirmar) con el período que se está reportando
+  const fechasPulmonRango = fechas.filter(f => state.pulmones[f]);
   if(fechasPulmonRango.length>0){
     doc.addPage();
     y = 20;
@@ -2945,6 +3325,92 @@ function generarPdfRango(desde, hasta){
     });
   }
 
+  // detalle día por día, con cada sector y su causa (si corresponde) — para ver
+  // exactamente qué pasó en cada jornada, no solo el acumulado del período
+  doc.addPage();
+  y = 20;
+  doc.setFont('helvetica','bold');
+  doc.setFontSize(14);
+  doc.setTextColor(20,20,20);
+  doc.text('Detalle día por día', 14, y);
+  y += 9;
+
+  fechas.forEach((fecha, idxFecha)=>{
+    if(y > H-35){ doc.addPage(); y = 20; }
+    doc.setFillColor(245,245,245);
+    doc.roundedRect(14, y, W-28, 9, 1.5, 1.5, 'F');
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(11);
+    doc.setTextColor(20,20,20);
+    doc.text(fecha, 18, y+6.3);
+    y += 13;
+
+    const sectoresDia = Object.entries(state.dias[fecha].sectores).filter(([nombre])=>{
+      if(!esAdmin() && nombre !== sectorDelLider()) return false;
+      if(setSectoresElegidos && !setSectoresElegidos.has(nombre)) return false;
+      return true;
+    });
+    const filasDia = sectoresDia
+      .filter(([,s])=>s.tipo!=='planificacion')
+      .map(([nombre,s])=>{
+        const estado = estadoLogro(s.cerrado, s.objetivoMin, s.objetivoOptimo);
+        const pct = s.objetivoMin>0 ? Math.round((s.cerrado/s.objetivoMin)*100) : 0;
+        const estadoTxt = estado==='bajo' ? 'Bajo mínimo' : (estado==='optimo' ? 'Óptimo' : 'Cumple');
+        return [nombre, fmt(s.cerrado)+' m²', pct+'%', estadoTxt, estado];
+      });
+
+    doc.autoTable({
+      startY: y,
+      head: [['Sector','m² cerrados','% objetivo','Estado']],
+      body: filasDia.map(f=>[f[0],f[1],f[2],f[3]]),
+      theme:'plain',
+      styles:{ fontSize:8.5, cellPadding:3.5, lineColor:[225,225,225], lineWidth:0.2 },
+      headStyles:{ fillColor:[245,245,245], textColor:[60,60,60], fontStyle:'bold' },
+      didParseCell: function(data){
+        if(data.section==='body' && data.column.index===3){
+          const c = pdfEstadoColor(filasDia[data.row.index][4]);
+          data.cell.styles.textColor = c;
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+      margin:{left:14, right:14}
+    });
+    y = doc.lastAutoTable.finalY + 4;
+
+    // causas de los sectores bajo mínimo este día
+    const causasDelDia = [];
+    sectoresDia.filter(([,s])=>s.tipo!=='planificacion').forEach(([nombre,s])=>{
+      (s.motivoCausa||[]).forEach(c=> causasDelDia.push([nombre, c.causa, fmt(round1(c.m2||0))+' m²', c.detalle||'—']));
+    });
+    // y el estado de Planificación, si corresponde, en el mismo bloque del día
+    sectoresDia.filter(([,s])=>s.tipo==='planificacion').forEach(([nombre,s])=>{
+      const estadoTxt = s.sostenido ? 'Sostenido' : 'No sostenido';
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(8.5);
+      doc.setTextColor(...(s.sostenido?PDF_COLORS.green:PDF_COLORS.red));
+      doc.text(`${nombre}: ${estadoTxt}`, 18, y+3);
+      y += 7;
+      (s.motivoCausa||[]).forEach(c=> causasDelDia.push([nombre, c.causa, '—', c.detalle||'—']));
+    });
+
+    if(causasDelDia.length>0){
+      if(y > H-30){ doc.addPage(); y = 20; }
+      doc.autoTable({
+        startY: y,
+        head: [['Sector','Causa','m² explica','Detalle']],
+        body: causasDelDia,
+        theme:'plain',
+        styles:{ fontSize:8, cellPadding:3, lineColor:[230,230,230], lineWidth:0.2, textColor:[120,80,20] },
+        headStyles:{ fillColor:[250,238,218], textColor:[20,20,20], fontStyle:'bold', fontSize:8 },
+        columnStyles:{ 3:{cellWidth:60} },
+        margin:{left:18, right:14}
+      });
+      y = doc.lastAutoTable.finalY + 10;
+    } else {
+      y += 6;
+    }
+  });
+
   const totalPag = doc.internal.getNumberOfPages();
   for(let p=1;p<=totalPag;p++){
     doc.setPage(p);
@@ -2963,7 +3429,26 @@ document.getElementById('btnPdfRango').addEventListener('click', ()=>{
   const hace7 = new Date();
   hace7.setDate(hace7.getDate()-7);
   document.getElementById('inputRangoDesde').value = hace7.toISOString().slice(0,10);
+
+  const sectoresDisponibles = esAdmin() ? state.sectores.map(s=>s.nombre) : [sectorDelLider()];
+  const checksCont = document.getElementById('checksRangoSectores');
+  checksCont.innerHTML = sectoresDisponibles.map(n=>
+    `<span class="causa-chip sel" data-rango-sector="${esc(n)}">${esc(n)}</span>`
+  ).join('');
+  checksCont.querySelectorAll('[data-rango-sector]').forEach(chip=>{
+    chip.addEventListener('click', ()=> chip.classList.toggle('sel'));
+  });
+  document.getElementById('btnRangoTodos').style.display = esAdmin() ? '' : 'none';
+  document.getElementById('btnRangoNinguno').style.display = esAdmin() ? '' : 'none';
+
   document.getElementById('modalRangoPdf').classList.add('show');
+});
+
+document.getElementById('btnRangoTodos').addEventListener('click', ()=>{
+  document.querySelectorAll('#checksRangoSectores [data-rango-sector]').forEach(c=>c.classList.add('sel'));
+});
+document.getElementById('btnRangoNinguno').addEventListener('click', ()=>{
+  document.querySelectorAll('#checksRangoSectores [data-rango-sector]').forEach(c=>c.classList.remove('sel'));
 });
 
 document.getElementById('btnRangoCancel').addEventListener('click', ()=>{
@@ -2975,7 +3460,9 @@ document.getElementById('btnRangoGenerar').addEventListener('click', ()=>{
   const hasta = document.getElementById('inputRangoHasta').value;
   if(!desde || !hasta){ toast('Elegí ambas fechas', true); return; }
   if(desde > hasta){ toast('La fecha "desde" no puede ser posterior a "hasta"', true); return; }
-  generarPdfRango(desde, hasta);
+  const sectoresElegidos = [...document.querySelectorAll('#checksRangoSectores [data-rango-sector].sel')].map(c=>c.dataset.rangoSector);
+  if(sectoresElegidos.length===0){ toast('Elegí al menos un sector', true); return; }
+  generarPdfRango(desde, hasta, sectoresElegidos);
   document.getElementById('modalRangoPdf').classList.remove('show');
 });
 
