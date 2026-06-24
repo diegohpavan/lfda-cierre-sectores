@@ -1821,8 +1821,10 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
 
   const diaGuardado = !esEnCurso ? state.dias[fecha] : null;
   const pendientesGuardados = diaGuardado ? (diaGuardado.sectoresPendientesCausa || []) : [];
-  // recalculamos contra el estado actual, por si ya se completaron causas después de confirmar
+  // recalculamos contra el estado actual, por si ya se completaron causas después de confirmar,
+  // y filtramos por rol: un líder solo debe ver los pendientes de SU sector, no los de toda la planta
   const pendientesVigentes = pendientesGuardados.filter(nombre => {
+    if(!esAdmin() && nombre !== sectorDelLider()) return false;
     const s = sectoresObj[nombre];
     return s && (s.motivoCausa||[]).length===0;
   });
@@ -3133,12 +3135,47 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
   // resumen de Planificación (sostenimiento de pulmón) en el período
   const nombresPlanif = Object.keys(planificacionResumen);
   if(nombresPlanif.length>0){
-    if(y > H-60){ doc.addPage(); y = 20; }
-    doc.setFont('helvetica','bold');
-    doc.setFontSize(11);
-    doc.setTextColor(20,20,20);
-    doc.text('Planificación (sostenimiento de pulmón) en el período', 14, y);
-    y += 6;
+    nombresPlanif.forEach(nombre=>{
+      if(y > H-70){ doc.addPage(); y = 20; }
+      doc.setFillColor(20,20,20);
+      doc.roundedRect(14, y, W-28, 11, 1.5, 1.5, 'F');
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(12);
+      doc.setTextColor(255,255,255);
+      doc.text(`Desempeño de Planificación — ${nombre}`, 18, y+7.5);
+      y += 18;
+
+      const d = planificacionResumen[nombre];
+      const pct = d.diasTotal>0 ? Math.round((d.diasSostenido/d.diasTotal)*100) : 0;
+      const cfgPlanif = state.sectores.find(s=>s.nombre===nombre);
+      const dependientesDeEste = cfgPlanif ? (cfgPlanif.sectoresDependientes||[]) : [];
+
+      // margen promedio: cuánto pulmón le quedó a cada sector dependiente por encima
+      // de su umbral de alerta, promediado en el período — mide si trabaja "ajustado" o con colchón
+      let margenes = [];
+      dependientesDeEste.forEach(nombreDep=>{
+        const cfgDep = state.sectores.find(s=>s.nombre===nombreDep);
+        const umbralDep = cfgDep ? cfgDep.umbralPulmonBajo : state.umbralPulmonBajoDefault;
+        fechas.forEach(f=>{
+          if(state.pulmones[f] && state.pulmones[f][nombreDep]!==undefined){
+            margenes.push(state.pulmones[f][nombreDep] - umbralDep);
+          }
+        });
+      });
+      const margenPromedio = margenes.length ? round1(margenes.reduce((a,v)=>a+v,0)/margenes.length) : null;
+
+      const kpiWP = (W-28-2*6)/3;
+      dibujarKpiCard(doc, 14, y, kpiWP, 24, 'Días sostenido', `${d.diasSostenido}/${d.diasTotal}`, pct>=80?PDF_COLORS.green:PDF_COLORS.red);
+      dibujarKpiCard(doc, 14+kpiWP+6, y, kpiWP, 24, '% del período', `${pct}%`, pct>=80?PDF_COLORS.green:PDF_COLORS.red);
+      dibujarKpiCard(doc, 14+(kpiWP+6)*2, y, kpiWP, 24, 'Margen prom. sobre umbral', margenPromedio!==null ? (margenPromedio>=0?'+':'')+fmt(margenPromedio)+' m²' : '—', margenPromedio!==null && margenPromedio<0 ? PDF_COLORS.red : PDF_COLORS.green);
+      y += 32;
+    });
+
+    doc.setFont('helvetica','normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...PDF_COLORS.inkDim);
+    doc.text('El margen indica, en promedio, cuántos m² de pulmón le quedaron a los sectores que dependen de Planificación por encima de su umbral de alerta. Un margen negativo indica que trabajaron por debajo del umbral durante el período.', 14, y, {maxWidth: W-28});
+    y += 12;
 
     const planifRows = nombresPlanif.map(nombre=>{
       const d = planificacionResumen[nombre];
@@ -3146,8 +3183,13 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
       return [nombre, `${d.diasSostenido}/${d.diasTotal}`, pct+'%'];
     });
 
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(20,20,20);
+    doc.text('Resumen por sector de planificación', 14, y);
+    y += 4;
     doc.autoTable({
-      startY: y,
+      startY: y+2,
       head: [['Sector','Días sostenido','% del período']],
       body: planifRows,
       theme:'plain',
@@ -3168,7 +3210,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
       doc.setFont('helvetica','bold');
       doc.setFontSize(10);
       doc.setTextColor(20,20,20);
-      doc.text('Causas declaradas por Planificación', 14, y);
+      doc.text('Días que no sostuvo y causa declarada', 14, y);
       y += 4;
       doc.autoTable({
         startY: y+2,
@@ -3181,6 +3223,12 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
         margin:{left:14, right:14}
       });
       y = doc.lastAutoTable.finalY + 12;
+    } else {
+      doc.setFont('helvetica','normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...PDF_COLORS.green);
+      doc.text('Sostuvo el pulmón de todos sus sectores dependientes todos los días del período — sin causas declaradas.', 14, y);
+      y += 10;
     }
 
     // tendencia del pulmón de los sectores que dependen de Planificación, a lo largo
