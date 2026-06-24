@@ -1462,6 +1462,15 @@ function colorEstado(estado){
   return 'var(--green)';
 }
 
+// detecta el patrón típico de la carga de la mañana: todos los sectores normales
+// (no planificación) en 0 m² cerrados, con el pulmón de cierre igual al de inicio —
+// indica que todavía no se pegó el cierre real de la jornada (suele cargarse a las 16hs)
+function esCargaMatutinaSinCierre(resultado){
+  const sectoresNormales = Object.values(resultado).filter(r=>r.tipo!=='planificacion');
+  if(sectoresNormales.length===0) return false;
+  return sectoresNormales.every(r=>r.cerrado===0);
+}
+
 function crearBloquePlanificacion(nombre, r, contextoCausa){
   const claseBloque = r.sostenido ? 'bloque-ok' : 'bloque-bajo';
   const div = document.createElement('div');
@@ -1503,6 +1512,22 @@ function renderResultado(resultadoExterno){
   tbody.innerHTML='';
 
   const resultado = resultadoExterno || state.actual.resultado;
+
+  // aviso si todo el día está en 0 m² (carga matutina, todavía sin el cierre real de la tarde)
+  let avisoMatutino = document.getElementById('avisoCargaMatutina');
+  if(esCargaMatutinaSinCierre(resultado)){
+    if(!avisoMatutino){
+      avisoMatutino = document.createElement('div');
+      avisoMatutino.id = 'avisoCargaMatutina';
+      avisoMatutino.style.cssText = 'background:var(--amber-dim);border:1px solid var(--amber);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;';
+      panel.insertBefore(avisoMatutino, panel.querySelector('#avisoSinConfirmar') || tbody);
+    }
+    avisoMatutino.innerHTML = '☀ <b>Carga de la mañana:</b> todos los sectores están en 0 m² porque todavía no se pegó el cierre real de la jornada. Esto es esperado — declarar causas ahora y volver a cargar el "Fin de turno" con los números reales más tarde.';
+    avisoMatutino.style.display = '';
+  } else if(avisoMatutino){
+    avisoMatutino.style.display = 'none';
+  }
+
   // si estamos mostrando el resultado ya confirmado (no el borrador en curso de esta sesión),
   // el botón de causa debe editar directamente ese día guardado, no 'hoy' en memoria
   const contextoCausa = resultadoExterno ? state.actual.fecha : 'hoy';
@@ -1830,12 +1855,14 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   });
 
   const contexto = esEnCurso ? 'hoy' : fecha;
+  const esCargaMatutina = esCargaMatutinaSinCierre(sectoresObj);
   const div = document.createElement('div');
   div.className='hist-day' + (esEnCurso ? ' en-curso' : '');
   div.innerHTML = `
     <div class="hist-day-head">
       <div class="row" style="gap:14px;">
         ${esEnCurso ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);">● EN CURSO</span>' : ''}
+        ${esCargaMatutina ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);" title="Todavía no se cargó el cierre real de la jornada">☀ Carga matutina</span>' : ''}
         ${pendientesVigentes.length>0 ? `<span class="status-pill" style="border-color:var(--red);color:var(--red);background:var(--red-dim);">⚠ Incompleto — ${pendientesVigentes.length} causa(s) pendiente(s)</span>` : ''}
         <span class="hd-date">${fecha}</span>
         ${mostrarResumenGlobal ? `<span class="status-pill ${cumplieron===total?'ok':'pending'}">${cumplieron}/${total} sectores en objetivo</span>` : ''}
