@@ -942,6 +942,40 @@ function migrarSectorPlanificacionFaltante(s){
   });
 }
 
+// cadena de producción real de LFDA: cada sector recibe pulmón de su proveedor anterior.
+// Solo se asigna si el sector todavía no tiene sectorProveedor definido (no pisa configuración manual).
+const CADENA_PROVEEDORES_DEFAULT = {
+  '1-ALM': {sectorProveedor:'0-Planificación'},
+  '4-VID': {sectorProveedor:'0-Planificación'},
+  '2-MEC': {sectorProveedor:'1-ALM'},
+  '3-SOL': {sectorProveedor:'2-MEC'},
+  '6-ARM': {sectorProveedor:'3-SOL'},
+  '7-ACR': {sectorProveedor:'6-ARM', proveedoresAdicionales:['4-VID','5-DVH']},
+  '8-LI':  {sectorProveedor:'7-ACR'}
+};
+
+function migrarCadenaProveedores(s){
+  const nombresExistentes = (s.sectores||[]).map(sec=>sec.nombre);
+  // resolvemos el nombre real de planificación (puede tener prefijo numérico distinto, ej "0-Planificación")
+  const nombrePlanifReal = (s.sectores||[]).find(sec=>sec.tipo==='planificacion');
+  (s.sectores||[]).forEach(sec=>{
+    if(sec.tipo==='planificacion') return;
+    const def = CADENA_PROVEEDORES_DEFAULT[sec.nombre];
+    if(!def) return;
+    if(sec.sectorProveedor===undefined){
+      let proveedor = def.sectorProveedor;
+      // si el proveedor definido es "Planificación" pero el nombre real es otro (ej "0-Planificación")
+      if(proveedor && proveedor.includes('Planificación') && nombrePlanifReal && nombresExistentes.includes(nombrePlanifReal.nombre)){
+        proveedor = nombrePlanifReal.nombre;
+      }
+      sec.sectorProveedor = nombresExistentes.includes(proveedor) ? proveedor : null;
+    }
+    if(sec.proveedoresAdicionales===undefined && def.proveedoresAdicionales){
+      sec.proveedoresAdicionales = def.proveedoresAdicionales.filter(n=>nombresExistentes.includes(n));
+    }
+  });
+}
+
 function loadState(){
   try{
     const raw = localStorage.getItem(LS_KEY);
@@ -1007,40 +1041,6 @@ function migrarObjetivosPorSector(s){
   });
   delete s.objetivo;
   if(!s.umbralPulmonBajoDefault) s.umbralPulmonBajoDefault = umbralLegacy;
-}
-
-// cadena de producción real de LFDA: cada sector recibe pulmón de su proveedor anterior.
-// Solo se asigna si el sector todavía no tiene sectorProveedor definido (no pisa configuración manual).
-const CADENA_PROVEEDORES_DEFAULT = {
-  '1-ALM': {sectorProveedor:'0-Planificación'},
-  '4-VID': {sectorProveedor:'0-Planificación'},
-  '2-MEC': {sectorProveedor:'1-ALM'},
-  '3-SOL': {sectorProveedor:'2-MEC'},
-  '6-ARM': {sectorProveedor:'3-SOL'},
-  '7-ACR': {sectorProveedor:'6-ARM', proveedoresAdicionales:['4-VID','5-DVH']},
-  '8-LI':  {sectorProveedor:'7-ACR'}
-};
-
-function migrarCadenaProveedores(s){
-  const nombresExistentes = (s.sectores||[]).map(sec=>sec.nombre);
-  // resolvemos el nombre real de planificación (puede tener prefijo numérico distinto, ej "0-Planificación")
-  const nombrePlanifReal = (s.sectores||[]).find(sec=>sec.tipo==='planificacion');
-  (s.sectores||[]).forEach(sec=>{
-    if(sec.tipo==='planificacion') return;
-    const def = CADENA_PROVEEDORES_DEFAULT[sec.nombre];
-    if(!def) return;
-    if(sec.sectorProveedor===undefined){
-      let proveedor = def.sectorProveedor;
-      // si el proveedor definido es "Planificación" pero el nombre real es otro (ej "0-Planificación")
-      if(proveedor && proveedor.includes('Planificación') && nombrePlanifReal && nombresExistentes.includes(nombrePlanifReal.nombre)){
-        proveedor = nombrePlanifReal.nombre;
-      }
-      sec.sectorProveedor = nombresExistentes.includes(proveedor) ? proveedor : null;
-    }
-    if(sec.proveedoresAdicionales===undefined && def.proveedoresAdicionales){
-      sec.proveedoresAdicionales = def.proveedoresAdicionales.filter(n=>nombresExistentes.includes(n));
-    }
-  });
 }
 
 function migrarHistoricoPulmones(s){
