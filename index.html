@@ -1206,6 +1206,29 @@ function volverAHoy(){
   saveState();
 }
 
+// fuente de verdad única: si el día de state.actual.fecha ya está confirmado en
+// Historial (state.dias), ESE es siempre el resultado vigente — así una causa
+// declarada desde Historial se ve reflejada al instante en "Hoy", y viceversa.
+// Si el día todavía no se confirmó, el borrador en memoria (state.actual.resultado)
+// es la única copia que existe.
+function obtenerResultadoVigente(){
+  const diaConfirmado = state.dias[state.actual.fecha];
+  if(diaConfirmado) return diaConfirmado.sectores;
+  return state.actual.resultado;
+}
+
+// guarda el resultado en el lugar correcto: si el día ya está confirmado, lo
+// actualiza directamente ahí (sin tocar el array de pendientes); si no, lo deja
+// como borrador en memoria como hasta ahora.
+function guardarResultadoVigente(resultado){
+  const diaConfirmado = state.dias[state.actual.fecha];
+  if(diaConfirmado){
+    diaConfirmado.sectores = resultado;
+  } else {
+    state.actual.resultado = resultado;
+  }
+}
+
 function renderHoy(){
   ensureActualDia();
   document.getElementById('todayLabel').textContent = capitalize(todayLabel());
@@ -1234,12 +1257,9 @@ function renderHoy(){
   // restaurar textareas si había algo cargado (mostramos resumen, no el texto crudo)
   renderKpis();
   const yaConfirmado = !!state.dias[state.actual.fecha];
-  if(state.actual.resultado){
-    renderResultado();
-  } else if(yaConfirmado){
-    // el día ya fue confirmado (posiblemente desde otra sesión/dispositivo) pero esta
-    // sesión nunca calculó un borrador propio — mostramos directamente lo ya guardado
-    renderResultado(state.dias[state.actual.fecha].sectores);
+  const resultadoVigente = obtenerResultadoVigente();
+  if(resultadoVigente){
+    renderResultado(resultadoVigente);
   } else {
     document.getElementById('panelResultado').style.display = 'none';
   }
@@ -1314,7 +1334,8 @@ function renderKpisLider(hoy){
   const cfgSector = state.sectores.find(s=>s.nombre===miSector);
 
   if(cfgSector && cfgSector.tipo === 'planificacion'){
-    const datosHoy = hoy ? hoy.sectores[miSector] : (state.actual.resultado ? state.actual.resultado[miSector] : null);
+    const resultadoVigente = obtenerResultadoVigente();
+    const datosHoy = hoy ? hoy.sectores[miSector] : (resultadoVigente ? resultadoVigente[miSector] : null);
     const sostenido = datosHoy ? datosHoy.sostenido : null;
     row.innerHTML = `
       <div class="kpi"><div class="lbl">Mi sector</div><div class="val" style="font-size:18px;">${esc(miSector)}</div></div>
@@ -1327,7 +1348,8 @@ function renderKpisLider(hoy){
   const objMin = cfgSector ? cfgSector.objetivoMin : state.objetivoMinDefault;
   const objOpt = cfgSector ? cfgSector.objetivoOptimo : state.objetivoOptimoDefault;
 
-  const datosHoy = hoy ? hoy.sectores[miSector] : (state.actual.resultado ? state.actual.resultado[miSector] : null);
+  const resultadoVigente2 = obtenerResultadoVigente();
+  const datosHoy = hoy ? hoy.sectores[miSector] : (resultadoVigente2 ? resultadoVigente2[miSector] : null);
   const cerrado = datosHoy ? fmt(datosHoy.cerrado) : '—';
   const estado = datosHoy ? estadoLogro(datosHoy.cerrado, objMin, objOpt) : null;
   const colorVal = estado==='bajo' ? 'red' : (estado==='optimo' ? '' : 'green');
@@ -1378,12 +1400,6 @@ document.getElementById('btnGuardarFin').addEventListener('click', ()=>{
   const {datos} = parsePegado(texto);
   if(Object.keys(datos).length===0){ toast('No se reconoció ningún sector en el texto pegado', true); return; }
   ensureActualDia();
-  // si el día ya estaba confirmado y todavía no se había recalculado un borrador en esta
-  // sesión, partimos de lo que ya está guardado (con las causas que declararon los
-  // líderes) en vez de un resultado vacío — para no perderlas al recalcular el cierre.
-  if(!state.actual.resultado && state.dias[state.actual.fecha]){
-    state.actual.resultado = structuredClone(state.dias[state.actual.fecha].sectores);
-  }
   state.actual.fin = datos;
   calcularResultado();
   saveState();
@@ -1394,7 +1410,10 @@ document.getElementById('btnGuardarFin').addEventListener('click', ()=>{
 function calcularResultado(){
   const inicio = state.actual.inicio;
   const fin = state.actual.fin;
-  const resultadoAnterior = state.actual.resultado || {};
+  // las causas previas pueden venir de un borrador local O de lo ya confirmado en
+  // Historial (si un líder declaró algo ahí) — la función central decide cuál es la
+  // versión más reciente real, para no perder nada al recalcular.
+  const resultadoAnterior = obtenerResultadoVigente() || {};
   const resultado = {};
   const nombresConfigurados = state.sectores.map(s=>s.nombre);
 
@@ -1410,7 +1429,8 @@ function calcularResultado(){
     const pulmon = f ? f.supPul : (i ? i.supPul : 0);
     const cfgSector = state.sectores.find(s=>s.nombre===nombre);
     // si este sector ya tenía causas declaradas en el cálculo anterior del mismo día
-    // (ej: corrigiendo un tipeo en OTRO sector), las conservamos en vez de perderlas
+    // (ej: corrigiendo un tipeo en OTRO sector, o declaradas por un líder en Historial),
+    // las conservamos en vez de perderlas
     const causasPrevias = resultadoAnterior[nombre] ? resultadoAnterior[nombre].motivoCausa : [];
     resultado[nombre] = {
       pulmon: pulmon,
@@ -1445,7 +1465,7 @@ function calcularResultado(){
     };
   });
 
-  state.actual.resultado = resultado;
+  guardarResultadoVigente(resultado);
 }
 
 function round1(n){ return Math.round(n*10)/10; }
@@ -1524,7 +1544,7 @@ function renderResultado(resultadoExterno){
   const tbody = document.getElementById('resultadoBody');
   tbody.innerHTML='';
 
-  const resultado = resultadoExterno || state.actual.resultado;
+  const resultado = resultadoExterno || obtenerResultadoVigente();
 
   // aviso si todo el día está en 0 m² (carga matutina, todavía sin el cierre real de la tarde)
   let avisoMatutino = document.getElementById('avisoCargaMatutina');
@@ -1541,9 +1561,10 @@ function renderResultado(resultadoExterno){
     avisoMatutino.style.display = 'none';
   }
 
-  // si estamos mostrando el resultado ya confirmado (no el borrador en curso de esta sesión),
-  // el botón de causa debe editar directamente ese día guardado, no 'hoy' en memoria
-  const contextoCausa = resultadoExterno ? state.actual.fecha : 'hoy';
+  // el botón de causa debe editar siempre el lugar real donde vive el resultado:
+  // si el día ya está confirmado en Historial, ese es el contexto (la fecha);
+  // si todavía es un borrador sin confirmar, el contexto es 'hoy' (state.actual)
+  const contextoCausa = state.dias[state.actual.fecha] ? state.actual.fecha : 'hoy';
   const nombresVisibles = Object.keys(resultado).filter(n => esAdmin() || n === sectorDelLider());
   nombresVisibles.forEach(nombre=>{
     const r = resultado[nombre];
@@ -1775,10 +1796,12 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
   saveState();
   document.getElementById('modalCausa').classList.remove('show');
 
-  if(causaContextoActivo === 'hoy'){
-    renderResultado();
+  // Hoy e Historial muestran la misma fuente de verdad (state.dias cuando el día está
+  // confirmado) — refrescamos ambas vistas si están activas, sin importar desde dónde
+  // se guardó la causa, para que se vean sincronizadas al instante en cualquiera de las dos.
+  if(document.getElementById('view-hoy').classList.contains('active')){
+    renderHoy();
   }
-  // si la vista historial está activa (o por si afecta el gráfico/tarjetas), refrescarla también
   if(document.getElementById('view-historial').classList.contains('active')){
     renderHistorial();
   }
@@ -1796,7 +1819,7 @@ document.getElementById('btnConfirmarDia').addEventListener('click', ()=>{
 
   const fecha = state.actual.fecha;
   const eraFechaAnterior = state.actual.fechaFijadaManual;
-  state.dias[fecha] = { sectores: structuredClone(state.actual.resultado), sectoresPendientesCausa: sectoresSinCausa };
+  state.dias[fecha] = { sectores: structuredClone(obtenerResultadoVigente()), sectoresPendientesCausa: sectoresSinCausa };
   saveState();
   toast(sectoresSinCausa.length>0 ? `Día ${fecha} confirmado — quedaron ${sectoresSinCausa.length} causa(s) pendiente(s)` : `Día ${fecha} confirmado y guardado`);
 
