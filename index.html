@@ -238,6 +238,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 
     <div id="loginListaUsuarios" class="panel">
       <div class="panel-head"><h2>¿Quién está cargando?</h2></div>
+      <div id="loginSincronizando" style="text-align:center;padding:20px 0;color:var(--ink-faint);font-size:13px;">Sincronizando…</div>
       <div id="loginBotonesLideres" style="display:flex;flex-direction:column;gap:8px;"></div>
       <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
       <button class="btn btn-ghost" id="btnSoyAdmin" style="width:100%;">Soy administrador (Diego)</button>
@@ -562,6 +563,7 @@ function inicializarFirebase(){
   try{
     if(typeof firebase === 'undefined'){
       console.warn('Firebase SDK no cargó — la app sigue funcionando solo con almacenamiento local.');
+      if(loginListoCallback) loginListoCallback();
       return;
     }
     firebase.initializeApp(firebaseConfig);
@@ -581,6 +583,7 @@ function inicializarFirebase(){
       .catch((e)=>{
         console.error('No se pudo autenticar de forma anónima — revisá que esté activado en Firebase > Authentication > Sign-in method > Anonymous.', e);
         actualizarIndicadorSync('local');
+        if(loginListoCallback) loginListoCallback();
       });
 
     firebase.auth().onAuthStateChanged((user)=>{
@@ -592,6 +595,7 @@ function inicializarFirebase(){
   }catch(e){
     console.error('No se pudo inicializar Firebase, la app sigue funcionando localmente.', e);
     actualizarIndicadorSync('local');
+    if(loginListoCallback) loginListoCallback();
   }
 }
 
@@ -630,6 +634,13 @@ function aplicarEstadoRemoto(data){
     migrarObjetivosPorSector(state);
     migrarHistoricoPulmones(state);
     localStorage.setItem(LS_KEY, JSON.stringify(state));
+    // si la pantalla de login sigue visible (todavía no entró nadie), destrabamos
+    // el cartel de "Sincronizando…" y mostramos la lista ya con los datos al día
+    if(document.getElementById('loginScreen').style.display !== 'none'){
+      if(loginListoCallback) loginListoCallback();
+      else renderLoginLideres();
+      return;
+    }
     renderHoy();
     if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
     if(document.getElementById('view-config').classList.contains('active')) renderConfig();
@@ -706,27 +717,27 @@ function defaultState(){
     usuarios: {
       adminPassHash: '83f1ca6cf5ab96baa2feeced43a1904dee6d0007ce9605fe665eddd2dfae0dd6',
       lideres: [
-        {id:'u1', nombre:'Diego Acevedo', sector:'2-MEC'},
-        {id:'u2', nombre:'Angel Córdoba', sector:'3-SOL'},
-        {id:'u3', nombre:'Pablo Muchiutti', sector:'4-VID'},
-        {id:'u4', nombre:'Líder 1-ALM', sector:'1-ALM'},
-        {id:'u5', nombre:'Líder 5-DVH', sector:'5-DVH'},
-        {id:'u6', nombre:'Líder 6-ARM', sector:'6-ARM'},
-        {id:'u7', nombre:'Líder 7-ACR', sector:'7-ACR'},
-        {id:'u8', nombre:'Líder 8-LI', sector:'8-LI'},
-        {id:'u9', nombre:'Alfredo Vera', sector:'Planificación'}
+        {id:'u1', nombre:'Augusto Maldonado', sector:'1-ALM'},
+        {id:'u2', nombre:'Pablo García', sector:'2-MEC'},
+        {id:'u3', nombre:'Ariel Amarillo', sector:'3-SOL'},
+        {id:'u4', nombre:'Angel Córdoba', sector:'4-VID'},
+        {id:'u5', nombre:'Diego Acevedo', sector:'5-DVH'},
+        {id:'u6', nombre:'Braian Coimbra', sector:'6-ARM'},
+        {id:'u7', nombre:'Daniel Trombotti', sector:'7-ACR'},
+        {id:'u8', nombre:'Alejandro Maglio', sector:'8-LI'},
+        {id:'u9', nombre:'Alfredo Vera', sector:'0-Planificación'}
       ]
     },
     sectores: [
-      {nombre:'1-ALM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'Planificación', causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'1-ALM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'0-Planificación', causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'2-MEC', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'1-ALM', causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'3-SOL', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'2-MEC', causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'4-VID', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'Planificación', causas: structuredClone(DEFAULT_CAUSAS)},
+      {nombre:'4-VID', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'0-Planificación', causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'5-DVH', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:null, causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'6-ARM', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'3-SOL', causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'7-ACR', objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'6-ARM', proveedoresAdicionales:['4-VID','5-DVH'], causas: structuredClone(DEFAULT_CAUSAS)},
       {nombre:'8-LI',  objetivoMin:120, objetivoOptimo:160, umbralPulmonBajo:50, sectorProveedor:'7-ACR', causas: structuredClone(DEFAULT_CAUSAS)},
-      {nombre:'Planificación', tipo:'planificacion', sectoresDependientes:['1-ALM','4-VID'], causas: structuredClone(CAUSAS_PLANIFICACION)}
+      {nombre:'0-Planificación', tipo:'planificacion', sectoresDependientes:['1-ALM','4-VID'], causas: structuredClone(CAUSAS_PLANIFICACION)}
     ],
     dias: {},          // { '2026-06-22': { sectores: { '1-ALM': {pulmon, objetivoMin, objetivoOptimo, cerrado, motivoCausa:[{causa,detalle,m2}]} } } }
     pulmones: {},      // { '2026-06-22': { '1-ALM': {udsPul, supPul} } } — histórico de lo pegado en INICIO de turno, independiente de si el día se confirma
@@ -746,6 +757,7 @@ let state = loadState();
    ============================================================ */
 const SESION_KEY = 'lfda_sesion_v1';
 let sesion = cargarSesion(); // { rol: 'admin'|'lider', nombre, sector (solo lider) }
+let loginListoCallback = null; // se llama una vez que Firebase confirma datos (o falla) en la pantalla de login
 
 function cargarSesion(){
   try{
@@ -826,7 +838,6 @@ function iniciarAppPostLogin(){
 
   aplicarRestriccionesDeRol();
   renderHoy();
-  inicializarFirebase();
 }
 
 function aplicarRestriccionesDeRol(){
@@ -851,7 +862,21 @@ function chequearSesionAlCargar(){
   if(sesion){
     iniciarAppPostLogin();
   } else {
-    renderLoginLideres();
+    // mostramos "Sincronizando…" en vez de la lista local vieja, para no mostrar
+    // nombres desactualizados un instante antes de que Firebase los corrija.
+    // Si Firebase no contesta en 2.5s (sin internet, etc.), mostramos la lista local igual.
+    document.getElementById('loginSincronizando').style.display='';
+    document.getElementById('loginBotonesLideres').style.display='none';
+    let yaRenderizado = false;
+    const mostrarLista = ()=>{
+      if(yaRenderizado) return;
+      yaRenderizado = true;
+      document.getElementById('loginSincronizando').style.display='none';
+      document.getElementById('loginBotonesLideres').style.display='';
+      renderLoginLideres();
+    };
+    loginListoCallback = mostrarLista;
+    setTimeout(mostrarLista, 2500);
   }
 }
 
@@ -3157,6 +3182,54 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
       });
       y = doc.lastAutoTable.finalY + 12;
     }
+
+    // tendencia del pulmón de los sectores que dependen de Planificación, a lo largo
+    // del período — para medir si en promedio sostuvo o fue erosionando la carga de trabajo
+    if(y > H-50){ doc.addPage(); y = 20; }
+    doc.setFont('helvetica','bold');
+    doc.setFontSize(10);
+    doc.setTextColor(20,20,20);
+    doc.text('Tendencia del pulmón generado (sectores que dependen de Planificación)', 14, y);
+    y += 4;
+
+    const nombresDependientes = [...new Set(
+      nombresPlanif.flatMap(n=>{
+        const cfg = state.sectores.find(s=>s.nombre===n);
+        return cfg ? (cfg.sectoresDependientes||[]) : [];
+      })
+    )];
+
+    const tendenciaRows = nombresDependientes.map(nombreDep=>{
+      const valoresPulmon = fechas
+        .filter(f=>state.pulmones[f] && state.pulmones[f][nombreDep]!==undefined)
+        .map(f=>state.pulmones[f][nombreDep]);
+      if(valoresPulmon.length===0) return [nombreDep, 'sin datos', '—', '—'];
+      const inicio = valoresPulmon[0];
+      const fin = valoresPulmon[valoresPulmon.length-1];
+      const diferencia = round1(fin-inicio);
+      const tendenciaTxt = diferencia>0 ? `▲ subió ${fmt(diferencia)} m²` : (diferencia<0 ? `▼ bajó ${fmt(Math.abs(diferencia))} m²` : '— sin cambio');
+      return [nombreDep, fmt(round1(inicio))+' m²', fmt(round1(fin))+' m²', tendenciaTxt, diferencia];
+    });
+
+    doc.autoTable({
+      startY: y+2,
+      head: [['Sector','Pulmón inicio período','Pulmón fin período','Tendencia']],
+      body: tendenciaRows.map(r=>[r[0],r[1],r[2],r[3]]),
+      theme:'plain',
+      styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
+      headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
+      didParseCell: function(data){
+        if(data.section==='body' && data.column.index===3){
+          const dif = tendenciaRows[data.row.index][4];
+          if(typeof dif === 'number'){
+            data.cell.styles.textColor = dif<0 ? PDF_COLORS.red : (dif>0 ? PDF_COLORS.green : PDF_COLORS.inkDim);
+            data.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
+      margin:{left:14, right:14}
+    });
+    y = doc.lastAutoTable.finalY + 12;
   }
 
   // análisis individual por sector — un Pareto + matriz propio para cada sector elegido,
@@ -3530,6 +3603,16 @@ document.getElementById('btnRangoGenerar').addEventListener('click', ()=>{
   if(desde > hasta){ toast('La fecha "desde" no puede ser posterior a "hasta"', true); return; }
   const sectoresElegidos = [...document.querySelectorAll('#checksRangoSectores [data-rango-sector].sel')].map(c=>c.dataset.rangoSector);
   if(sectoresElegidos.length===0){ toast('Elegí al menos un sector', true); return; }
+
+  const sectoresNormalesElegidos = sectoresElegidos.filter(n=>{
+    const cfg = state.sectores.find(s=>s.nombre===n);
+    return cfg && cfg.tipo !== 'planificacion';
+  });
+  if(sectoresNormalesElegidos.length===0){
+    const seguro = confirm('Solo elegiste sectores de Planificación — el informe no va a traer ningún sector de producción (m², causas, etc). ¿Generar igual?');
+    if(!seguro) return;
+  }
+
   generarPdfRango(desde, hasta, sectoresElegidos);
   document.getElementById('modalRangoPdf').classList.remove('show');
 });
@@ -3634,6 +3717,9 @@ function structuredClone_polyfill(obj){ return JSON.parse(JSON.stringify(obj)); 
 if(typeof structuredClone === 'undefined'){ window.structuredClone = structuredClone_polyfill; }
 
 chequearSesionAlCargar();
+// inicializamos Firebase ya, aunque todavía no haya sesión — así, si alguien cambió
+// nombres/sectores de líderes desde otra PC, la pantalla de login los muestra al día
+inicializarFirebase();
 </script>
 </body>
 </html>
