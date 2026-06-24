@@ -1504,7 +1504,7 @@ function esCargaMatutinaSinCierre(resultado){
   return sectoresNormales.every(r=>r.cerrado===0);
 }
 
-function crearBloquePlanificacion(nombre, r, contextoCausa){
+function crearBloquePlanificacion(nombre, r){
   const claseBloque = r.sostenido ? 'bloque-ok' : 'bloque-bajo';
   const div = document.createElement('div');
   div.className = `sector-block ${claseBloque}`;
@@ -1527,11 +1527,8 @@ function crearBloquePlanificacion(nombre, r, contextoCausa){
               <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
             </div>
           `).join('')
-          : ''
+          : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía — declarar desde Historial</span></div>`
         }
-        <div class="sb-pendiente-row">
-          <button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa||'hoy')}">${r.motivoCausa.length ? '✎ Editar causa(s)' : 'Declarar causa'}</button>
-        </div>
       </div>
     `}
   `;
@@ -1561,22 +1558,14 @@ function renderResultado(resultadoExterno){
     avisoMatutino.style.display = 'none';
   }
 
-  // el botón de causa debe editar siempre el lugar real donde vive el resultado:
-  // si el día ya está confirmado en Historial, ese es el contexto (la fecha);
-  // si todavía es un borrador sin confirmar, el contexto es 'hoy' (state.actual)
-  const contextoCausa = state.dias[state.actual.fecha] ? state.actual.fecha : 'hoy';
   const nombresVisibles = Object.keys(resultado).filter(n => esAdmin() || n === sectorDelLider());
   nombresVisibles.forEach(nombre=>{
     const r = resultado[nombre];
     if(r.tipo === 'planificacion'){
-      tbody.appendChild(crearBloquePlanificacion(nombre, r, contextoCausa));
+      tbody.appendChild(crearBloquePlanificacion(nombre, r));
       return;
     }
-    tbody.appendChild(crearBloqueSector(nombre, r, contextoCausa, state.actual.fecha));
-  });
-
-  tbody.querySelectorAll('[data-motivo]').forEach(btn=>{
-    btn.addEventListener('click', ()=>abrirModalCausa(btn.dataset.motivo, btn.dataset.motivoContexto));
+    tbody.appendChild(crearBloqueSector(nombre, r, state.actual.fecha));
   });
 
   // confirmar el día completo es una acción exclusiva del admin (depende de TODOS los sectores)
@@ -1585,19 +1574,18 @@ function renderResultado(resultadoExterno){
     btnConfirmar.style.display='none';
   } else {
     btnConfirmar.style.display='';
-    // ya no bloqueamos el botón: el día se puede cerrar igual con causas pendientes,
-    // y completarlas después editando el día desde Historial. Solo avisamos.
+    // las causas se declaran únicamente desde Historial (no bloquea confirmar el día)
     const sectoresSinCausa = Object.entries(resultado).filter(([,r]) => {
       const enFalta = r.tipo==='planificacion' ? !r.sostenido : (r.cerrado < r.objetivoMin);
       return enFalta && r.motivoCausa.length===0;
     }).map(([nombre])=>nombre);
     btnConfirmar.disabled = false;
     btnConfirmar.dataset.sectoresSinCausa = JSON.stringify(sectoresSinCausa);
-    btnConfirmar.title = sectoresSinCausa.length>0 ? `Faltan causas en: ${sectoresSinCausa.join(', ')}. Se puede confirmar igual y completarlas después.` : '';
+    btnConfirmar.title = sectoresSinCausa.length>0 ? `Faltan causas en: ${sectoresSinCausa.join(', ')}. Declarálas desde Historial.` : '';
   }
 }
 
-function crearBloqueSector(nombre, r, contextoCausa, fechaParaPulmonInicio){
+function crearBloqueSector(nombre, r, fechaParaPulmonInicio){
   const pct = r.objetivoMin>0 ? Math.round((r.cerrado/r.objetivoMin)*100) : 0;
   const estado = estadoLogro(r.cerrado, r.objetivoMin, r.objetivoOptimo);
   const cumple = estado !== 'bajo';
@@ -1628,11 +1616,8 @@ function crearBloqueSector(nombre, r, contextoCausa, fechaParaPulmonInicio){
               <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
             </div>
           `).join('')
-          : ''
+          : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía — declarar desde Historial</span></div>`
         }
-        <div class="sb-pendiente-row">
-          <button class="btn btn-sm ${r.motivoCausa.length? 'btn-ghost':'btn-danger'}" data-motivo="${esc(nombre)}" data-motivo-contexto="${esc(contextoCausa)}">${r.motivoCausa.length ? '✎ Editar causa(s)' : 'Declarar causa'}</button>
-        </div>
       </div>
     `}
   `;
