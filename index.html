@@ -1378,6 +1378,12 @@ document.getElementById('btnGuardarFin').addEventListener('click', ()=>{
   const {datos} = parsePegado(texto);
   if(Object.keys(datos).length===0){ toast('No se reconoció ningún sector en el texto pegado', true); return; }
   ensureActualDia();
+  // si el día ya estaba confirmado y todavía no se había recalculado un borrador en esta
+  // sesión, partimos de lo que ya está guardado (con las causas que declararon los
+  // líderes) en vez de un resultado vacío — para no perderlas al recalcular el cierre.
+  if(!state.actual.resultado && state.dias[state.actual.fecha]){
+    state.actual.resultado = structuredClone(state.dias[state.actual.fecha].sectores);
+  }
   state.actual.fin = datos;
   calcularResultado();
   saveState();
