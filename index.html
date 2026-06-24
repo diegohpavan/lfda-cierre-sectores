@@ -1138,15 +1138,22 @@ function procesarBloque(cols, offset, out, warnings){
   if(!nombre) return;
   // debe parecer un nombre de sector: contiene letras, no es puramente numérico
   if(!/[A-Za-zÁÉÍÓÚáéíóúÑñ]/.test(nombre)) return;
+  // descartar encabezados de columna de G_PRO que a veces quedan incluidos al copiar
+  // (ej: "UDS PUL", "SUP PUL", "SUP FIN") — no son nombres de sector real
+  if(/^(UDS|SUP)\s*(PUL|FIN)$/i.test(nombre.trim())) return;
   const udsPul = parseNum(cols[offset+1]);
   const supPul = parseNum(cols[offset+2]);
   const supFin = parseNum(cols[offset+3]);
-  // descartamos la fila solo si los TRES valores numéricos vinieron vacíos —
-  // antes se descartaba con solo que faltaran udsPul y supPul, perdiendo casos reales
-  // donde G_PRO trae únicamente el SUP FIN (ej: "3-SOL\t\t\t111")
-  if(udsPul===null && supPul===null && supFin===null) {
-    return; // no parece una fila de datos válida
+
+  // caso especial: el sector no tiene NINGÚN dato numérico propio — ni siquiera columnas
+  // (fila con solo el nombre), ni valores dentro de las 3 columnas que le corresponden antes
+  // del próximo bloque. Esto pasa en G_PRO cuando el sector está completamente parado
+  // (pulmón 0, sin producción). Es un dato real, no una fila inválida para descartar.
+  if(udsPul===null && supPul===null && supFin===null){
+    out[nombre] = { udsPul: 0, supPul: 0, supFin: 0 };
+    return;
   }
+
   out[nombre] = {
     udsPul: udsPul ?? 0,
     supPul: supPul ?? 0,
