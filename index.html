@@ -1795,6 +1795,32 @@ function abrirModalCausa(nombreSector, contexto){
       wrap.appendChild(chip);
     });
     chipsCont.appendChild(wrap);
+
+    // cualquier usuario (líder o admin) puede agregar una causa nueva al catálogo
+    // de este sector/grupo, directamente desde acá, sin pasar por Configuración
+    if(cfgSector){
+      const addRow = document.createElement('div');
+      addRow.className='add-causa-row';
+      addRow.innerHTML = `<input type="text" placeholder="+ agregar causa de ${esc(grupo)}..." data-add-causa-modal="${esc(grupo)}">`;
+      chipsCont.appendChild(addRow);
+
+      const inputNueva = addRow.querySelector('input');
+      inputNueva.addEventListener('keydown', e=>{
+        if(e.key==='Enter' && inputNueva.value.trim()){
+          const nombreNueva = inputNueva.value.trim();
+          if(cfgSector.causas[grupo].includes(nombreNueva)){
+            toast('Esa causa ya existe en el catálogo', true);
+            return;
+          }
+          cfgSector.causas[grupo].push(nombreNueva);
+          saveState();
+          causasDetalle.push({causa:nombreNueva, detalle:'', m2:0});
+          inputNueva.value='';
+          abrirModalCausa(nombreSector, contexto); // re-render completo del modal con la causa nueva ya seleccionada
+          toast('Causa agregada al catálogo de ' + nombreSector);
+        }
+      });
+    }
   });
 
   renderCausaDetalles(deficit);
