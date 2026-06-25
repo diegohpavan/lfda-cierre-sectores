@@ -535,6 +535,27 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
   </div>
 </div>
 
+<!-- MODAL: editar m² cerrados de un día/sector ya confirmado (ej: horas extra cargadas al día siguiente) -->
+<div class="modal-overlay" id="modalEditarM2">
+  <div class="modal" style="max-width:440px;">
+    <h3>Corregir m² cerrados</h3>
+    <div class="modal-sub"><span id="modalM2SectorFecha"></span></div>
+    <div class="field">
+      <label>m² cerrados actuales: <b id="modalM2Actual" style="color:var(--ink);"></b></label>
+      <label style="margin-top:10px;">Nuevo valor de m² cerrados</label>
+      <input type="number" min="0" step="0.1" id="inputNuevoM2">
+    </div>
+    <div class="field">
+      <label>Motivo de la corrección (ej: horas extra cargadas al día siguiente)</label>
+      <textarea id="inputMotivoCorreccionM2" placeholder="Ej: Se sumaron 18 m² de horas extra trabajadas después del cierre del día"></textarea>
+    </div>
+    <div class="row end">
+      <button class="btn btn-ghost" id="btnM2Cancel">Cancelar</button>
+      <button class="btn btn-primary" id="btnM2Guardar">Guardar corrección</button>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    FIREBASE — sincronización entre PCs de planta
@@ -1831,14 +1852,14 @@ function bloqueHistorialPlanificacion(nombre, s, contexto){
     if(d.sinDatos || d.pulmon===null || d.pulmon===undefined) return `<span class="tag-objetivo">${esc(d.sector)}: sin datos</span>`;
     return `<span style="font-size:13px;${d.bajoUmbral?'color:var(--red);':'color:var(--green);'}">${esc(d.sector)}: ${fmt(d.pulmon)} m² ${d.bajoUmbral?'(bajo umbral)':'(ok)'}</span>`;
   }).join(' &nbsp;·&nbsp; ');
-  const mostrarBoton = !s.sostenido || causas.length>0;
+  const mostrarBoton = true; // declarar causa está siempre disponible, aunque haya sostenido el pulmón
   return `
     <div class="sector-block ${claseBloque}">
       <div class="sb-head">
         <span class="sb-name">${esc(nombre)} <span class="tag-objetivo">(sostiene pulmón)</span></span>
         <span class="sb-value" style="font-size:15px;color:${s.sostenido?'var(--green)':'var(--red)'};">${s.sostenido?'Sostenido':'No sostenido'}</span>
       </div>
-      <div class="sb-sub" style="margin-bottom:${mostrarBoton?'10px':'0'};">${dependientesTxt}</div>
+      <div class="sb-sub" style="margin-bottom:10px;">${dependientesTxt}</div>
       ${mostrarBoton ? `
         <div class="sb-causas">
           ${causas.map(c=>`
@@ -1847,7 +1868,7 @@ function bloqueHistorialPlanificacion(nombre, s, contexto){
             </div>
           `).join('')}
           <div class="sb-pendiente-row">
-            <button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>
+            <button class="btn btn-sm ${causas.length ? 'btn-ghost' : (s.sostenido ? 'btn-ghost' : 'btn-danger')}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : (s.sostenido ? '+ Declarar causa' : 'Declarar causa')}</button>
           </div>
         </div>
       ` : ''}
@@ -1906,7 +1927,7 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
         const pct = s.objetivoMin>0 ? Math.round((s.cerrado/s.objetivoMin)*100) : 0;
         const barPct = Math.min(100, Math.round((s.cerrado/s.objetivoOptimo)*100));
         const causas = s.motivoCausa || [];
-        const mostrarBoton = estado==='bajo' || causas.length>0;
+        const mostrarBoton = true; // declarar causa está siempre disponible, aunque el sector haya cumplido
         const claseBloque = estado==='bajo' ? 'bloque-bajo' : (estado==='optimo' ? 'bloque-optimo' : 'bloque-ok');
         const pulmonInicioHist = state.pulmones[fecha] ? state.pulmones[fecha][nombre] : undefined;
         const pulmonTxtHist = pulmonInicioHist!==undefined ? `pulmón inicio ${fmt(pulmonInicioHist)} m² · pulmón cierre ${fmt(s.pulmon)} m²` : `pulmón ${fmt(s.pulmon)} m²`;
@@ -1921,6 +1942,9 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
             <span style="color:${color};font-weight:600;">${pct}%</span> del objetivo mínimo · óptimo ${fmt(s.objetivoOptimo)} m² · ${pulmonTxtHist}
           </div>
           <div class="sb-bar"><div class="sb-bar-fill" style="width:${barPct}%;background:${color};"></div></div>
+          ${(s.correccionesM2||[]).map(corr=>`
+            <div class="hint" style="margin-bottom:6px;">✎ Corregido el ${esc(corr.fechaEdicion)}: ${fmt(corr.anterior)} m² → ${fmt(corr.nuevo)} m²${corr.motivo?' — '+esc(corr.motivo):''}</div>
+          `).join('')}
           ${mostrarBoton ? `
             <div class="sb-causas">
               ${causas.map(c=>`
@@ -1929,7 +1953,8 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
                 </div>
               `).join('')}
               <div class="sb-pendiente-row">
-                <button class="btn btn-sm ${causas.length?'btn-ghost':'btn-danger'}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : 'Declarar causa'}</button>
+                ${esAdmin() ? `<button class="btn btn-ghost btn-sm" data-editar-m2="${esc(nombre)}|${esc(fecha)}">Corregir m² cerrados</button>` : ''}
+                <button class="btn btn-sm ${causas.length ? 'btn-ghost' : (estado==='bajo' ? 'btn-danger' : 'btn-ghost')}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : (estado==='bajo' ? 'Declarar causa' : '+ Declarar causa')}</button>
               </div>
             </div>
           ` : ''}
@@ -1960,6 +1985,13 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
       abrirModalEditarPulmon(fecha, esEnCurso ? 'hoy' : fecha);
     });
   }
+  div.querySelectorAll('[data-editar-m2]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const [nombreSector, fechaBtn] = btn.dataset.editarM2.split('|');
+      abrirModalEditarM2(nombreSector, fechaBtn, esEnCurso ? 'hoy' : fechaBtn);
+    });
+  });
   return div;
 }
 
@@ -3775,6 +3807,62 @@ document.getElementById('btnPulmonGuardar').addEventListener('click', ()=>{
   saveState();
   document.getElementById('modalEditarPulmon').classList.remove('show');
   toast('Pulmón actualizado');
+
+  renderHoy();
+  if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+});
+
+/* ----- corregir m² cerrados de un día/sector ya confirmado (ej: horas extra) ----- */
+let editM2Sector = null;
+let editM2Fecha = null;
+
+function abrirModalEditarM2(nombreSector, fecha, contexto){
+  editM2Sector = nombreSector;
+  editM2Fecha = fecha;
+  const dia = state.dias[fecha];
+  const datosSector = dia ? dia.sectores[nombreSector] : (state.actual.resultado ? state.actual.resultado[nombreSector] : null);
+  const actual = datosSector ? datosSector.cerrado : 0;
+
+  document.getElementById('modalM2SectorFecha').textContent = `${nombreSector} — ${fecha}`;
+  document.getElementById('modalM2Actual').textContent = fmt(actual) + ' m²';
+  document.getElementById('inputNuevoM2').value = actual;
+  document.getElementById('inputMotivoCorreccionM2').value = '';
+  document.getElementById('modalEditarM2').classList.add('show');
+}
+
+document.getElementById('btnM2Cancel').addEventListener('click', ()=>{
+  document.getElementById('modalEditarM2').classList.remove('show');
+});
+
+document.getElementById('btnM2Guardar').addEventListener('click', ()=>{
+  const nuevoVal = parseFloat(document.getElementById('inputNuevoM2').value);
+  if(isNaN(nuevoVal) || nuevoVal<0){ toast('Ingresá un valor válido', true); return; }
+  const motivo = document.getElementById('inputMotivoCorreccionM2').value.trim();
+
+  const dia = state.dias[editM2Fecha];
+  const datosSector = dia ? dia.sectores[editM2Sector] : (state.actual.resultado ? state.actual.resultado[editM2Sector] : null);
+  if(!datosSector){ toast('No se encontró el sector ese día', true); return; }
+
+  const valorAnterior = datosSector.cerrado;
+
+  if(valorAnterior === nuevoVal){
+    toast('El valor no cambió', true);
+    return;
+  }
+
+  // dejamos un registro visible de la corrección (no se pisa silenciosamente)
+  if(!datosSector.correccionesM2) datosSector.correccionesM2 = [];
+  datosSector.correccionesM2.push({
+    fechaEdicion: todayISO(),
+    anterior: round1(valorAnterior),
+    nuevo: round1(nuevoVal),
+    motivo: motivo
+  });
+  datosSector.cerrado = round1(nuevoVal);
+
+  saveState();
+  document.getElementById('modalEditarM2').classList.remove('show');
+  toast(`m² de ${editM2Sector} corregidos: ${fmt(valorAnterior)} → ${fmt(nuevoVal)}`);
 
   renderHoy();
   if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
