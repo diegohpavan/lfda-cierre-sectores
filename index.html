@@ -466,6 +466,14 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div id="resultadoRecuperarDias" style="margin-top:10px;"></div>
     </div>
 
+    <div class="panel" style="border-color:var(--amber);">
+      <div class="panel-head"><h2>Agregar causas al catálogo desde archivo</h2></div>
+      <div class="hint" style="margin-bottom:10px;">Permite agregar causas nuevas al catálogo 5M de uno o más sectores, a partir de un archivo JSON con el formato <code>{ "SECTOR": { "Categoría 5M": ["causa nueva", "otra causa"] } }</code>. Solo agrega — si una causa ya existe en ese sector/categoría, se ignora (no se duplica).</div>
+      <input type="file" id="inputCargarCatalogo" accept="application/json" style="display:none;">
+      <button class="btn btn-primary btn-sm" id="btnCargarCatalogo">Elegir archivo JSON y cargar</button>
+      <div id="resultadoCargarCatalogo" style="margin-top:10px;"></div>
+    </div>
+
     <div class="panel">
       <div class="panel-head"><h2>Datos</h2></div>
       <div class="row">
@@ -2884,6 +2892,91 @@ function aplicarRecuperacionDias(datos){
     false
   );
   toast('Días recuperados y sincronizados');
+}
+
+/* ----- agregar causas nuevas al catálogo 5M de uno o más sectores, desde un archivo JSON -----
+   Formato esperado: { "NOMBRE-SECTOR": { "Categoría 5M": ["causa nueva", "otra causa"] } }
+   Solo agrega. Si la causa ya existe en ese sector/categoría (comparación exacta de texto),
+   se ignora — nunca duplica ni borra nada del catálogo existente. Si la categoría no existe
+   todavía en ese sector, se crea. */
+document.getElementById('btnCargarCatalogo').addEventListener('click', ()=>{
+  document.getElementById('inputCargarCatalogo').click();
+});
+
+document.getElementById('inputCargarCatalogo').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    let datos;
+    try{
+      datos = JSON.parse(ev.target.result);
+    }catch(err){
+      mostrarResultadoCargarCatalogo('No se pudo leer el archivo: no es un JSON válido.', true);
+      e.target.value = '';
+      return;
+    }
+    aplicarCargaCatalogo(datos);
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+function mostrarResultadoCargarCatalogo(html, esError){
+  const cont = document.getElementById('resultadoCargarCatalogo');
+  if(!cont) return;
+  cont.innerHTML = `<div class="hint" style="color:${esError ? 'var(--red)' : 'var(--green)'};">${html}</div>`;
+}
+
+function aplicarCargaCatalogo(datos){
+  const nombresSector = Object.keys(datos || {});
+  if(nombresSector.length===0){
+    mostrarResultadoCargarCatalogo('El archivo no tiene ningún sector para cargar.', true);
+    return;
+  }
+
+  let agregadas = 0;
+  let yaExistian = 0;
+  let sectoresNoEncontrados = [];
+  const resumenLineas = [];
+
+  nombresSector.forEach(nombreSector=>{
+    const cfgSector = state.sectores.find(s=>s.nombre===nombreSector);
+    if(!cfgSector){
+      sectoresNoEncontrados.push(nombreSector);
+      return;
+    }
+    if(!cfgSector.causas) cfgSector.causas = {};
+
+    const causasPorAgregarEsteSector = [];
+    Object.entries(datos[nombreSector]).forEach(([categoria, listaCausas])=>{
+      if(!cfgSector.causas[categoria]) cfgSector.causas[categoria] = [];
+      (listaCausas||[]).forEach(nombreCausa=>{
+        const yaEsta = cfgSector.causas[categoria].includes(nombreCausa);
+        if(yaEsta){
+          yaExistian++;
+        } else {
+          cfgSector.causas[categoria].push(nombreCausa);
+          agregadas++;
+          causasPorAgregarEsteSector.push(nombreCausa);
+        }
+      });
+    });
+
+    if(causasPorAgregarEsteSector.length>0){
+      resumenLineas.push(`${nombreSector}: ${causasPorAgregarEsteSector.join(', ')}`);
+    }
+  });
+
+  saveState();
+  if(document.getElementById('view-config').classList.contains('active')) renderConfig();
+
+  let resumenHtml = `Listo. Se agregaron ${agregadas} causa(s) nueva(s) al catálogo. ${yaExistian} ya existían y se omitieron.`;
+  if(resumenLineas.length>0) resumenHtml += `<br>${resumenLineas.join('<br>')}`;
+  if(sectoresNoEncontrados.length>0) resumenHtml += `<br><br>⚠ No se encontraron estos sectores (revisá que el nombre coincida exacto): ${sectoresNoEncontrados.join(', ')}`;
+
+  mostrarResultadoCargarCatalogo(resumenHtml, false);
+  toast('Catálogo de causas actualizado');
 }
 
 function renderUsuariosConfig(){
