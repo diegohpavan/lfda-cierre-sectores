@@ -678,6 +678,24 @@ function escucharCambiosFirestore(){
         if(data._instanceId === INSTANCE_ID) return;
         if(data._ts && Date.now() - firestoreUltimoGuardadoLocal < 800) return;
 
+        // formato viejo (todo el estado como un único string en el campo "json"):
+        // lo migramos a campos estructurados en la propia nube, una sola vez.
+        if(data.json && !data._formatoCampos){
+          console.warn('Detectado documento en formato viejo (string único) — migrando a campos estructurados...');
+          try{
+            const remotoViejo = JSON.parse(data.json);
+            state = Object.assign(defaultState(), remotoViejo);
+            migrarMotivoCausaAArray(state);
+            migrarObjetivosPorSector(state);
+            migrarHistoricoPulmones(state);
+            localStorage.setItem(LS_KEY, JSON.stringify(state));
+            subirEstadoAFirestore(); // esto ya escribe en el formato nuevo por campos
+          }catch(e){
+            console.error('Error migrando documento viejo a campos estructurados', e);
+          }
+          return;
+        }
+
         aplicarEstadoRemoto(data);
       },
       (error)=>{
@@ -689,7 +707,19 @@ function escucharCambiosFirestore(){
 
 function aplicarEstadoRemoto(data){
   try{
-    const remoto = JSON.parse(data.json);
+    // estado nuevo: viene como campos estructurados directos en el documento,
+    // no como un string único — armamos el objeto state a partir de esos campos.
+    const remoto = {
+      objetivoMinDefault: data.objetivoMinDefault,
+      objetivoOptimoDefault: data.objetivoOptimoDefault,
+      umbralPulmonBajoDefault: data.umbralPulmonBajoDefault,
+      sectorFinLinea: data.sectorFinLinea,
+      usuarios: data.usuarios,
+      sectores: data.sectores,
+      dias: data.dias || {},
+      pulmones: data.pulmones || {},
+      actual: data.actual || null
+    };
     // conservamos lo que está en curso de tipeo en los textareas, pero actualizamos el resto del estado
     state = Object.assign(defaultState(), remoto);
     migrarMotivoCausaAArray(state);
@@ -729,8 +759,11 @@ function subirEstadoAFirestore(){
       let bloquear = false;
       if(snap.exists){
         try{
-          const remoto = JSON.parse(snap.data().json);
-          const diasRemoto = Object.keys(remoto.dias||{}).length;
+          const dataRemota = snap.data();
+          // soporta tanto el documento viejo (string en "json") como el nuevo (campos directos)
+          const diasRemoto = dataRemota.json
+            ? Object.keys((JSON.parse(dataRemota.json).dias)||{}).length
+            : Object.keys(dataRemota.dias||{}).length;
           const diasLocal = Object.keys(state.dias||{}).length;
           if(diasRemoto > diasLocal){
             bloquear = true;
@@ -744,7 +777,16 @@ function subirEstadoAFirestore(){
 
       firestoreUltimoGuardadoLocal = Date.now();
       firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set({
-        json: JSON.stringify(state),
+        objetivoMinDefault: state.objetivoMinDefault,
+        objetivoOptimoDefault: state.objetivoOptimoDefault,
+        umbralPulmonBajoDefault: state.umbralPulmonBajoDefault,
+        sectorFinLinea: state.sectorFinLinea,
+        usuarios: state.usuarios,
+        sectores: state.sectores,
+        dias: state.dias || {},
+        pulmones: state.pulmones || {},
+        actual: state.actual || null,
+        _formatoCampos: true,
         _instanceId: INSTANCE_ID,
         _ts: firebase.firestore.FieldValue.serverTimestamp()
       }).then(()=>{
