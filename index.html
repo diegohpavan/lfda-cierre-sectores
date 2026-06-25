@@ -200,7 +200,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 .hist-day.en-curso{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim);}
 .hist-day-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--panel2);}
 .hist-day-head:hover{background:#272b32;}
-.hist-day-head .hd-date{font-family:var(--mono);font-weight:600;font-size:13px;}
+.hist-day-head .hd-date{font-family:var(--mono);font-weight:600;font-size:18px;}
 .hist-day-body{display:none;padding:4px 16px 14px;}
 .hist-day.open .hist-day-body{display:block;}
 .hist-day.open .chev{transform:rotate(90deg);}
@@ -379,6 +379,18 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
           <button class="btn btn-ghost btn-sm" id="btnExportJSON">Exportar JSON</button>
         </div>
       </div>
+      <div class="row" style="gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+        <div class="field" style="margin-bottom:0;">
+          <label style="font-size:11px;">Desde</label>
+          <input type="date" id="inputFiltroHistDesde" style="font-size:13px;padding:6px 8px;">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label style="font-size:11px;">Hasta</label>
+          <input type="date" id="inputFiltroHistHasta" style="font-size:13px;padding:6px 8px;">
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnFiltroHistLimpiar" style="align-self:flex-end;">Quitar filtro</button>
+        <span class="hint" id="hintFiltroHist" style="align-self:flex-end;"></span>
+      </div>
       <div id="historialList"></div>
     </div>
   </div>
@@ -438,6 +450,12 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div class="row" style="margin-top:14px;">
         <button class="btn btn-ghost btn-sm" id="btnCambiarPasswordAdmin">Cambiar mi contraseña de administrador</button>
       </div>
+    </div>
+
+    <div class="panel" style="border-color:var(--green);">
+      <div class="panel-head"><h2>Respaldos locales (de este dispositivo)</h2></div>
+      <div class="hint" style="margin-bottom:10px;">Este dispositivo guarda automáticamente una copia cada vez que cambia el historial, como red de seguridad independiente de la nube. Útil si algo sale mal en Firebase.</div>
+      <div id="listaRespaldosLocales"></div>
     </div>
 
     <div class="panel">
@@ -680,16 +698,40 @@ function subirEstadoAFirestore(){
   }
   clearTimeout(firestoreGuardadoTimer);
   firestoreGuardadoTimer = setTimeout(()=>{
-    firestoreUltimoGuardadoLocal = Date.now();
-    firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set({
-      json: JSON.stringify(state),
-      _instanceId: INSTANCE_ID,
-      _ts: firebase.firestore.FieldValue.serverTimestamp()
-    }).then(()=>{
-      actualizarIndicadorSync('online');
+    // salvaguarda: antes de pisar el documento entero, comparamos contra lo que ya
+    // hay en la nube. Si nuestra copia local tiene MENOS días confirmados que la nube,
+    // es una señal fuerte de que estamos desactualizados (ej: una versión vieja en caché
+    // de la PWA) — en ese caso NO subimos, para no borrar accidentalmente historial real.
+    firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).get().then(snap=>{
+      let bloquear = false;
+      if(snap.exists){
+        try{
+          const remoto = JSON.parse(snap.data().json);
+          const diasRemoto = Object.keys(remoto.dias||{}).length;
+          const diasLocal = Object.keys(state.dias||{}).length;
+          if(diasRemoto > diasLocal){
+            bloquear = true;
+            console.warn(`Subida bloqueada: la nube tiene ${diasRemoto} días confirmados y la copia local solo ${diasLocal}. Recargá la página antes de seguir cargando, para traer la versión más reciente.`);
+            actualizarIndicadorSync('local');
+            toast('⚠ Se detectó que tu copia local tiene menos historial que la nube — recargá la página antes de seguir', true);
+          }
+        }catch(e){ /* si no se puede parsear lo remoto, seguimos con la subida normal */ }
+      }
+      if(bloquear) return;
+
+      firestoreUltimoGuardadoLocal = Date.now();
+      firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set({
+        json: JSON.stringify(state),
+        _instanceId: INSTANCE_ID,
+        _ts: firebase.firestore.FieldValue.serverTimestamp()
+      }).then(()=>{
+        actualizarIndicadorSync('online');
+      }).catch(e=>{
+        console.error('Error subiendo a Firestore', e);
+        actualizarIndicadorSync('local');
+      });
     }).catch(e=>{
-      console.error('Error subiendo a Firestore', e);
-      actualizarIndicadorSync('local');
+      console.error('Error verificando estado remoto antes de subir', e);
     });
   }, 600);
 }
@@ -1086,9 +1128,37 @@ function migrarHistoricoPulmones(s){
     });
   }
 }
+const RESPALDO_KEY = 'lfda_respaldos_v1';
+const MAX_RESPALDOS = 20;
+
 function saveState(){
   localStorage.setItem(LS_KEY, JSON.stringify(state));
+  guardarRespaldoLocal();
   subirEstadoAFirestore();
+}
+
+// guarda una copia con marca de tiempo en una clave separada que NUNCA se sobrescribe
+// de golpe (se acumulan los últimos N) — sirve como red de seguridad local, totalmente
+// independiente de Firestore, para poder recuperar manualmente si algo sale mal en la nube.
+function guardarRespaldoLocal(){
+  try{
+    const diasActuales = Object.keys(state.dias||{}).length;
+    if(diasActuales===0) return; // no vale la pena respaldar un estado sin historial
+    const raw = localStorage.getItem(RESPALDO_KEY);
+    const respaldos = raw ? JSON.parse(raw) : [];
+    const ultimoRespaldo = respaldos[respaldos.length-1];
+    // evitar respaldos repetidos si no cambió la cantidad de días desde el último guardado
+    if(ultimoRespaldo && ultimoRespaldo.diasConfirmados === diasActuales) return;
+    respaldos.push({
+      ts: new Date().toISOString(),
+      diasConfirmados: diasActuales,
+      json: JSON.stringify(state)
+    });
+    while(respaldos.length > MAX_RESPALDOS) respaldos.shift();
+    localStorage.setItem(RESPALDO_KEY, JSON.stringify(respaldos));
+  }catch(e){
+    console.error('No se pudo guardar el respaldo local', e);
+  }
 }
 
 function todayISO(){
@@ -2007,24 +2077,46 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   return div;
 }
 
+let filtroHistorialDesde = null;
+let filtroHistorialHasta = null;
+
 function renderHistorial(){
   const cont = document.getElementById('historialList');
   renderGraficoCausas();
   renderEvolucionPulmon();
 
-  const fechasConfirmadas = Object.keys(state.dias).sort().reverse();
+  let fechasConfirmadas = Object.keys(state.dias).sort().reverse();
   const fechaHoyEnCurso = state.actual.resultado ? state.actual.fecha : null;
   const hoyYaConfirmado = fechaHoyEnCurso && !!state.dias[fechaHoyEnCurso];
 
+  // aplicar filtro de rango si está activo
+  if(filtroHistorialDesde){
+    fechasConfirmadas = fechasConfirmadas.filter(f=>f>=filtroHistorialDesde);
+  }
+  if(filtroHistorialHasta){
+    fechasConfirmadas = fechasConfirmadas.filter(f=>f<=filtroHistorialHasta);
+  }
+  const hoyEntraEnFiltro = (!filtroHistorialDesde || fechaHoyEnCurso>=filtroHistorialDesde) && (!filtroHistorialHasta || fechaHoyEnCurso<=filtroHistorialHasta);
+
+  const hint = document.getElementById('hintFiltroHist');
+  if(hint){
+    if(filtroHistorialDesde || filtroHistorialHasta){
+      hint.textContent = `Mostrando ${fechasConfirmadas.length + (fechaHoyEnCurso && !hoyYaConfirmado && hoyEntraEnFiltro ? 1 : 0)} día(s) en el rango elegido`;
+    } else {
+      hint.textContent = '';
+    }
+  }
+
   cont.innerHTML='';
 
-  // tarjeta "en curso" del día actual, si hay datos sin confirmar todavía
-  if(fechaHoyEnCurso && !hoyYaConfirmado){
+  // tarjeta "en curso" del día actual, si hay datos sin confirmar todavía y entra en el filtro
+  if(fechaHoyEnCurso && !hoyYaConfirmado && hoyEntraEnFiltro){
     cont.appendChild(crearTarjetaDia(fechaHoyEnCurso, state.actual.resultado, true));
   }
 
-  if(fechasConfirmadas.length===0 && !fechaHoyEnCurso){
-    cont.innerHTML = `<div class="empty-state"><div class="big">—</div>Todavía no hay días cargados.</div>`;
+  if(fechasConfirmadas.length===0 && !(fechaHoyEnCurso && hoyEntraEnFiltro)){
+    const msj = (filtroHistorialDesde || filtroHistorialHasta) ? 'No hay días en ese rango.' : 'Todavía no hay días cargados.';
+    cont.innerHTML = `<div class="empty-state"><div class="big">—</div>${msj}</div>`;
     return;
   }
 
@@ -2363,6 +2455,22 @@ document.getElementById('btnExportJSON').addEventListener('click', ()=>{
   URL.revokeObjectURL(url);
 });
 
+document.getElementById('inputFiltroHistDesde').addEventListener('change', (e)=>{
+  filtroHistorialDesde = e.target.value || null;
+  renderHistorial();
+});
+document.getElementById('inputFiltroHistHasta').addEventListener('change', (e)=>{
+  filtroHistorialHasta = e.target.value || null;
+  renderHistorial();
+});
+document.getElementById('btnFiltroHistLimpiar').addEventListener('click', ()=>{
+  filtroHistorialDesde = null;
+  filtroHistorialHasta = null;
+  document.getElementById('inputFiltroHistDesde').value = '';
+  document.getElementById('inputFiltroHistHasta').value = '';
+  renderHistorial();
+});
+
 document.getElementById('btnAgregarDiaAnterior').addEventListener('click', ()=>{
   const inp = document.getElementById('inputFechaAnterior');
   inp.value = todayISO();
@@ -2595,6 +2703,48 @@ function renderConfig(){
   });
 
   renderUsuariosConfig();
+  renderListaRespaldosLocales();
+}
+
+function renderListaRespaldosLocales(){
+  const cont = document.getElementById('listaRespaldosLocales');
+  if(!cont) return;
+  let respaldos = [];
+  try{
+    const raw = localStorage.getItem(RESPALDO_KEY);
+    respaldos = raw ? JSON.parse(raw) : [];
+  }catch(e){ /* sin respaldos válidos */ }
+
+  if(respaldos.length===0){
+    cont.innerHTML = `<div class="hint">Todavía no hay respaldos guardados en este dispositivo.</div>`;
+    return;
+  }
+
+  cont.innerHTML = respaldos.slice().reverse().map((r,i)=>{
+    const idxReal = respaldos.length-1-i;
+    const fechaTxt = new Date(r.ts).toLocaleString('es-AR');
+    return `
+      <div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line);">
+        <span style="font-size:12px;">${esc(fechaTxt)} — ${r.diasConfirmados} día(s) confirmados</span>
+        <button class="btn btn-ghost btn-sm" data-descargar-respaldo="${idxReal}">Descargar JSON</button>
+      </div>
+    `;
+  }).join('');
+
+  cont.querySelectorAll('[data-descargar-respaldo]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.descargarRespaldo);
+      const raw = localStorage.getItem(RESPALDO_KEY);
+      const respaldos = JSON.parse(raw);
+      const r = respaldos[idx];
+      const blob = new Blob([r.json], {type:'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `lfda_respaldo_${r.ts.slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  });
 }
 
 function renderUsuariosConfig(){
