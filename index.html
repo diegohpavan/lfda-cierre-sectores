@@ -458,6 +458,14 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div id="listaRespaldosLocales"></div>
     </div>
 
+    <div class="panel" style="border-color:var(--amber);">
+      <div class="panel-head"><h2>Recuperar días desde archivo</h2></div>
+      <div class="hint" style="margin-bottom:10px;">Permite cargar (o corregir) días puntuales a partir de un archivo JSON con el formato <code>{ "AAAA-MM-DD": { "SECTOR": { "m2": 0, "causas": [{"causa":"","detalle":"","m2":0}] } } }</code>. Solo modifica los días y sectores que figuran en el archivo — el resto del historial queda intacto. Pensado para recuperar información a partir de informes PDF ya generados.</div>
+      <input type="file" id="inputRecuperarDias" accept="application/json" style="display:none;">
+      <button class="btn btn-primary btn-sm" id="btnRecuperarDias">Elegir archivo JSON y cargar</button>
+      <div id="resultadoRecuperarDias" style="margin-top:10px;"></div>
+    </div>
+
     <div class="panel">
       <div class="panel-head"><h2>Datos</h2></div>
       <div class="row">
@@ -2745,6 +2753,111 @@ function renderListaRespaldosLocales(){
       URL.revokeObjectURL(url);
     });
   });
+}
+
+/* ----- recuperar/corregir días puntuales desde un archivo JSON (ej: a partir de informes PDF) -----
+   Formato esperado:
+   { "AAAA-MM-DD": { "NOMBRE-SECTOR": { "m2": 0, "causas": [{"causa":"","detalle":"","m2":0}] } } }
+   Solo toca los días/sectores presentes en el archivo. Si el sector ya existía ese día,
+   deja un registro de corrección visible (mismo criterio que la edición manual de m²).
+   Si no existía, lo crea usando los objetivos configurados actualmente para ese sector. */
+document.getElementById('btnRecuperarDias').addEventListener('click', ()=>{
+  document.getElementById('inputRecuperarDias').click();
+});
+
+document.getElementById('inputRecuperarDias').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    let datos;
+    try{
+      datos = JSON.parse(ev.target.result);
+    }catch(err){
+      mostrarResultadoRecuperarDias(`No se pudo leer el archivo: no es un JSON válido.`, true);
+      e.target.value = '';
+      return;
+    }
+    aplicarRecuperacionDias(datos);
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+function mostrarResultadoRecuperarDias(html, esError){
+  const cont = document.getElementById('resultadoRecuperarDias');
+  if(!cont) return;
+  cont.innerHTML = `<div class="hint" style="color:${esError ? 'var(--red)' : 'var(--green)'};">${html}</div>`;
+}
+
+function aplicarRecuperacionDias(datos){
+  const fechas = Object.keys(datos || {});
+  if(fechas.length===0){
+    mostrarResultadoRecuperarDias('El archivo no tiene ningún día para cargar.', true);
+    return;
+  }
+
+  const resumenLineas = [];
+  let sectoresCreados = 0;
+  let sectoresCorregidos = 0;
+
+  fechas.forEach(fecha=>{
+    if(!state.dias[fecha]) state.dias[fecha] = { sectores:{} };
+    const dia = state.dias[fecha];
+
+    Object.entries(datos[fecha]).forEach(([nombreSector, info])=>{
+      const causasNormalizadas = (info.causas||[]).map(c=>({
+        causa: c.causa || '',
+        detalle: c.detalle || '',
+        m2: round1(c.m2 || 0)
+      }));
+
+      const existente = dia.sectores[nombreSector];
+
+      if(existente){
+        // ya había un registro para ese sector ese día: corregimos dejando rastro,
+        // igual que la corrección manual de m² desde Historial
+        const valorAnterior = existente.cerrado;
+        if(!existente.correccionesM2) existente.correccionesM2 = [];
+        if(valorAnterior !== round1(info.m2||0)){
+          existente.correccionesM2.push({
+            fechaEdicion: todayISO(),
+            anterior: round1(valorAnterior||0),
+            nuevo: round1(info.m2||0),
+            motivo: 'Recuperado desde informe PDF'
+          });
+        }
+        existente.cerrado = round1(info.m2||0);
+        existente.motivoCausa = causasNormalizadas;
+        sectoresCorregidos++;
+      } else {
+        // no existía registro para ese sector ese día: lo creamos con los objetivos
+        // configurados actualmente (no tenemos cómo saber cuáles eran en su momento)
+        const cfgSector = state.sectores.find(s=>s.nombre===nombreSector);
+        dia.sectores[nombreSector] = {
+          cerrado: round1(info.m2||0),
+          objetivoMin: cfgSector ? cfgSector.objetivoMin : state.objetivoMinDefault,
+          objetivoOptimo: cfgSector ? cfgSector.objetivoOptimo : state.objetivoOptimoDefault,
+          pulmon: null,
+          motivoCausa: causasNormalizadas,
+          recuperadoDesdeInforme: true
+        };
+        sectoresCreados++;
+      }
+    });
+
+    resumenLineas.push(`${fecha}: ${Object.keys(datos[fecha]).length} sector(es)`);
+  });
+
+  saveState();
+  if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+  if(document.getElementById('view-hoy').classList.contains('active')) renderHoy();
+
+  mostrarResultadoRecuperarDias(
+    `Listo. Se crearon ${sectoresCreados} registro(s) nuevo(s) y se corrigieron ${sectoresCorregidos}.<br>${resumenLineas.join('<br>')}`,
+    false
+  );
+  toast('Días recuperados y sincronizados');
 }
 
 function renderUsuariosConfig(){
