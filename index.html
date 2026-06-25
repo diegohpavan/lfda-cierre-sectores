@@ -376,7 +376,6 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         <div class="row">
           <button class="btn btn-primary btn-sm" id="btnAgregarDiaAnterior">+ Agregar día anterior</button>
           <button class="btn btn-ghost btn-sm" id="btnPdfRango">Informe PDF (rango)</button>
-          <button class="btn btn-ghost btn-sm" id="btnExportJSON">Exportar JSON</button>
         </div>
       </div>
       <div class="row" style="gap:10px;margin-bottom:14px;flex-wrap:wrap;">
@@ -923,17 +922,14 @@ function aplicarRestriccionesDeRol(){
   const tabConfig = document.querySelector('.tab-btn[data-view="config"]');
   const bloquesPegado = document.getElementById('bloquesPegadoAdmin');
   const btnAgregarDiaAnterior = document.getElementById('btnAgregarDiaAnterior');
-  const btnExportJSON = document.getElementById('btnExportJSON');
   if(!esAdmin()){
     if(tabConfig) tabConfig.style.display='none';
     if(bloquesPegado) bloquesPegado.style.display='none';
     if(btnAgregarDiaAnterior) btnAgregarDiaAnterior.style.display='none';
-    if(btnExportJSON) btnExportJSON.style.display='none';
   } else {
     if(tabConfig) tabConfig.style.display='';
     if(bloquesPegado) bloquesPegado.style.display='';
     if(btnAgregarDiaAnterior) btnAgregarDiaAnterior.style.display='';
-    if(btnExportJSON) btnExportJSON.style.display='';
   }
 }
 
@@ -2487,15 +2483,6 @@ function renderResumenAlertasPulmon(){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;">${tarjetas}</div>
   `;
 }
-
-document.getElementById('btnExportJSON').addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify(state.dias, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = `cierre_sectores_${todayISO()}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-});
 
 document.getElementById('inputFiltroHistDesde').addEventListener('change', (e)=>{
   filtroHistorialDesde = e.target.value || null;
