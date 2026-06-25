@@ -473,6 +473,14 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div id="resultadoCargarCatalogo" style="margin-top:10px;"></div>
     </div>
 
+    <div class="panel" style="border-color:var(--amber);">
+      <div class="panel-head"><h2>Recuperar pulmón de inicio desde archivo</h2></div>
+      <div class="hint" style="margin-bottom:10px;">Permite cargar el pulmón de inicio de turno de días pasados a partir de un archivo JSON con el formato <code>{ "AAAA-MM-DD": { "SECTOR": numeroM2 } }</code>. Solo completa fecha/sector que estén vacíos — si ya hay un valor de pulmón cargado para esa fecha y sector, no se toca.</div>
+      <input type="file" id="inputCargarPulmon" accept="application/json" style="display:none;">
+      <button class="btn btn-primary btn-sm" id="btnCargarPulmon">Elegir archivo JSON y cargar</button>
+      <div id="resultadoCargarPulmon" style="margin-top:10px;"></div>
+    </div>
+
     <div class="panel">
       <div class="panel-head"><h2>Datos</h2></div>
       <div class="row">
@@ -2964,6 +2972,80 @@ function aplicarCargaCatalogo(datos){
 
   mostrarResultadoCargarCatalogo(resumenHtml, false);
   toast('Catálogo de causas actualizado');
+}
+
+/* ----- recuperar pulmón de inicio de turno de días pasados, desde un archivo JSON -----
+   Formato esperado: { "AAAA-MM-DD": { "SECTOR": numeroM2 } }
+   Solo completa fecha/sector que estén vacíos o sin definir. Si ya hay un número
+   cargado ahí (sea cual sea), no se toca — para no pisar un dato real con uno recuperado. */
+document.getElementById('btnCargarPulmon').addEventListener('click', ()=>{
+  document.getElementById('inputCargarPulmon').click();
+});
+
+document.getElementById('inputCargarPulmon').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev)=>{
+    let datos;
+    try{
+      datos = JSON.parse(ev.target.result);
+    }catch(err){
+      mostrarResultadoCargarPulmon('No se pudo leer el archivo: no es un JSON válido.', true);
+      e.target.value = '';
+      return;
+    }
+    aplicarCargaPulmon(datos);
+    e.target.value = '';
+  };
+  reader.readAsText(file);
+});
+
+function mostrarResultadoCargarPulmon(html, esError){
+  const cont = document.getElementById('resultadoCargarPulmon');
+  if(!cont) return;
+  cont.innerHTML = `<div class="hint" style="color:${esError ? 'var(--red)' : 'var(--green)'};">${html}</div>`;
+}
+
+function aplicarCargaPulmon(datos){
+  const fechas = Object.keys(datos || {});
+  if(fechas.length===0){
+    mostrarResultadoCargarPulmon('El archivo no tiene ninguna fecha para cargar.', true);
+    return;
+  }
+
+  let completados = 0;
+  let yaExistian = 0;
+  const resumenLineas = [];
+
+  fechas.forEach(fecha=>{
+    if(!state.pulmones[fecha]) state.pulmones[fecha] = {};
+    const completadosEsteDia = [];
+
+    Object.entries(datos[fecha]).forEach(([nombreSector, valor])=>{
+      const yaTiene = state.pulmones[fecha][nombreSector]!==undefined && state.pulmones[fecha][nombreSector]!==null;
+      if(yaTiene){
+        yaExistian++;
+      } else {
+        state.pulmones[fecha][nombreSector] = valor;
+        completados++;
+        completadosEsteDia.push(`${nombreSector}: ${fmt(valor)} m²`);
+      }
+    });
+
+    if(completadosEsteDia.length>0){
+      resumenLineas.push(`${fecha}: ${completadosEsteDia.join(', ')}`);
+    }
+  });
+
+  saveState();
+  if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+
+  let resumenHtml = `Listo. Se completaron ${completados} valor(es) de pulmón. ${yaExistian} ya tenían un valor cargado y se omitieron.`;
+  if(resumenLineas.length>0) resumenHtml += `<br>${resumenLineas.join('<br>')}`;
+
+  mostrarResultadoCargarPulmon(resumenHtml, false);
+  toast('Pulmón de inicio recuperado');
 }
 
 function renderUsuariosConfig(){
