@@ -1525,6 +1525,13 @@ function esCargaMatutinaSinCierre(resultado){
   return sectoresNormales.every(r=>r.cerrado===0);
 }
 
+// "potencial": lo que el sector podría haber cerrado si no fuera por los problemas
+// declarados — m² reales + la suma de m² que cada causa dice haber explicado ese día.
+function calcularPotencial(r){
+  const sumaCausas = (r.motivoCausa||[]).reduce((a,c)=>a+(c.m2||0), 0);
+  return round1(r.cerrado + sumaCausas);
+}
+
 function crearBloquePlanificacion(nombre, r){
   const claseBloque = r.sostenido ? 'bloque-ok' : 'bloque-bajo';
   const div = document.createElement('div');
@@ -1616,6 +1623,8 @@ function crearBloqueSector(nombre, r, fechaParaPulmonInicio){
 
   const pulmonInicio = (fechaParaPulmonInicio && state.pulmones[fechaParaPulmonInicio]) ? state.pulmones[fechaParaPulmonInicio][nombre] : undefined;
   const pulmonInicioTxt = pulmonInicio!==undefined ? `pulmón inicio ${fmt(pulmonInicio)} m² · pulmón cierre ${fmt(r.pulmon)} m²` : `pulmón ${fmt(r.pulmon)} m²`;
+  const tieneCausas = (r.motivoCausa||[]).length>0;
+  const potencial = tieneCausas ? calcularPotencial(r) : null;
 
   const div = document.createElement('div');
   div.className = `sector-block ${claseBloque}`;
@@ -1629,6 +1638,7 @@ function crearBloqueSector(nombre, r, fechaParaPulmonInicio){
       <span style="color:${colorEstado(estado)};font-weight:600;">${pct}%</span> del objetivo mínimo · óptimo ${fmt(r.objetivoOptimo)} m² · ${pulmonInicioTxt}
     </div>
     <div class="sb-bar"><div class="sb-bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
+    ${potencial!==null ? `<div class="hint" style="margin-bottom:8px;">Sin esos problemas, podría haber llegado a <b style="color:var(--ink);">${fmt(potencial)} m²</b> (${fmt(r.cerrado)} reales + ${fmt(round1(potencial-r.cerrado))} perdidos).</div>` : ''}
     ${cumple ? '' : `
       <div class="sb-causas">
         ${r.motivoCausa.length>0
@@ -1931,6 +1941,7 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
         const claseBloque = estado==='bajo' ? 'bloque-bajo' : (estado==='optimo' ? 'bloque-optimo' : 'bloque-ok');
         const pulmonInicioHist = state.pulmones[fecha] ? state.pulmones[fecha][nombre] : undefined;
         const pulmonTxtHist = pulmonInicioHist!==undefined ? `pulmón inicio ${fmt(pulmonInicioHist)} m² · pulmón cierre ${fmt(s.pulmon)} m²` : `pulmón ${fmt(s.pulmon)} m²`;
+        const potencialHist = causas.length>0 ? calcularPotencial(s) : null;
         return `
         <div class="sector-block ${claseBloque}">
           <div class="sb-head">
@@ -1942,6 +1953,7 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
             <span style="color:${color};font-weight:600;">${pct}%</span> del objetivo mínimo · óptimo ${fmt(s.objetivoOptimo)} m² · ${pulmonTxtHist}
           </div>
           <div class="sb-bar"><div class="sb-bar-fill" style="width:${barPct}%;background:${color};"></div></div>
+          ${potencialHist!==null ? `<div class="hint" style="margin-bottom:8px;">Sin esos problemas, podría haber llegado a <b style="color:var(--ink);">${fmt(potencialHist)} m²</b> (${fmt(s.cerrado)} reales + ${fmt(round1(potencialHist-s.cerrado))} perdidos).</div>` : ''}
           ${(s.correccionesM2||[]).map(corr=>`
             <div class="hint" style="margin-bottom:6px;">✎ Corregido el ${esc(corr.fechaEdicion)}: ${fmt(corr.anterior)} m² → ${fmt(corr.nuevo)} m²${corr.motivo?' — '+esc(corr.motivo):''}</div>
           `).join('')}
@@ -2875,13 +2887,15 @@ function generarPdfDia(fecha, sectoresObj){
     const cfgSector = state.sectores.find(sc=>sc.nombre===nombre);
     const umbral = cfgSector ? cfgSector.umbralPulmonBajo : state.umbralPulmonBajoDefault;
     const pulmonBajo = pulmonDia!==undefined && pulmonDia < umbral;
-    return [nombre, fmt(s.cerrado)+' m²', `${fmt(s.objetivoMin)} / ${fmt(s.objetivoOptimo)}`, pct+'%', estado, pulmonDia, pulmonBajo];
+    const tieneCausas = (s.motivoCausa||[]).length>0;
+    const potencial = tieneCausas ? calcularPotencial(s) : null;
+    return [nombre, fmt(s.cerrado)+' m²', `${fmt(s.objetivoMin)} / ${fmt(s.objetivoOptimo)}`, pct+'%', estado, pulmonDia, pulmonBajo, potencial];
   });
 
   doc.autoTable({
     startY: y,
-    head: [['Sector','m² cerrados','Mín / Ópt','% objetivo','Estado','Pulmón inicio turno']],
-    body: rows.map(r=>[r[0],r[1],r[2],r[3], r[4]==='bajo'?'Bajo mínimo':(r[4]==='optimo'?'Óptimo':'Cumple'), r[5]!==undefined ? fmt(r[5])+' m²'+(r[6]?' (BAJO)':'') : '—']),
+    head: [['Sector','m² cerrados','Mín / Ópt','% objetivo','Estado','Pulmón inicio turno','Potencial sin problemas']],
+    body: rows.map(r=>[r[0],r[1],r[2],r[3], r[4]==='bajo'?'Bajo mínimo':(r[4]==='optimo'?'Óptimo':'Cumple'), r[5]!==undefined ? fmt(r[5])+' m²'+(r[6]?' (BAJO)':'') : '—', r[7]!==null ? fmt(r[7])+' m²' : '—']),
     theme: 'plain',
     styles:{ fontSize:9, cellPadding:4, lineColor:[220,220,220], lineWidth:0.2 },
     headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
@@ -2895,6 +2909,12 @@ function generarPdfDia(fecha, sectoresObj){
       if(data.section==='body' && data.column.index===5){
         if(rows[data.row.index][6]){
           data.cell.styles.textColor = PDF_COLORS.red;
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+      if(data.section==='body' && data.column.index===6){
+        if(rows[data.row.index][7]!==null){
+          data.cell.styles.textColor = PDF_COLORS.blue;
           data.cell.styles.fontStyle = 'bold';
         }
       }
@@ -3399,13 +3419,15 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
           const pulmonIni = state.pulmones[f] ? state.pulmones[f][nombreSector] : undefined;
           const estadoDia = estadoLogro(sDia.cerrado, sDia.objetivoMin, sDia.objetivoOptimo);
           const estadoTxt = estadoDia==='bajo' ? 'Bajo mínimo' : (estadoDia==='optimo' ? 'Óptimo' : 'Cumple');
-          return [f, pulmonIni!==undefined ? fmt(round1(pulmonIni))+' m²' : 'sin dato', fmt(round1(sDia.cerrado))+' m²', estadoTxt, estadoDia];
+          const tieneCausas = (sDia.motivoCausa||[]).length>0;
+          const potencialDia = tieneCausas ? calcularPotencial(sDia) : null;
+          return [f, pulmonIni!==undefined ? fmt(round1(pulmonIni))+' m²' : 'sin dato', fmt(round1(sDia.cerrado))+' m²', estadoTxt, estadoDia, potencialDia];
         });
 
       doc.autoTable({
         startY: y+2,
-        head: [['Fecha','Pulmón inicio','m² cerrados','Estado']],
-        body: filasPulmonSector.map(f=>[f[0],f[1],f[2],f[3]]),
+        head: [['Fecha','Pulmón inicio','m² cerrados','Estado','Potencial sin problemas']],
+        body: filasPulmonSector.map(f=>[f[0],f[1],f[2],f[3], f[5]!==null ? fmt(f[5])+' m²' : '—']),
         theme:'plain',
         styles:{ fontSize:8.5, cellPadding:3.5, lineColor:[225,225,225], lineWidth:0.2 },
         headStyles:{ fillColor:[20,20,20], textColor:255, fontStyle:'bold' },
@@ -3414,6 +3436,12 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
             const c = pdfEstadoColor(filasPulmonSector[data.row.index][4]);
             data.cell.styles.textColor = c;
             data.cell.styles.fontStyle = 'bold';
+          }
+          if(data.section==='body' && data.column.index===4){
+            if(filasPulmonSector[data.row.index][5]!==null){
+              data.cell.styles.textColor = PDF_COLORS.blue;
+              data.cell.styles.fontStyle = 'bold';
+            }
           }
         },
         margin:{left:14, right:14}
