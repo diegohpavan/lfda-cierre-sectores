@@ -1718,7 +1718,13 @@ function renderResultado(resultadoExterno){
     avisoMatutino.style.display = 'none';
   }
 
-  const nombresVisibles = Object.keys(resultado).filter(n => esAdmin() || n === sectorDelLider());
+  // siempre en el mismo orden visual (por número de sector), sin importar en qué
+  // orden vinieron los datos pegados desde G_PRO — así la pantalla no "salta" de
+  // posición de un día a otro.
+  const ordenSectores = ['0-Planificación','1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
+  const nombresVisibles = Object.keys(resultado)
+    .filter(n => esAdmin() || n === sectorDelLider())
+    .sort((a,b) => ordenSectores.indexOf(a) - ordenSectores.indexOf(b));
   nombresVisibles.forEach(nombre=>{
     const r = resultado[nombre];
     if(r.tipo === 'planificacion'){
