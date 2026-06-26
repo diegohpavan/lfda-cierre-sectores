@@ -3515,7 +3515,10 @@ function renderListaRespaldosLocales(){
       const blob = new Blob([r.json], {type:'application/json'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url; a.download = `lfda_respaldo_${r.ts.slice(0,10)}.json`;
+      const fechaHoraLocal = new Date(r.ts);
+      const fechaArchivo = fechaHoraLocal.getFullYear()+'-'+String(fechaHoraLocal.getMonth()+1).padStart(2,'0')+'-'+String(fechaHoraLocal.getDate()).padStart(2,'0');
+      const horaArchivo = String(fechaHoraLocal.getHours()).padStart(2,'0')+'-'+String(fechaHoraLocal.getMinutes()).padStart(2,'0');
+      a.href = url; a.download = `lfda_respaldo_${fechaArchivo}_${horaArchivo}.json`;
       a.click();
       URL.revokeObjectURL(url);
     });
