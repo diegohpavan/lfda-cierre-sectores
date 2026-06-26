@@ -5,8 +5,15 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>LFDA · Cierre Diario por Sector</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d0f12">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LFDA Cierre">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -62,7 +69,7 @@ input,select,textarea{font-family:inherit;}
 /* ===== layout ===== */
 .app{max-width:1400px;margin:0 auto;padding:20px 24px 80px;}
 .topbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line);}
-.brand{display:flex;align-items:baseline;gap:10px;}
+.brand{display:flex;align-items:center;gap:10px;}
 .brand .tag{font-family:var(--mono);font-size:11px;letter-spacing:2px;color:var(--amber);text-transform:uppercase;}
 .brand h1{font-size:19px;font-weight:600;letter-spacing:.2px;}
 .brand .sub{font-size:12px;color:var(--ink-dim);margin-left:8px;}
@@ -254,6 +261,85 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 
 ::-webkit-scrollbar{width:8px;height:8px;}
 ::-webkit-scrollbar-thumb{background:var(--line2);border-radius:4px;}
+
+/* ============================================================
+   RESPONSIVE — CELULAR (≤640px)
+   ============================================================ */
+@media (max-width:640px){
+
+  body{ font-size:14px; }
+
+  /* --- estructura general --- */
+  .app{ padding:14px 12px 90px; }
+  .panel{ padding:14px; }
+  .panel-head{ flex-wrap:wrap; gap:8px; }
+  .panel-head h2{ font-size:14px; }
+
+  /* --- topbar / tabs --- */
+  .topbar{ flex-direction:column; align-items:flex-start; gap:10px; margin-bottom:16px; }
+  .dateline{ text-align:left; width:100%; }
+  .brand img{ height:18px; }
+  .dateline .row{ justify-content:flex-start !important; }
+  .brand h1{ font-size:16px; }
+  .tabs{ gap:0; }
+  .tab-btn{ flex:1; padding:10px 6px; font-size:12px; text-align:center; }
+
+  /* --- KPIs --- */
+  .kpis{ grid-template-columns:repeat(2,1fr); gap:8px; }
+  .kpi{ padding:10px 12px; }
+  .kpi .val{ font-size:18px !important; }
+
+  /* --- login: cinta de producción --- */
+  #loginScreen{ padding:24px 16px; }
+  #loginScreen > div{ max-width:100%; }
+  #loginCintaSectores{ grid-template-columns:repeat(2,1fr) !important; gap:8px; }
+  .linea-card{ padding:12px 10px; }
+  .linea-card .lc-avatar{ width:38px; height:38px; font-size:18px; margin-bottom:8px; }
+  .linea-card .lc-nombre{ font-size:13px; }
+  #loginOtrosAccesos{ flex-direction:column; }
+  .acceso-card{ width:100%; }
+
+  /* --- bloques de sector (pantalla Hoy / Historial) --- */
+  .sector-block{ padding:12px 14px; }
+  .sb-head{ gap:4px; }
+  .sb-name{ font-size:13px; }
+  .sb-value{ font-size:15px !important; }
+  .sb-sub{ font-size:12px; }
+  .sb-pendiente-row{ flex-wrap:wrap; gap:6px; justify-content:flex-start; }
+  .sb-pendiente-row .btn{ flex:1 1 auto; text-align:center; white-space:nowrap; }
+
+  /* --- historial: cabecera de cada día --- */
+  .hist-day-head{ flex-wrap:wrap; gap:8px; padding:10px 12px; }
+  .hist-day-head .row{ flex-wrap:wrap; gap:6px; }
+  .hd-date{ font-size:15px !important; }
+
+  /* --- filtros de fecha (historial, gráficos) --- */
+  #panelFiltroGraficosHistorial .row,
+  #historialList ~ .panel .row{ flex-wrap:wrap; }
+  input[type=date]{ font-size:13px; }
+
+  /* --- gráficos --- */
+  #pulmonChartWrap, #m2EvolucionChartWrap{ height:230px !important; }
+  #chartCausas{ max-height:230px; }
+  .causa-chip{ font-size:11px; padding:5px 10px; }
+
+  /* --- tabla de usuarios y permisos: scroll horizontal ya previsto, achicar fuente --- */
+  #usuariosConfigList table{ font-size:11px; }
+
+  /* --- modales --- */
+  .modal{ padding:16px; max-width:94vw; }
+  .modal h3{ font-size:14px; }
+  #emojiPickerUsuario .emoji-opcion,
+  #emojiPickerAdmin .emoji-opcion{ width:30px; height:30px; font-size:15px; }
+
+  /* --- toast --- */
+  .toast{ left:12px; right:12px; bottom:16px; text-align:center; }
+}
+
+@media (max-width:400px){
+  #loginCintaSectores{ grid-template-columns:1fr !important; }
+  .kpis{ grid-template-columns:1fr; }
+}
 </style>
 </head>
 <body>
@@ -262,7 +348,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 <div id="loginScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 24px;">
   <div style="max-width:980px;width:100%;">
     <div style="margin-bottom:36px;">
-      <span class="tag" style="display:block;margin-bottom:6px;">LFDA</span>
+      <img src="logo-lfda.png" alt="La Fábrica de Aberturas" style="height:48px;display:block;margin-bottom:14px;">
       <h1 style="font-size:22px;font-weight:600;">Cierre Diario por Sector</h1>
     </div>
 
@@ -298,7 +384,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 
   <div class="topbar">
     <div class="brand">
-      <span class="tag">LFDA</span>
+      <img src="logo-lfda.png" alt="LFDA" style="height:22px;">
       <h1>Cierre Diario por Sector</h1>
       <span class="sub">m² objetivo vs. real · G_PRO</span>
     </div>
@@ -5364,6 +5450,16 @@ chequearSesionAlCargar();
 // inicializamos Firebase ya, aunque todavía no haya sesión — así, si alguien cambió
 // nombres/sectores de líderes desde otra PC, la pantalla de login los muestra al día
 inicializarFirebase();
+
+// registro del service worker, requisito para que el navegador ofrezca "Instalar app"
+// en celular. Si sw.js todavía no existe en el repo, falla en silencio sin romper nada.
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(e=>{
+      console.warn('No se pudo registrar el service worker (sw.js):', e);
+    });
+  });
+}
 </script>
 </body>
 </html>
