@@ -1560,8 +1560,16 @@ function guardarRespaldoLocal(){
     const raw = localStorage.getItem(RESPALDO_KEY);
     const respaldos = raw ? JSON.parse(raw) : [];
     const ultimoRespaldo = respaldos[respaldos.length-1];
-    // evitar respaldos repetidos si no cambió la cantidad de días desde el último guardado
-    if(ultimoRespaldo && ultimoRespaldo.diasConfirmados === diasActuales) return;
+
+    // respaldamos si: no hay respaldo previo, cambió la cantidad de días confirmados,
+    // o pasó más de una hora desde el último respaldo guardado (para no perder
+    // correcciones/cargas hechas DENTRO de un día que ya estaba confirmado, como
+    // pulmón retroactivo, correcciones de m², o causas agregadas más tarde)
+    const unaHoraMs = 60*60*1000;
+    const pasoTiempoSuficiente = !ultimoRespaldo || (Date.now() - new Date(ultimoRespaldo.ts).getTime()) > unaHoraMs;
+    const cambioCantidadDias = !ultimoRespaldo || ultimoRespaldo.diasConfirmados !== diasActuales;
+    if(!cambioCantidadDias && !pasoTiempoSuficiente) return;
+
     respaldos.push({
       ts: new Date().toISOString(),
       diasConfirmados: diasActuales,
