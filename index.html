@@ -399,6 +399,17 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         <span class="hint">La línea de umbral se muestra en el gráfico al elegir 1-2 sectores.</span>
       </div>
       <div class="hint" style="margin-bottom:10px;">Tocá los sectores que querés comparar en el gráfico. Datos tomados de lo pegado al inicio de cada turno, aunque el día no se haya confirmado.</div>
+      <div class="row" style="gap:10px;margin-bottom:12px;flex-wrap:wrap;">
+        <div class="field" style="margin-bottom:0;">
+          <label style="font-size:11px;">Desde</label>
+          <input type="date" id="inputFiltroPulmonDesde" style="font-size:13px;padding:6px 8px;">
+        </div>
+        <div class="field" style="margin-bottom:0;">
+          <label style="font-size:11px;">Hasta</label>
+          <input type="date" id="inputFiltroPulmonHasta" style="font-size:13px;padding:6px 8px;">
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnQuitarFiltroPulmon" style="align-self:flex-end;">Quitar filtro</button>
+      </div>
       <div id="checksPulmonSectores" class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;"></div>
       <div id="pulmonEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Todavía no hay pulmones registrados. Se guardan automáticamente cada vez que pegás el inicio de turno.</div>
       <div id="pulmonChartWrap" style="height:300px;"><canvas id="chartPulmon"></canvas></div>
@@ -2674,7 +2685,7 @@ function nombresConPulmonRegistrado(){
     Object.keys(dia).forEach(n=>set.add(n));
   });
   const todos = [...set].sort();
-  return esAdmin() ? todos : todos.filter(n=>n===sectorDelLider());
+  return todos.filter(n=>puedeVerSector(n));
 }
 
 function renderEvolucionPulmon(){
@@ -2686,16 +2697,31 @@ function renderEvolucionPulmon(){
   if(nombres.length===0){
     checksCont.innerHTML='';
     emptyDiv.style.display='';
+    emptyDiv.innerHTML = '<div class="big">—</div>Todavía no hay pulmones registrados. Se guardan automáticamente cada vez que pegás el inicio de turno.';
     wrap.style.display='none';
     document.getElementById('pulmonAlertasResumen').innerHTML='';
     if(chartPulmonInstance){ chartPulmonInstance.destroy(); chartPulmonInstance=null; }
     return;
   }
+
+  if(obtenerSerieFechasPulmon().length===0){
+    checksCont.innerHTML='';
+    emptyDiv.style.display='';
+    emptyDiv.innerHTML = '<div class="big">—</div>No hay pulmones registrados en ese rango de fechas. Probá ampliar el filtro o quitarlo.';
+    wrap.style.display='none';
+    document.getElementById('pulmonAlertasResumen').innerHTML='';
+    if(chartPulmonInstance){ chartPulmonInstance.destroy(); chartPulmonInstance=null; }
+    return;
+  }
+
   emptyDiv.style.display='none';
   wrap.style.display='';
 
-  // líder limitado a su sector: siempre fijo en su propio sector, sin selector
-  if(!puedeVerTodo()){
+  // si solo puede ver UN sector, queda fijo ahí sin selector; si puede ver varios
+  // (verTodo, o varios sectores específicos vía adicionales), puede elegir cuáles comparar
+  const visibles = sectoresVisibles();
+  const tieneSelector = visibles===null || visibles.length>1;
+  if(!tieneSelector){
     sectoresPulmonSeleccionados = new Set(nombres);
   } else if(sectoresPulmonSeleccionados===null){
     // por defecto, seleccionar todos los sectores configurados (hasta 5 para no saturar el gráfico)
@@ -2705,12 +2731,9 @@ function renderEvolucionPulmon(){
 
   checksCont.innerHTML = nombres.map(n=>{
     const sel = sectoresPulmonSeleccionados.has(n);
-    const cfgSec = state.sectores.find(s=>s.nombre===n);
-    const proveedor = cfgSec ? cfgSec.sectorProveedor : null;
-    const tieneProveedorDisponible = proveedor && nombres.includes(proveedor) && !sectoresPulmonSeleccionados.has(proveedor);
-    return `<span class="causa-chip${sel?' sel':''}" data-chip-sector="${esc(n)}">${esc(n)}</span>${tieneProveedorDisponible ? `<button class="btn btn-ghost btn-sm" data-add-proveedor="${esc(proveedor)}" style="padding:2px 8px;font-size:11px;margin-left:-4px;" title="Agregar proveedor ${esc(proveedor)} para comparar">+ ${esc(proveedor)}</button>` : ''}`;
+    return `<span class="causa-chip${sel?' sel':''}" data-chip-sector="${esc(n)}">${esc(n)}</span>`;
   }).join('');
-  if(!puedeVerTodo()) checksCont.style.display='none'; else checksCont.style.display='';
+  if(!tieneSelector) checksCont.style.display='none'; else checksCont.style.display='';
 
   checksCont.querySelectorAll('[data-chip-sector]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
@@ -2720,20 +2743,19 @@ function renderEvolucionPulmon(){
       renderEvolucionPulmon();
     });
   });
-  checksCont.querySelectorAll('[data-add-proveedor]').forEach(btn=>{
-    btn.addEventListener('click', (e)=>{
-      e.stopPropagation();
-      sectoresPulmonSeleccionados.add(btn.dataset.addProveedor);
-      renderEvolucionPulmon();
-    });
-  });
 
   dibujarChartPulmon();
   renderResumenAlertasPulmon();
 }
 
+let filtroPulmonDesde = null;
+let filtroPulmonHasta = null;
+
 function obtenerSerieFechasPulmon(){
-  return Object.keys(state.pulmones || {}).sort();
+  let fechas = Object.keys(state.pulmones || {}).sort();
+  if(filtroPulmonDesde) fechas = fechas.filter(f=>f>=filtroPulmonDesde);
+  if(filtroPulmonHasta) fechas = fechas.filter(f=>f<=filtroPulmonHasta);
+  return fechas;
 }
 
 function dibujarChartPulmon(){
@@ -2854,6 +2876,22 @@ document.getElementById('btnFiltroHistLimpiar').addEventListener('click', ()=>{
   document.getElementById('inputFiltroHistDesde').value = '';
   document.getElementById('inputFiltroHistHasta').value = '';
   renderHistorial();
+});
+
+document.getElementById('inputFiltroPulmonDesde').addEventListener('change', (e)=>{
+  filtroPulmonDesde = e.target.value || null;
+  renderEvolucionPulmon();
+});
+document.getElementById('inputFiltroPulmonHasta').addEventListener('change', (e)=>{
+  filtroPulmonHasta = e.target.value || null;
+  renderEvolucionPulmon();
+});
+document.getElementById('btnQuitarFiltroPulmon').addEventListener('click', ()=>{
+  filtroPulmonDesde = null;
+  filtroPulmonHasta = null;
+  document.getElementById('inputFiltroPulmonDesde').value = '';
+  document.getElementById('inputFiltroPulmonHasta').value = '';
+  renderEvolucionPulmon();
 });
 
 document.getElementById('btnAgregarDiaAnterior').addEventListener('click', ()=>{
