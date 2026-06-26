@@ -195,6 +195,36 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 .add-causa-row{display:flex;gap:6px;margin-top:8px;}
 .add-causa-row input{flex:1;background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:6px 8px;font-size:12px;}
 
+/* ===== login: cinta de producción ===== */
+.linea-estacion{position:relative;}
+.linea-card{position:relative;background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:18px 16px;height:100%;width:100%;cursor:pointer;transition:.15s;text-align:left;}
+.linea-card:hover{border-color:var(--amber);transform:translateY(-2px);}
+.linea-card .lc-avatar{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px;}
+.linea-card .lc-codigo{font-family:var(--mono);font-size:10px;letter-spacing:1.5px;color:var(--amber);text-transform:uppercase;margin-bottom:7px;font-weight:600;}
+.linea-card .lc-nombre{font-weight:600;font-size:14px;color:var(--ink);margin-bottom:3px;line-height:1.3;}
+.linea-card .lc-sector{font-size:12px;color:var(--ink-faint);}
+.linea-card .lc-lock{position:absolute;top:16px;right:14px;font-size:12px;color:var(--ink-faint);}
+.acceso-card{background:var(--panel);border:1px solid var(--line2);border-radius:12px;padding:14px 18px;cursor:pointer;transition:.15s;display:flex;align-items:center;gap:12px;}
+.acceso-card:hover{border-color:var(--amber);}
+.acceso-card .lc-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;}
+.acceso-card .ac-nombre{font-weight:600;font-size:14px;color:var(--ink);}
+.acceso-card .ac-cargo{font-size:12px;color:var(--ink-faint);}
+.av-c0{background:#3a3220;}
+.av-c1{background:#1f3a32;}
+.av-c2{background:#22324a;}
+.av-c3{background:#3a2440;}
+.av-c4{background:#402424;}
+.av-c5{background:#243a3a;}
+.av-c6{background:#3a3024;}
+.av-c7{background:#2a3a24;}
+.emoji-opcion{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;border:2px solid transparent;background:var(--bg2);cursor:pointer;transition:.12s;}
+.color-opcion{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:.12s;}
+.color-opcion.sel{border-color:var(--ink);}
+.emoji-opcion:hover{border-color:var(--line2);}
+.emoji-opcion.sel{border-color:var(--amber);background:var(--amber-dim);}
+
+
+
 /* ===== history ===== */
 .hist-day{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;}
 .hist-day.en-curso{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim);}
@@ -229,23 +259,29 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 <body>
 
 <!-- PANTALLA DE LOGIN -->
-<div id="loginScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">
-  <div style="max-width:420px;width:100%;">
-    <div style="text-align:center;margin-bottom:28px;">
+<div id="loginScreen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 24px;">
+  <div style="max-width:980px;width:100%;">
+    <div style="margin-bottom:36px;">
       <span class="tag" style="display:block;margin-bottom:6px;">LFDA</span>
-      <h1 style="font-size:20px;font-weight:600;">Cierre Diario por Sector</h1>
+      <h1 style="font-size:22px;font-weight:600;">Cierre Diario por Sector</h1>
     </div>
 
-    <div id="loginListaUsuarios" class="panel">
-      <div class="panel-head"><h2>¿Quién está cargando?</h2></div>
-      <div id="loginSincronizando" style="text-align:center;padding:20px 0;color:var(--ink-faint);font-size:13px;">Sincronizando…</div>
-      <div id="loginBotonesLideres" style="display:flex;flex-direction:column;gap:8px;"></div>
-      <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
-      <button class="btn btn-ghost" id="btnSoyAdmin" style="width:100%;">Soy administrador (Diego)</button>
+    <div id="loginListaUsuarios">
+      <div id="loginSincronizando" style="text-align:center;padding:40px 0;color:var(--ink-faint);font-size:13px;">Sincronizando…</div>
+
+      <div id="loginCintaWrap" style="display:none;">
+        <div class="hint" style="margin-bottom:14px;font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-faint);">Flujo de planta</div>
+        <div id="loginCintaSectores" style="display:grid;grid-template-columns:repeat(3, 1fr);gap:12px;margin-bottom:28px;"></div>
+
+        <div id="loginOtrosAccesosWrap" style="display:none;">
+          <div class="hint" style="margin-bottom:14px;font-family:var(--mono);font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--ink-faint);">Gerencia y administración</div>
+          <div id="loginOtrosAccesos" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:24px;"></div>
+        </div>
+      </div>
     </div>
 
-    <div id="loginAdminPass" class="panel" style="display:none;">
-      <div class="panel-head"><h2>Acceso administrador</h2></div>
+    <div id="loginAdminPass" class="panel" style="display:none;max-width:380px;">
+      <div class="panel-head"><h2 id="loginAdminPassTitle">Acceso administrador</h2></div>
       <div class="field">
         <label>Contraseña</label>
         <input type="password" id="inputAdminPass" placeholder="••••••••">
@@ -443,42 +479,129 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
     <div class="panel">
       <div class="panel-head">
         <h2>Usuarios y permisos</h2>
+        <button class="btn btn-primary btn-sm" id="btnNuevoUsuario">+ Nuevo usuario</button>
       </div>
-      <div class="hint" style="margin-bottom:12px;">Cada líder ve y carga únicamente los datos de su sector asignado. Solo vos (admin) ves la planta completa.</div>
-      <div id="usuariosConfigList"></div>
+      <div class="hint" style="margin-bottom:12px;">Por defecto, cada usuario ve y carga únicamente su sector asignado, sin pedir contraseña. Tildá los permisos extra que necesite cada uno (ver todo, declarar causas en cualquier sector, corregir m², confirmar el día, entrar a Configuración) y, si querés que pida clave para entrar, asignale una contraseña al crearlo o editarlo.</div>
+      <div id="usuariosConfigList" style="overflow-x:auto;"></div>
       <div class="row" style="margin-top:14px;">
-        <button class="btn btn-ghost btn-sm" id="btnCambiarPasswordAdmin">Cambiar mi contraseña de administrador</button>
+        <button class="btn btn-ghost btn-sm" id="btnEditarMiAcceso">Mi acceso de administrador</button>
+      </div>
+    </div>
+
+    <!-- Modal nuevo/editar usuario -->
+    <div class="modal-overlay" id="modalUsuarioPermisos">
+      <div class="modal" style="max-width:420px;">
+        <h3 id="modalUsuarioPermisosTitle">Nuevo usuario</h3>
+        <input type="hidden" id="editUsuarioIdx" value="-1">
+        <div class="field">
+          <label>Nombre completo</label>
+          <input type="text" id="inputUsuarioNombre" placeholder="Ej: Juan Pérez">
+        </div>
+        <div class="field">
+          <label>Cargo (se muestra debajo del nombre en el login)</label>
+          <input type="text" id="inputUsuarioCargo" placeholder="Ej: Gerente de Producción">
+        </div>
+        <div class="field">
+          <label>Ícono</label>
+          <div id="emojiPickerUsuario" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <input type="hidden" id="inputUsuarioEmoji" value="👤">
+        </div>
+        <div class="field">
+          <label>Color</label>
+          <div id="colorPickerUsuario" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          <input type="hidden" id="inputUsuarioColor" value="c0">
+        </div>
+        <div class="field">
+          <label>Sector principal (donde carga sus datos)</label>
+          <select id="selectUsuarioSector"></select>
+        </div>
+        <div class="field">
+          <label>Sectores adicionales que puede VER (sin cargar, solo consulta — no aplica si tiene "Ver todos los sectores")</label>
+          <div id="checksSectoresAdicionales" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+        </div>
+        <div class="field">
+          <label>Contraseña (opcional — si la dejás vacía, entra solo tocando su nombre)</label>
+          <input type="password" id="inputUsuarioPass" placeholder="Dejar vacío = sin contraseña">
+          <div class="hint" id="hintPassExistente" style="margin-top:4px;"></div>
+        </div>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;color:var(--ink);">
+            <input type="checkbox" id="permMostrarEnGerencia" style="width:16px;height:16px;"> Mostrar su acceso abajo, junto a Gerencia y administración (en vez de la cinta de planta)
+          </label>
+        </div>
+        <div class="field">
+          <label>Permisos</label>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="permVerTodo" style="width:16px;height:16px;"> Ver todos los sectores (no solo el asignado)
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="permDeclararCausas" style="width:16px;height:16px;"> Declarar/editar causas en los sectores que puede ver
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="permCorregirM2" style="width:16px;height:16px;"> Corregir m² cerrados de días pasados
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="permConfirmarDia" style="width:16px;height:16px;"> Confirmar el cierre del día
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">
+              <input type="checkbox" id="permEntrarConfig" style="width:16px;height:16px;"> Entrar a Configuración
+            </label>
+          </div>
+        </div>
+        <div class="row" style="margin-top:16px;gap:8px;">
+          <button class="btn btn-ghost" id="btnCancelarUsuarioPermisos" style="flex:1;">Cancelar</button>
+          <button class="btn btn-primary" id="btnGuardarUsuarioPermisos" style="flex:1;">Guardar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal mi acceso de administrador -->
+    <div class="modal-overlay" id="modalMiAcceso">
+      <div class="modal" style="max-width:420px;">
+        <h3>Mi acceso de administrador</h3>
+        <div class="field">
+          <label>Nombre completo</label>
+          <input type="text" id="inputAdminNombre" placeholder="Ej: Diego">
+        </div>
+        <div class="field">
+          <label>Cargo (se muestra en el login)</label>
+          <input type="text" id="inputAdminCargoEdit" placeholder="Ej: Jefe de Producción">
+        </div>
+        <div class="field">
+          <label>Ícono</label>
+          <div id="emojiPickerAdmin" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+          <input type="hidden" id="inputAdminEmoji" value="🔑">
+        </div>
+        <div class="field">
+          <label>Color</label>
+          <div id="colorPickerAdmin" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+          <input type="hidden" id="inputAdminColor" value="c0">
+        </div>
+        <div style="border-top:1px solid var(--line);margin:16px 0;"></div>
+        <div class="field">
+          <label>Contraseña actual</label>
+          <input type="password" id="inputAdminPassActual" placeholder="Requerida para cambiar la clave">
+        </div>
+        <div class="field">
+          <label>Nueva contraseña (dejar vacío para no cambiarla)</label>
+          <input type="password" id="inputAdminPassNueva" placeholder="Mínimo 4 caracteres">
+        </div>
+        <div class="row" style="margin-top:16px;gap:8px;">
+          <button class="btn btn-ghost" id="btnCancelarMiAcceso" style="flex:1;">Cancelar</button>
+          <button class="btn btn-primary" id="btnGuardarMiAcceso" style="flex:1;">Guardar</button>
+        </div>
       </div>
     </div>
 
     <div class="panel" style="border-color:var(--green);">
-      <div class="panel-head"><h2>Respaldos locales (de este dispositivo)</h2></div>
-      <div class="hint" style="margin-bottom:10px;">Este dispositivo guarda automáticamente una copia cada vez que cambia el historial, como red de seguridad independiente de la nube. Útil si algo sale mal en Firebase.</div>
+      <div class="panel-head"><h2>Respaldo de los datos</h2></div>
+      <div class="hint" style="margin-bottom:10px;">Descargá una copia completa de todo (historial, pulmón, causas, usuarios) como red de seguridad. Si alguna vez hace falta recuperar información — un día puntual, causas que falten en el catálogo, o pulmón de inicio — subí el archivo correspondiente acá y la app reconoce sola qué contiene.</div>
       <div id="listaRespaldosLocales"></div>
-    </div>
-
-    <div class="panel" style="border-color:var(--amber);">
-      <div class="panel-head"><h2>Recuperar días desde archivo</h2></div>
-      <div class="hint" style="margin-bottom:10px;">Permite cargar (o corregir) días puntuales a partir de un archivo JSON con el formato <code>{ "AAAA-MM-DD": { "SECTOR": { "m2": 0, "causas": [{"causa":"","detalle":"","m2":0}] } } }</code>. Solo modifica los días y sectores que figuran en el archivo — el resto del historial queda intacto. Pensado para recuperar información a partir de informes PDF ya generados.</div>
-      <input type="file" id="inputRecuperarDias" accept="application/json" style="display:none;">
-      <button class="btn btn-primary btn-sm" id="btnRecuperarDias">Elegir archivo JSON y cargar</button>
-      <div id="resultadoRecuperarDias" style="margin-top:10px;"></div>
-    </div>
-
-    <div class="panel" style="border-color:var(--amber);">
-      <div class="panel-head"><h2>Agregar causas al catálogo desde archivo</h2></div>
-      <div class="hint" style="margin-bottom:10px;">Permite agregar causas nuevas al catálogo 5M de uno o más sectores, a partir de un archivo JSON con el formato <code>{ "SECTOR": { "Categoría 5M": ["causa nueva", "otra causa"] } }</code>. Solo agrega — si una causa ya existe en ese sector/categoría, se ignora (no se duplica).</div>
-      <input type="file" id="inputCargarCatalogo" accept="application/json" style="display:none;">
-      <button class="btn btn-primary btn-sm" id="btnCargarCatalogo">Elegir archivo JSON y cargar</button>
-      <div id="resultadoCargarCatalogo" style="margin-top:10px;"></div>
-    </div>
-
-    <div class="panel" style="border-color:var(--amber);">
-      <div class="panel-head"><h2>Recuperar pulmón de inicio desde archivo</h2></div>
-      <div class="hint" style="margin-bottom:10px;">Permite cargar el pulmón de inicio de turno de días pasados a partir de un archivo JSON con el formato <code>{ "AAAA-MM-DD": { "SECTOR": numeroM2 } }</code>. Solo completa fecha/sector que estén vacíos — si ya hay un valor de pulmón cargado para esa fecha y sector, no se toca.</div>
-      <input type="file" id="inputCargarPulmon" accept="application/json" style="display:none;">
-      <button class="btn btn-primary btn-sm" id="btnCargarPulmon">Elegir archivo JSON y cargar</button>
-      <div id="resultadoCargarPulmon" style="margin-top:10px;"></div>
+      <div style="border-top:1px solid var(--line);margin:14px 0;"></div>
+      <input type="file" id="inputCargarUnificado" accept="application/json" style="display:none;">
+      <button class="btn btn-primary btn-sm" id="btnCargarUnificado">Cargar JSON</button>
+      <div id="resultadoCargarUnificado" style="margin-top:10px;"></div>
     </div>
 
     <div class="panel">
@@ -687,6 +810,7 @@ function escucharCambiosFirestore(){
             state = Object.assign(defaultState(), remotoViejo);
             migrarMotivoCausaAArray(state);
             migrarObjetivosPorSector(state);
+            migrarPermisosUsuarios(state);
             migrarHistoricoPulmones(state);
             localStorage.setItem(LS_KEY, JSON.stringify(state));
             subirEstadoAFirestore(); // esto ya escribe en el formato nuevo por campos
@@ -724,6 +848,7 @@ function aplicarEstadoRemoto(data){
     state = Object.assign(defaultState(), remoto);
     migrarMotivoCausaAArray(state);
     migrarObjetivosPorSector(state);
+    migrarPermisosUsuarios(state);
     migrarHistoricoPulmones(state);
     localStorage.setItem(LS_KEY, JSON.stringify(state));
     // si la pantalla de login sigue visible (todavía no entró nadie), destrabamos
@@ -844,6 +969,10 @@ function defaultState(){
     sectorFinLinea: '8-LI',
     usuarios: {
       adminPassHash: '83f1ca6cf5ab96baa2feeced43a1904dee6d0007ce9605fe665eddd2dfae0dd6',
+      adminNombre: 'Diego',
+      adminCargo: 'Jefe de Producción',
+      adminEmoji: '🔑',
+      adminColor: 'c0',
       lideres: [
         {id:'u1', nombre:'Augusto Maldonado', sector:'1-ALM'},
         {id:'u2', nombre:'Pablo García', sector:'2-MEC'},
@@ -900,7 +1029,47 @@ function guardarSesion(s){
 }
 
 function esAdmin(){ return sesion && sesion.rol === 'admin'; }
-function sectorDelLider(){ return sesion && sesion.rol === 'lider' ? sesion.sector : null; }
+function sectorDelLider(){
+  if(!sesion) return null;
+  if(sesion.rol === 'admin') return null;
+  // si tiene el permiso de ver todos los sectores, no está limitado a uno solo
+  if(sesion.permisos && sesion.permisos.verTodo) return null;
+  return sesion.sector;
+}
+
+// lista de TODOS los sectores que la sesión actual puede ver: el principal más
+// los adicionales tildados en Configuración. Para admin o "ver todo" devuelve
+// null, que en los puntos de filtrado significa "puede ver cualquiera".
+function sectoresVisibles(){
+  if(esAdmin()) return null;
+  if(sesion && sesion.permisos && sesion.permisos.verTodo) return null;
+  if(!sesion) return [];
+  const lista = [sesion.sector, ...(sesion.sectoresAdicionales||[])].filter(Boolean);
+  return lista;
+}
+function puedeVerSector(nombre){
+  const visibles = sectoresVisibles();
+  return visibles===null || visibles.includes(nombre);
+}
+
+// permisos granulares para usuarios no-admin (gerentes, jefes de área, etc.)
+// el admin siempre tiene los 5, sin excepción
+function tienePermiso(clave){
+  if(esAdmin()) return true;
+  return !!(sesion && sesion.permisos && sesion.permisos[clave]);
+}
+function puedeVerTodo(){ return tienePermiso('verTodo'); }
+function puedeDeclararCausas(){ return esAdmin() || sectorDelLider()!==null || tienePermiso('declararCausas'); }
+function puedeCorregirM2(){ return tienePermiso('corregirM2'); }
+function puedeConfirmarDia(){ return tienePermiso('confirmarDia'); }
+function puedeEntrarConfig(){ return tienePermiso('entrarConfig'); }
+
+// modelo de permisos por defecto para un usuario nuevo: ninguno tildado
+// (ve solo su sector, sin privilegios extra) — igual de restrictivo que un
+// líder de sector normal hoy.
+function permisosVacios(){
+  return { verTodo:false, declararCausas:false, corregirM2:false, confirmarDia:false, entrarConfig:false };
+}
 
 async function sha256Hex(texto){
   const enc = new TextEncoder().encode(texto);
@@ -908,32 +1077,107 @@ async function sha256Hex(texto){
   return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
 }
 
+const ORDEN_CADENA_PRODUCTIVA = ['0-Planificación','1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
+
 function renderLoginLideres(){
-  const cont = document.getElementById('loginBotonesLideres');
+  document.getElementById('loginCintaWrap').style.display = '';
   const lideres = (state.usuarios && state.usuarios.lideres) || [];
-  cont.innerHTML = lideres.map(l=>`
-    <button class="btn" data-login-lider="${esc(l.id)}" style="width:100%;text-align:left;padding:12px 16px;">
-      <div style="font-weight:600;">${esc(l.nombre)}</div>
-      <div style="font-size:11px;color:var(--ink-faint);">${esc(l.sector)}</div>
+
+  // la posición en pantalla (cinta de planta vs. gerencia) es una decisión explícita
+  // por usuario (checkbox "mostrarEnGerencia"), independiente de qué permisos tenga
+  const deLaCinta = lideres
+    .filter(l => !l.mostrarEnGerencia)
+    .sort((a,b) => ORDEN_CADENA_PRODUCTIVA.indexOf(a.sector) - ORDEN_CADENA_PRODUCTIVA.indexOf(b.sector));
+  const deGerencia = lideres.filter(l => l.mostrarEnGerencia);
+
+  // el admin no es un usuario real dentro de "lideres" — se arma una tarjeta
+  // virtual a partir de su configuración, y al tocarla se abre el mismo flujo
+  // de contraseña de administrador que ya existe (no crea un usuario duplicado)
+  const tarjetaAdminVirtual = {
+    id: '__admin__',
+    nombre: state.usuarios.adminNombre || 'Admin',
+    cargo: state.usuarios.adminCargo || 'Administrador',
+    emoji: state.usuarios.adminEmoji || '🔑',
+    color: state.usuarios.adminColor || 'c0',
+    passHash: 'admin'
+  };
+  const todasLasDeGerencia = [tarjetaAdminVirtual, ...deGerencia];
+
+  const cinta = document.getElementById('loginCintaSectores');
+  cinta.innerHTML = deLaCinta.map((l,i)=>`
+    <div class="linea-estacion">
+      <button class="linea-card" data-login-lider="${esc(l.id)}" style="width:100%;">
+        ${l.passHash ? '<span class="lc-lock">🔒</span>' : ''}
+        <div class="lc-avatar av-${esc(l.color || ('c'+(i%8)))}">${esc(l.emoji || '👤')}</div>
+        <div class="lc-codigo">${esc(l.sector || '')}</div>
+        <div class="lc-nombre">${esc(l.nombre)}</div>
+        <div class="lc-sector">${esc(l.cargo || 'Líder de sector')}</div>
+      </button>
+    </div>
+  `).join('');
+
+  const wrapGerencia = document.getElementById('loginOtrosAccesosWrap');
+  const contGerencia = document.getElementById('loginOtrosAccesos');
+  wrapGerencia.style.display = '';
+  contGerencia.innerHTML = todasLasDeGerencia.map((l,i)=>`
+    <button class="acceso-card" data-login-lider="${esc(l.id)}">
+      <div class="lc-avatar av-${esc(l.color || ('c'+(i%8)))}">${esc(l.emoji || '👤')}</div>
+      <div>
+        <div class="ac-nombre">${esc(l.nombre)}${l.passHash ? ' 🔒' : ''}</div>
+        <div class="ac-cargo">${esc(l.cargo || 'Acceso general')}</div>
+      </div>
     </button>
   `).join('');
-  cont.querySelectorAll('[data-login-lider]').forEach(btn=>{
+
+  document.querySelectorAll('[data-login-lider]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
+      if(btn.dataset.loginLider==='__admin__'){
+        abrirLoginAdmin();
+        return;
+      }
       const lider = lideres.find(l=>l.id===btn.dataset.loginLider);
       if(!lider) return;
-      guardarSesion({rol:'lider', nombre:lider.nombre, sector:lider.sector});
-      iniciarAppPostLogin();
+      if(lider.passHash){
+        abrirLoginConClave(lider);
+      } else {
+        entrarComoLider(lider);
+      }
     });
   });
 }
 
-document.getElementById('btnSoyAdmin').addEventListener('click', ()=>{
+function entrarComoLider(lider){
+  guardarSesion({
+    rol: 'lider',
+    nombre: lider.nombre,
+    sector: lider.sector || null,
+    sectoresAdicionales: lider.sectoresAdicionales || [],
+    permisos: lider.permisos || permisosVacios()
+  });
+  iniciarAppPostLogin();
+}
+
+let liderPendienteDeClave = null;
+function abrirLoginConClave(lider){
+  liderPendienteDeClave = lider;
+  document.getElementById('loginAdminPassTitle').textContent = `Contraseña de ${lider.nombre}`;
   document.getElementById('loginListaUsuarios').style.display='none';
   document.getElementById('loginAdminPass').style.display='';
   document.getElementById('inputAdminPass').value='';
   document.getElementById('inputAdminPass').focus();
-});
+}
+
+function abrirLoginAdmin(){
+  liderPendienteDeClave = null;
+  document.getElementById('loginAdminPassTitle').textContent = 'Acceso administrador';
+  document.getElementById('loginListaUsuarios').style.display='none';
+  document.getElementById('loginAdminPass').style.display='';
+  document.getElementById('inputAdminPass').value='';
+  document.getElementById('inputAdminPass').focus();
+}
+
 document.getElementById('btnCancelarAdmin').addEventListener('click', ()=>{
+  liderPendienteDeClave = null;
   document.getElementById('loginAdminPass').style.display='none';
   document.getElementById('loginListaUsuarios').style.display='';
 });
@@ -946,8 +1190,20 @@ async function verificarPasswordAdmin(){
   const val = document.getElementById('inputAdminPass').value;
   if(!val){ toast('Ingresá la contraseña', true); return; }
   const hash = await sha256Hex(val);
+
+  // si venimos de tocar el botón de un usuario con clave propia (no el admin general)
+  if(liderPendienteDeClave){
+    if(hash === liderPendienteDeClave.passHash){
+      entrarComoLider(liderPendienteDeClave);
+      liderPendienteDeClave = null;
+    } else {
+      toast('Contraseña incorrecta', true);
+    }
+    return;
+  }
+
   if(hash === state.usuarios.adminPassHash){
-    guardarSesion({rol:'admin', nombre:'Diego (Admin)'});
+    guardarSesion({rol:'admin', nombre: state.usuarios.adminNombre || 'Admin', sector: state.usuarios.adminCargo || null});
     iniciarAppPostLogin();
   } else {
     toast('Contraseña incorrecta', true);
@@ -972,15 +1228,19 @@ function aplicarRestriccionesDeRol(){
   const tabConfig = document.querySelector('.tab-btn[data-view="config"]');
   const bloquesPegado = document.getElementById('bloquesPegadoAdmin');
   const btnAgregarDiaAnterior = document.getElementById('btnAgregarDiaAnterior');
+
+  // pegado de G_PRO y "agregar día anterior" son exclusivos del admin real
+  // (no de cualquier usuario con permiso de Configuración)
   if(!esAdmin()){
-    if(tabConfig) tabConfig.style.display='none';
     if(bloquesPegado) bloquesPegado.style.display='none';
     if(btnAgregarDiaAnterior) btnAgregarDiaAnterior.style.display='none';
   } else {
-    if(tabConfig) tabConfig.style.display='';
     if(bloquesPegado) bloquesPegado.style.display='';
     if(btnAgregarDiaAnterior) btnAgregarDiaAnterior.style.display='';
   }
+
+  // la solapa Configuración depende del permiso granular "entrarConfig"
+  if(tabConfig) tabConfig.style.display = puedeEntrarConfig() ? '' : 'none';
 }
 
 function chequearSesionAlCargar(){
@@ -991,13 +1251,12 @@ function chequearSesionAlCargar(){
     // nombres desactualizados un instante antes de que Firebase los corrija.
     // Si Firebase no contesta en 2.5s (sin internet, etc.), mostramos la lista local igual.
     document.getElementById('loginSincronizando').style.display='';
-    document.getElementById('loginBotonesLideres').style.display='none';
+    document.getElementById('loginCintaWrap').style.display='none';
     let yaRenderizado = false;
     const mostrarLista = ()=>{
       if(yaRenderizado) return;
       yaRenderizado = true;
       document.getElementById('loginSincronizando').style.display='none';
-      document.getElementById('loginBotonesLideres').style.display='';
       renderLoginLideres();
     };
     loginListoCallback = mostrarLista;
@@ -1109,6 +1368,7 @@ function loadState(){
     const merged = Object.assign(defaultState(), parsed);
     migrarMotivoCausaAArray(merged);
     migrarObjetivosPorSector(merged);
+    migrarPermisosUsuarios(merged);
     migrarHistoricoPulmones(merged);
     migrarSectorPlanificacionFaltante(merged);
     migrarCadenaProveedores(merged);
@@ -1166,6 +1426,29 @@ function migrarObjetivosPorSector(s){
   });
   delete s.objetivo;
   if(!s.umbralPulmonBajoDefault) s.umbralPulmonBajoDefault = umbralLegacy;
+}
+
+const EMOJI_POR_SECTOR = {
+  '0-Planificación':'📐', '1-ALM':'📦', '2-MEC':'⚙️', '3-SOL':'🛠️',
+  '4-VID':'🪟', '5-DVH':'🪟', '6-ARM':'🔧', '7-ACR':'🏗️', '8-LI':'📊'
+};
+
+function migrarPermisosUsuarios(s){
+  // versiones anteriores no tenían permisos granulares por usuario — a los líderes
+  // que ya existían les asignamos permisos vacíos (mismo comportamiento que tenían:
+  // ven y cargan solo su sector asignado, sin privilegios extra)
+  ((s.usuarios && s.usuarios.lideres) || []).forEach((l,i)=>{
+    if(!l.permisos) l.permisos = {verTodo:false, declararCausas:false, corregirM2:false, confirmarDia:false, entrarConfig:false};
+    if(!l.emoji) l.emoji = EMOJI_POR_SECTOR[l.sector] || '👤';
+    if(!l.color) l.color = 'c'+(i%8);
+    if(!l.cargo) l.cargo = 'Líder de sector';
+    if(l.mostrarEnGerencia===undefined) l.mostrarEnGerencia = !!l.permisos.verTodo;
+    if(!l.sectoresAdicionales) l.sectoresAdicionales = [];
+  });
+  if(s.usuarios && !s.usuarios.adminNombre) s.usuarios.adminNombre = 'Diego';
+  if(s.usuarios && !s.usuarios.adminCargo) s.usuarios.adminCargo = 'Jefe de Producción';
+  if(s.usuarios && !s.usuarios.adminEmoji) s.usuarios.adminEmoji = '🔑';
+  if(s.usuarios && !s.usuarios.adminColor) s.usuarios.adminColor = 'c0';
 }
 
 function migrarHistoricoPulmones(s){
@@ -1455,7 +1738,7 @@ function renderKpis(){
   const hoy = state.dias[state.actual.fecha];
   const row = document.getElementById('kpiRow');
 
-  if(!esAdmin()){
+  if(!puedeVerTodo()){
     renderKpisLider(hoy);
     return;
   }
@@ -1723,7 +2006,7 @@ function renderResultado(resultadoExterno){
   // posición de un día a otro.
   const ordenSectores = ['0-Planificación','1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
   const nombresVisibles = Object.keys(resultado)
-    .filter(n => esAdmin() || n === sectorDelLider())
+    .filter(n => puedeVerSector(n))
     .sort((a,b) => ordenSectores.indexOf(a) - ordenSectores.indexOf(b));
   nombresVisibles.forEach(nombre=>{
     const r = resultado[nombre];
@@ -1734,9 +2017,9 @@ function renderResultado(resultadoExterno){
     tbody.appendChild(crearBloqueSector(nombre, r, state.actual.fecha));
   });
 
-  // confirmar el día completo es una acción exclusiva del admin (depende de TODOS los sectores)
+  // confirmar el día completo depende del permiso "confirmarDia" (el admin siempre lo tiene)
   const btnConfirmar = document.getElementById('btnConfirmarDia');
-  if(!esAdmin()){
+  if(!puedeConfirmarDia()){
     btnConfirmar.style.display='none';
   } else {
     btnConfirmar.style.display='';
@@ -1801,6 +2084,8 @@ let causaContextoActivo = null; // 'hoy' o fecha ISO de state.dias, para saber q
 let causasDetalle = []; // [{causa, detalle, m2}]
 
 function abrirModalCausa(nombreSector, contexto){
+  const puedeVerEsteSector = puedeVerTodo() || sectorDelLider()===nombreSector;
+  if(!puedeDeclararCausas() || !puedeVerEsteSector){ toast('No tenés permiso para declarar causas en este sector', true); return; }
   causaSectorActivo = nombreSector;
   causaContextoActivo = contexto || 'hoy';
   const r = (causaContextoActivo === 'hoy')
@@ -1989,6 +2274,7 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
 });
 
 document.getElementById('btnConfirmarDia').addEventListener('click', ()=>{
+  if(!puedeConfirmarDia()){ toast('No tenés permiso para confirmar el día', true); return; }
   const btnConfirmar = document.getElementById('btnConfirmarDia');
   const sectoresSinCausa = JSON.parse(btnConfirmar.dataset.sectoresSinCausa || '[]');
 
@@ -2051,21 +2337,22 @@ function bloqueHistorialPlanificacion(nombre, s, contexto){
 }
 
 function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
-  const sectoresTodos = Object.entries(sectoresObj);
-  const sectores = esAdmin() ? sectoresTodos : sectoresTodos.filter(([n])=>n===sectorDelLider());
+  const sectoresTodos = Object.entries(sectoresObj)
+    .sort((a,b) => ORDEN_CADENA_PRODUCTIVA.indexOf(a[0]) - ORDEN_CADENA_PRODUCTIVA.indexOf(b[0]));
+  const sectores = sectoresTodos.filter(([n])=>puedeVerSector(n));
   const sectoresNormales = sectores.filter(([,s])=>s.tipo!=='planificacion');
   const cumplieron = sectoresNormales.filter(([,s])=>s.cerrado>=s.objetivoMin).length;
   const total = sectoresNormales.length;
   const finLineaSec = sectoresObj[state.sectorFinLinea];
-  const m2FinLinea = (esAdmin() && finLineaSec) ? finLineaSec.cerrado : null;
-  const mostrarResumenGlobal = esAdmin();
+  const m2FinLinea = (puedeVerTodo() && finLineaSec) ? finLineaSec.cerrado : null;
+  const mostrarResumenGlobal = puedeVerTodo();
 
   const diaGuardado = !esEnCurso ? state.dias[fecha] : null;
   const pendientesGuardados = diaGuardado ? (diaGuardado.sectoresPendientesCausa || []) : [];
   // recalculamos contra el estado actual, por si ya se completaron causas después de confirmar,
   // y filtramos por rol: un líder solo debe ver los pendientes de SU sector, no los de toda la planta
   const pendientesVigentes = pendientesGuardados.filter(nombre => {
-    if(!esAdmin() && nombre !== sectorDelLider()) return false;
+    if(!puedeVerSector(nombre)) return false;
     const s = sectoresObj[nombre];
     return s && (s.motivoCausa||[]).length===0;
   });
@@ -2129,7 +2416,7 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
                 </div>
               `).join('')}
               <div class="sb-pendiente-row">
-                ${esAdmin() ? `<button class="btn btn-ghost btn-sm" data-editar-m2="${esc(nombre)}|${esc(fecha)}">Corregir m² cerrados</button>` : ''}
+                ${puedeCorregirM2() ? `<button class="btn btn-ghost btn-sm" data-editar-m2="${esc(nombre)}|${esc(fecha)}">Corregir m² cerrados</button>` : ''}
                 <button class="btn btn-sm ${causas.length ? 'btn-ghost' : (estado==='bajo' ? 'btn-danger' : 'btn-ghost')}" data-edit-causa="${esc(nombre)}|${esc(contexto)}">${causas.length ? '✎ Editar '+causas.length+' causa(s)' : (estado==='bajo' ? 'Declarar causa' : '+ Declarar causa')}</button>
               </div>
             </div>
@@ -2224,12 +2511,24 @@ let chartCausasInstance = null;
 
 function poblarFiltroSectorCausas(){
   const sel = document.getElementById('filtroSectorCausas');
-  if(!esAdmin()){
-    sel.innerHTML = `<option value="${esc(sectorDelLider())}">${esc(sectorDelLider())}</option>`;
-    sel.value = sectorDelLider();
-    sel.disabled = true;
+  const visibles = sectoresVisibles(); // null = puede ver todos; array = limitado a esos
+
+  if(visibles !== null){
+    // limitado a uno o varios sectores específicos — el filtro solo ofrece esos
+    const valorActual = sel.value;
+    if(visibles.length<=1){
+      sel.innerHTML = `<option value="${esc(visibles[0]||'')}">${esc(visibles[0]||'')}</option>`;
+      sel.value = visibles[0]||'';
+      sel.disabled = true;
+    } else {
+      sel.disabled = false;
+      sel.innerHTML = '<option value="">Todos mis sectores</option>' +
+        visibles.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+      sel.value = visibles.includes(valorActual) ? valorActual : '';
+    }
     return;
   }
+
   sel.disabled = false;
   const valorActual = sel.value;
   const nombresEnHistorial = new Set();
@@ -2251,6 +2550,7 @@ function renderGraficoCausas(){
   // acumular m² por causa, discriminado por sector: { causa: { sector: m2 } }
   const acumPorCausa = {};
   function acumular(nombreSector, s){
+    if(!puedeVerSector(nombreSector)) return;
     if(filtroSector && nombreSector !== filtroSector) return;
     (s.motivoCausa||[]).forEach(c=>{
       if(!acumPorCausa[c.causa]) acumPorCausa[c.causa] = {};
@@ -2394,8 +2694,8 @@ function renderEvolucionPulmon(){
   emptyDiv.style.display='none';
   wrap.style.display='';
 
-  // líder: siempre fijo en su propio sector, sin selector
-  if(!esAdmin()){
+  // líder limitado a su sector: siempre fijo en su propio sector, sin selector
+  if(!puedeVerTodo()){
     sectoresPulmonSeleccionados = new Set(nombres);
   } else if(sectoresPulmonSeleccionados===null){
     // por defecto, seleccionar todos los sectores configurados (hasta 5 para no saturar el gráfico)
@@ -2410,7 +2710,7 @@ function renderEvolucionPulmon(){
     const tieneProveedorDisponible = proveedor && nombres.includes(proveedor) && !sectoresPulmonSeleccionados.has(proveedor);
     return `<span class="causa-chip${sel?' sel':''}" data-chip-sector="${esc(n)}">${esc(n)}</span>${tieneProveedorDisponible ? `<button class="btn btn-ghost btn-sm" data-add-proveedor="${esc(proveedor)}" style="padding:2px 8px;font-size:11px;margin-left:-4px;" title="Agregar proveedor ${esc(proveedor)} para comparar">+ ${esc(proveedor)}</button>` : ''}`;
   }).join('');
-  if(!esAdmin()) checksCont.style.display='none'; else checksCont.style.display='';
+  if(!puedeVerTodo()) checksCont.style.display='none'; else checksCont.style.display='';
 
   checksCont.querySelectorAll('[data-chip-sector]').forEach(chip=>{
     chip.addEventListener('click', ()=>{
@@ -2832,17 +3132,13 @@ function renderListaRespaldosLocales(){
   });
 }
 
-/* ----- recuperar/corregir días puntuales desde un archivo JSON (ej: a partir de informes PDF) -----
-   Formato esperado:
-   { "AAAA-MM-DD": { "NOMBRE-SECTOR": { "m2": 0, "causas": [{"causa":"","detalle":"","m2":0}] } } }
-   Solo toca los días/sectores presentes en el archivo. Si el sector ya existía ese día,
-   deja un registro de corrección visible (mismo criterio que la edición manual de m²).
-   Si no existía, lo crea usando los objetivos configurados actualmente para ese sector. */
-document.getElementById('btnRecuperarDias').addEventListener('click', ()=>{
-  document.getElementById('inputRecuperarDias').click();
+/* ----- carga unificada de recuperación: un solo botón que detecta el formato del JSON -----
+   y aplica la recuperación correspondiente (días, catálogo de causas, o pulmón de inicio). */
+document.getElementById('btnCargarUnificado').addEventListener('click', ()=>{
+  document.getElementById('inputCargarUnificado').click();
 });
 
-document.getElementById('inputRecuperarDias').addEventListener('change', (e)=>{
+document.getElementById('inputCargarUnificado').addEventListener('change', (e)=>{
   const file = e.target.files[0];
   if(!file) return;
   const reader = new FileReader();
@@ -2851,26 +3147,57 @@ document.getElementById('inputRecuperarDias').addEventListener('change', (e)=>{
     try{
       datos = JSON.parse(ev.target.result);
     }catch(err){
-      mostrarResultadoRecuperarDias(`No se pudo leer el archivo: no es un JSON válido.`, true);
+      mostrarResultadoCargarUnificado('No se pudo leer el archivo: no es un JSON válido.', true);
       e.target.value = '';
       return;
     }
-    aplicarRecuperacionDias(datos);
+    const tipo = detectarTipoArchivoRecuperacion(datos);
+    if(tipo==='dias') aplicarRecuperacionDias(datos);
+    else if(tipo==='causas') aplicarCargaCatalogo(datos);
+    else if(tipo==='pulmon') aplicarCargaPulmon(datos);
+    else mostrarResultadoCargarUnificado('No se reconoció el formato del archivo. Revisá que sea uno de los JSON generados para recuperación de días, causas o pulmón.', true);
     e.target.value = '';
   };
   reader.readAsText(file);
 });
 
-function mostrarResultadoRecuperarDias(html, esError){
-  const cont = document.getElementById('resultadoRecuperarDias');
+function mostrarResultadoCargarUnificado(html, esError){
+  const cont = document.getElementById('resultadoCargarUnificado');
   if(!cont) return;
   cont.innerHTML = `<div class="hint" style="color:${esError ? 'var(--red)' : 'var(--green)'};">${html}</div>`;
 }
 
+// distingue los 3 formatos posibles mirando la forma del primer valor del objeto:
+// - días:    { "2026-06-22": { "1-ALM": {m2, causas:[...]} } }       -> primer valor es objeto con "m2"
+// - causas:  { "1-ALM": { "Método": ["causa1","causa2"] } }          -> primer valor es objeto cuyas claves son arrays
+// - pulmón:  { "2026-06-22": { "1-ALM": 706 } }                      -> primer valor es objeto cuyos valores son números
+function detectarTipoArchivoRecuperacion(datos){
+  if(!datos || typeof datos !== 'object') return null;
+  const primeraClave = Object.keys(datos)[0];
+  if(!primeraClave) return null;
+  const primerValor = datos[primeraClave];
+  if(!primerValor || typeof primerValor !== 'object') return null;
+
+  const segundaClave = Object.keys(primerValor)[0];
+  if(!segundaClave) return null;
+  const segundoValor = primerValor[segundaClave];
+
+  if(typeof segundoValor === 'number') return 'pulmon';
+  if(Array.isArray(segundoValor)) return 'causas';
+  if(segundoValor && typeof segundoValor === 'object' && 'm2' in segundoValor) return 'dias';
+  return null;
+}
+
+/* ----- recuperar/corregir días puntuales desde un archivo JSON (ej: a partir de informes PDF) -----
+   Formato esperado:
+   { "AAAA-MM-DD": { "NOMBRE-SECTOR": { "m2": 0, "causas": [{"causa":"","detalle":"","m2":0}] } } }
+   Solo toca los días/sectores presentes en el archivo. Si el sector ya existía ese día,
+   deja un registro de corrección visible (mismo criterio que la edición manual de m²).
+   Si no existía, lo crea usando los objetivos configurados actualmente para ese sector. */
 function aplicarRecuperacionDias(datos){
   const fechas = Object.keys(datos || {});
   if(fechas.length===0){
-    mostrarResultadoRecuperarDias('El archivo no tiene ningún día para cargar.', true);
+    mostrarResultadoCargarUnificado('El archivo no tiene ningún día para cargar.', true);
     return;
   }
 
@@ -2930,8 +3257,8 @@ function aplicarRecuperacionDias(datos){
   if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
   if(document.getElementById('view-hoy').classList.contains('active')) renderHoy();
 
-  mostrarResultadoRecuperarDias(
-    `Listo. Se crearon ${sectoresCreados} registro(s) nuevo(s) y se corrigieron ${sectoresCorregidos}.<br>${resumenLineas.join('<br>')}`,
+  mostrarResultadoCargarUnificado(
+    `Días recuperados. Se crearon ${sectoresCreados} registro(s) nuevo(s) y se corrigieron ${sectoresCorregidos}.<br>${resumenLineas.join('<br>')}`,
     false
   );
   toast('Días recuperados y sincronizados');
@@ -2942,39 +3269,10 @@ function aplicarRecuperacionDias(datos){
    Solo agrega. Si la causa ya existe en ese sector/categoría (comparación exacta de texto),
    se ignora — nunca duplica ni borra nada del catálogo existente. Si la categoría no existe
    todavía en ese sector, se crea. */
-document.getElementById('btnCargarCatalogo').addEventListener('click', ()=>{
-  document.getElementById('inputCargarCatalogo').click();
-});
-
-document.getElementById('inputCargarCatalogo').addEventListener('change', (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev)=>{
-    let datos;
-    try{
-      datos = JSON.parse(ev.target.result);
-    }catch(err){
-      mostrarResultadoCargarCatalogo('No se pudo leer el archivo: no es un JSON válido.', true);
-      e.target.value = '';
-      return;
-    }
-    aplicarCargaCatalogo(datos);
-    e.target.value = '';
-  };
-  reader.readAsText(file);
-});
-
-function mostrarResultadoCargarCatalogo(html, esError){
-  const cont = document.getElementById('resultadoCargarCatalogo');
-  if(!cont) return;
-  cont.innerHTML = `<div class="hint" style="color:${esError ? 'var(--red)' : 'var(--green)'};">${html}</div>`;
-}
-
 function aplicarCargaCatalogo(datos){
   const nombresSector = Object.keys(datos || {});
   if(nombresSector.length===0){
-    mostrarResultadoCargarCatalogo('El archivo no tiene ningún sector para cargar.', true);
+    mostrarResultadoCargarUnificado('El archivo no tiene ningún sector para cargar.', true);
     return;
   }
 
@@ -3014,11 +3312,11 @@ function aplicarCargaCatalogo(datos){
   saveState();
   if(document.getElementById('view-config').classList.contains('active')) renderConfig();
 
-  let resumenHtml = `Listo. Se agregaron ${agregadas} causa(s) nueva(s) al catálogo. ${yaExistian} ya existían y se omitieron.`;
+  let resumenHtml = `Catálogo actualizado. Se agregaron ${agregadas} causa(s) nueva(s). ${yaExistian} ya existían y se omitieron.`;
   if(resumenLineas.length>0) resumenHtml += `<br>${resumenLineas.join('<br>')}`;
   if(sectoresNoEncontrados.length>0) resumenHtml += `<br><br>⚠ No se encontraron estos sectores (revisá que el nombre coincida exacto): ${sectoresNoEncontrados.join(', ')}`;
 
-  mostrarResultadoCargarCatalogo(resumenHtml, false);
+  mostrarResultadoCargarUnificado(resumenHtml, false);
   toast('Catálogo de causas actualizado');
 }
 
@@ -3026,39 +3324,10 @@ function aplicarCargaCatalogo(datos){
    Formato esperado: { "AAAA-MM-DD": { "SECTOR": numeroM2 } }
    Solo completa fecha/sector que estén vacíos o sin definir. Si ya hay un número
    cargado ahí (sea cual sea), no se toca — para no pisar un dato real con uno recuperado. */
-document.getElementById('btnCargarPulmon').addEventListener('click', ()=>{
-  document.getElementById('inputCargarPulmon').click();
-});
-
-document.getElementById('inputCargarPulmon').addEventListener('change', (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const reader = new FileReader();
-  reader.onload = (ev)=>{
-    let datos;
-    try{
-      datos = JSON.parse(ev.target.result);
-    }catch(err){
-      mostrarResultadoCargarPulmon('No se pudo leer el archivo: no es un JSON válido.', true);
-      e.target.value = '';
-      return;
-    }
-    aplicarCargaPulmon(datos);
-    e.target.value = '';
-  };
-  reader.readAsText(file);
-});
-
-function mostrarResultadoCargarPulmon(html, esError){
-  const cont = document.getElementById('resultadoCargarPulmon');
-  if(!cont) return;
-  cont.innerHTML = `<div class="hint" style="color:${esError ? 'var(--red)' : 'var(--green)'};">${html}</div>`;
-}
-
 function aplicarCargaPulmon(datos){
   const fechas = Object.keys(datos || {});
   if(fechas.length===0){
-    mostrarResultadoCargarPulmon('El archivo no tiene ninguna fecha para cargar.', true);
+    mostrarResultadoCargarUnificado('El archivo no tiene ninguna fecha para cargar.', true);
     return;
   }
 
@@ -3089,45 +3358,86 @@ function aplicarCargaPulmon(datos){
   saveState();
   if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
 
-  let resumenHtml = `Listo. Se completaron ${completados} valor(es) de pulmón. ${yaExistian} ya tenían un valor cargado y se omitieron.`;
+  let resumenHtml = `Pulmón recuperado. Se completaron ${completados} valor(es). ${yaExistian} ya tenían un valor cargado y se omitieron.`;
   if(resumenLineas.length>0) resumenHtml += `<br>${resumenLineas.join('<br>')}`;
 
-  mostrarResultadoCargarPulmon(resumenHtml, false);
+  mostrarResultadoCargarUnificado(resumenHtml, false);
   toast('Pulmón de inicio recuperado');
 }
+
+
+const ETIQUETAS_PERMISOS = [
+  {clave:'verTodo', label:'Ver todo'},
+  {clave:'declararCausas', label:'Declarar causas'},
+  {clave:'corregirM2', label:'Corregir m²'},
+  {clave:'confirmarDia', label:'Confirmar día'},
+  {clave:'entrarConfig', label:'Configuración'}
+];
 
 function renderUsuariosConfig(){
   const cont = document.getElementById('usuariosConfigList');
   if(!cont) return;
   const lideres = (state.usuarios && state.usuarios.lideres) || [];
-  const nombresSectores = state.sectores.map(s=>s.nombre);
 
-  cont.innerHTML = lideres.map((l,idx)=>`
-    <div class="cfg-sector" style="display:flex;align-items:center;gap:12px;">
-      <input type="text" value="${esc(l.nombre)}" data-lider-nombre="${idx}" style="flex:1;background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:6px 8px;font-size:13px;">
-      <select data-lider-sector="${idx}" style="background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:6px 8px;font-size:13px;">
-        ${nombresSectores.map(n=>`<option value="${esc(n)}" ${n===l.sector?'selected':''}>${esc(n)}</option>`).join('')}
-      </select>
-      <button class="btn btn-danger btn-sm" data-del-lider="${idx}">Eliminar</button>
-    </div>
-  `).join('') + `<button class="btn btn-ghost btn-sm" id="btnAddLider" style="margin-top:8px;">+ Agregar líder</button>`;
+  if(lideres.length===0){
+    cont.innerHTML = '<div class="hint">No hay usuarios todavía. Usá "+ Nuevo usuario" para crear el primero.</div>';
+    return;
+  }
 
-  cont.querySelectorAll('[data-lider-nombre]').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
-      const idx = parseInt(inp.dataset.liderNombre);
-      state.usuarios.lideres[idx].nombre = inp.value.trim();
+  cont.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;min-width:640px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--line2);">
+          <th style="text-align:left;padding:6px 8px;">Usuario</th>
+          <th style="text-align:left;padding:6px 8px;">Sector</th>
+          ${ETIQUETAS_PERMISOS.map(p=>`<th style="text-align:center;padding:6px 4px;font-size:10px;color:var(--ink-dim);">${esc(p.label)}</th>`).join('')}
+          <th style="padding:6px 8px;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        ${lideres.map((l,idx)=>{
+          const perm = l.permisos || permisosVacios();
+          return `
+          <tr style="border-bottom:1px solid var(--line2);">
+            <td style="padding:6px 8px;">
+              <div style="font-weight:600;">${esc(l.nombre)}${l.passHash ? ' 🔒' : ''}</div>
+              <div style="font-size:11px;color:var(--ink-faint);">${esc(l.cargo || '')}</div>
+            </td>
+            <td style="padding:6px 8px;color:var(--ink-dim);">${perm.verTodo ? 'Todos' : esc(l.sector || '—')}</td>
+            ${ETIQUETAS_PERMISOS.map(p=>`
+              <td style="text-align:center;padding:6px 4px;">
+                <input type="checkbox" data-toggle-perm="${idx}|${p.clave}" ${perm[p.clave] ? 'checked' : ''} style="width:15px;height:15px;cursor:pointer;">
+              </td>
+            `).join('')}
+            <td style="padding:6px 8px;text-align:right;white-space:nowrap;">
+              <button class="btn btn-ghost btn-sm" data-editar-usuario="${idx}" title="Editar">✎</button>
+              <button class="btn btn-danger btn-sm" data-del-lider="${idx}" title="Eliminar">✕</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+
+  // tildar/destildar un permiso directo desde la tabla, sin abrir el modal
+  cont.querySelectorAll('[data-toggle-perm]').forEach(chk=>{
+    chk.addEventListener('change', ()=>{
+      const [idxStr, clave] = chk.dataset.togglePerm.split('|');
+      const idx = parseInt(idxStr);
+      if(!state.usuarios.lideres[idx].permisos) state.usuarios.lideres[idx].permisos = permisosVacios();
+      state.usuarios.lideres[idx].permisos[clave] = chk.checked;
       saveState();
-      toast('Nombre actualizado');
+      renderUsuariosConfig();
+      toast('Permiso actualizado');
     });
   });
-  cont.querySelectorAll('[data-lider-sector]').forEach(sel=>{
-    sel.addEventListener('change', ()=>{
-      const idx = parseInt(sel.dataset.liderSector);
-      state.usuarios.lideres[idx].sector = sel.value;
-      saveState();
-      toast('Sector asignado actualizado');
+
+  cont.querySelectorAll('[data-editar-usuario]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      abrirModalUsuarioPermisos(parseInt(btn.dataset.editarUsuario));
     });
   });
+
   cont.querySelectorAll('[data-del-lider]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const idx = parseInt(btn.dataset.delLider);
@@ -3135,39 +3445,215 @@ function renderUsuariosConfig(){
         state.usuarios.lideres.splice(idx,1);
         saveState();
         renderUsuariosConfig();
-        toast('Líder eliminado');
+        toast('Usuario eliminado');
       }
     });
   });
-  const btnAddLider = document.getElementById('btnAddLider');
-  if(btnAddLider){
-    btnAddLider.addEventListener('click', ()=>{
-      const nombre = prompt('Nombre del líder:');
-      if(!nombre || !nombre.trim()) return;
-      const nuevoId = 'u' + Date.now();
-      state.usuarios.lideres.push({id:nuevoId, nombre:nombre.trim(), sector: nombresSectores[0]||''});
-      saveState();
-      renderUsuariosConfig();
-      toast('Líder agregado');
-    });
-  }
 }
 
-document.getElementById('btnCambiarPasswordAdmin').addEventListener('click', async ()=>{
-  const actual = prompt('Ingresá tu contraseña actual:');
-  if(!actual) return;
-  const hashActual = await sha256Hex(actual);
-  if(hashActual !== state.usuarios.adminPassHash){
-    toast('Contraseña actual incorrecta', true);
-    return;
+const EMOJIS_USUARIO = ['👤','👷','🧑‍🏭','👨‍💼','👩‍💼','🧑‍🔧','🛠️','📋','📐','🏭','🔧','⚙️','📦','🪟','🧰','📊'];
+const COLORES_USUARIO = [
+  {clave:'c0', hex:'#3a3220'}, {clave:'c1', hex:'#1f3a32'}, {clave:'c2', hex:'#22324a'},
+  {clave:'c3', hex:'#3a2440'}, {clave:'c4', hex:'#402424'}, {clave:'c5', hex:'#243a3a'},
+  {clave:'c6', hex:'#3a3024'}, {clave:'c7', hex:'#2a3a24'}
+];
+
+function renderEmojiPicker(idContenedor, idInputDestino, seleccionado){
+  const cont = document.getElementById(idContenedor);
+  cont.innerHTML = EMOJIS_USUARIO.map(e=>`<div class="emoji-opcion${e===seleccionado?' sel':''}" data-emoji-opcion="${esc(e)}">${e}</div>`).join('');
+  cont.querySelectorAll('[data-emoji-opcion]').forEach(div=>{
+    div.addEventListener('click', ()=>{
+      document.getElementById(idInputDestino).value = div.dataset.emojiOpcion;
+      cont.querySelectorAll('.emoji-opcion').forEach(d=>d.classList.remove('sel'));
+      div.classList.add('sel');
+    });
+  });
+}
+function renderEmojiPickerUsuario(seleccionado){ renderEmojiPicker('emojiPickerUsuario', 'inputUsuarioEmoji', seleccionado); }
+
+function renderColorPicker(idContenedor, idInputDestino, seleccionado){
+  const cont = document.getElementById(idContenedor);
+  cont.innerHTML = COLORES_USUARIO.map(c=>`<div class="color-opcion${c.clave===seleccionado?' sel':''}" data-color-opcion="${esc(c.clave)}" style="background:${c.hex};"></div>`).join('');
+  cont.querySelectorAll('[data-color-opcion]').forEach(div=>{
+    div.addEventListener('click', ()=>{
+      document.getElementById(idInputDestino).value = div.dataset.colorOpcion;
+      cont.querySelectorAll('.color-opcion').forEach(d=>d.classList.remove('sel'));
+      div.classList.add('sel');
+    });
+  });
+}
+function renderColorPickerUsuario(seleccionado){ renderColorPicker('colorPickerUsuario', 'inputUsuarioColor', seleccionado); }
+
+function abrirModalUsuarioPermisos(idx){
+  const nombresSectores = state.sectores.map(s=>s.nombre);
+  const selectSector = document.getElementById('selectUsuarioSector');
+  selectSector.innerHTML = nombresSectores.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
+
+  const esNuevo = idx===undefined || idx===-1 || idx===null;
+  document.getElementById('editUsuarioIdx').value = esNuevo ? -1 : idx;
+  document.getElementById('modalUsuarioPermisosTitle').textContent = esNuevo ? 'Nuevo usuario' : 'Editar usuario';
+
+  const l = esNuevo ? null : state.usuarios.lideres[idx];
+  document.getElementById('inputUsuarioNombre').value = l ? l.nombre : '';
+  document.getElementById('inputUsuarioCargo').value = l ? (l.cargo||'') : '';
+  selectSector.value = l ? (l.sector || nombresSectores[0]) : nombresSectores[0];
+  document.getElementById('inputUsuarioPass').value = '';
+  document.getElementById('hintPassExistente').textContent = (l && l.passHash) ? 'Ya tiene una contraseña configurada. Escribí una nueva acá solo si querés reemplazarla.' : '';
+
+  const emojiActual = (l && l.emoji) || '👤';
+  document.getElementById('inputUsuarioEmoji').value = emojiActual;
+  renderEmojiPickerUsuario(emojiActual);
+
+  const colorActual = (l && l.color) || 'c0';
+  document.getElementById('inputUsuarioColor').value = colorActual;
+  renderColorPickerUsuario(colorActual);
+
+  const sectoresAdicActuales = (l && l.sectoresAdicionales) || [];
+  const contChecks = document.getElementById('checksSectoresAdicionales');
+  contChecks.innerHTML = nombresSectores
+    .filter(n => n !== selectSector.value)
+    .map(n=>`<span class="causa-chip${sectoresAdicActuales.includes(n)?' sel':''}" data-sector-adic="${esc(n)}">${esc(n)}</span>`)
+    .join('');
+  contChecks.querySelectorAll('[data-sector-adic]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      chip.classList.toggle('sel');
+    });
+  });
+
+  selectSector.onchange = ()=>{
+    const seleccionadosActuales = [...contChecks.querySelectorAll('.causa-chip.sel')].map(c=>c.dataset.sectorAdic);
+    contChecks.innerHTML = nombresSectores
+      .filter(n => n !== selectSector.value)
+      .map(n=>`<span class="causa-chip${seleccionadosActuales.includes(n)?' sel':''}" data-sector-adic="${esc(n)}">${esc(n)}</span>`)
+      .join('');
+    contChecks.querySelectorAll('[data-sector-adic]').forEach(chip=>{
+      chip.addEventListener('click', ()=>{
+        chip.classList.toggle('sel');
+      });
+    });
+  };
+
+  const perm = (l && l.permisos) || permisosVacios();
+  document.getElementById('permVerTodo').checked = !!perm.verTodo;
+  document.getElementById('permDeclararCausas').checked = !!perm.declararCausas;
+  document.getElementById('permCorregirM2').checked = !!perm.corregirM2;
+  document.getElementById('permConfirmarDia').checked = !!perm.confirmarDia;
+  document.getElementById('permEntrarConfig').checked = !!perm.entrarConfig;
+  document.getElementById('permMostrarEnGerencia').checked = l ? !!l.mostrarEnGerencia : false;
+
+  document.getElementById('modalUsuarioPermisos').classList.add('show');
+}
+
+document.getElementById('btnNuevoUsuario').addEventListener('click', ()=>{
+  abrirModalUsuarioPermisos(-1);
+});
+
+document.getElementById('btnCancelarUsuarioPermisos').addEventListener('click', ()=>{
+  document.getElementById('modalUsuarioPermisos').classList.remove('show');
+});
+
+document.getElementById('btnGuardarUsuarioPermisos').addEventListener('click', async ()=>{
+  const idx = parseInt(document.getElementById('editUsuarioIdx').value);
+  const nombre = document.getElementById('inputUsuarioNombre').value.trim();
+  const cargo = document.getElementById('inputUsuarioCargo').value.trim();
+  const sector = document.getElementById('selectUsuarioSector').value;
+  const passNueva = document.getElementById('inputUsuarioPass').value;
+  const emoji = document.getElementById('inputUsuarioEmoji').value || '👤';
+  const color = document.getElementById('inputUsuarioColor').value || 'c0';
+  const sectoresAdicionales = [...document.querySelectorAll('#checksSectoresAdicionales .causa-chip.sel')].map(c=>c.dataset.sectorAdic);
+  const mostrarEnGerencia = document.getElementById('permMostrarEnGerencia').checked;
+
+  if(!nombre){ toast('El nombre es obligatorio', true); return; }
+
+  const permisos = {
+    verTodo: document.getElementById('permVerTodo').checked,
+    declararCausas: document.getElementById('permDeclararCausas').checked,
+    corregirM2: document.getElementById('permCorregirM2').checked,
+    confirmarDia: document.getElementById('permConfirmarDia').checked,
+    entrarConfig: document.getElementById('permEntrarConfig').checked
+  };
+
+  if(!state.usuarios.lideres) state.usuarios.lideres = [];
+
+  if(idx>=0){
+    // editar existente — conservamos el passHash actual salvo que se escriba uno nuevo
+    const l = state.usuarios.lideres[idx];
+    l.nombre = nombre;
+    l.cargo = cargo;
+    l.sector = sector;
+    l.sectoresAdicionales = sectoresAdicionales;
+    l.emoji = emoji;
+    l.color = color;
+    l.permisos = permisos;
+    l.mostrarEnGerencia = mostrarEnGerencia;
+    if(passNueva){
+      l.passHash = await sha256Hex(passNueva);
+    }
+  } else {
+    // nuevo usuario
+    const nuevo = {
+      id: 'u' + Date.now(),
+      nombre, cargo, sector, sectoresAdicionales, emoji, color,
+      permisos, mostrarEnGerencia
+    };
+    if(passNueva){
+      nuevo.passHash = await sha256Hex(passNueva);
+    }
+    state.usuarios.lideres.push(nuevo);
   }
-  const nueva = prompt('Nueva contraseña:');
-  if(!nueva || nueva.length<4){ toast('La nueva contraseña debe tener al menos 4 caracteres', true); return; }
-  const confirmar = prompt('Repetí la nueva contraseña:');
-  if(nueva !== confirmar){ toast('Las contraseñas no coinciden', true); return; }
-  state.usuarios.adminPassHash = await sha256Hex(nueva);
+
   saveState();
-  toast('Contraseña actualizada');
+  document.getElementById('modalUsuarioPermisos').classList.remove('show');
+  renderUsuariosConfig();
+  toast('Usuario guardado');
+});
+
+document.getElementById('btnEditarMiAcceso').addEventListener('click', ()=>{
+  document.getElementById('inputAdminNombre').value = state.usuarios.adminNombre || 'Admin';
+  document.getElementById('inputAdminCargoEdit').value = state.usuarios.adminCargo || '';
+  document.getElementById('inputAdminPassActual').value = '';
+  document.getElementById('inputAdminPassNueva').value = '';
+
+  const emojiActual = state.usuarios.adminEmoji || '🔑';
+  document.getElementById('inputAdminEmoji').value = emojiActual;
+  renderEmojiPicker('emojiPickerAdmin', 'inputAdminEmoji', emojiActual);
+
+  const colorActual = state.usuarios.adminColor || 'c0';
+  document.getElementById('inputAdminColor').value = colorActual;
+  renderColorPicker('colorPickerAdmin', 'inputAdminColor', colorActual);
+
+  document.getElementById('modalMiAcceso').classList.add('show');
+});
+
+document.getElementById('btnCancelarMiAcceso').addEventListener('click', ()=>{
+  document.getElementById('modalMiAcceso').classList.remove('show');
+});
+
+document.getElementById('btnGuardarMiAcceso').addEventListener('click', async ()=>{
+  const nombre = document.getElementById('inputAdminNombre').value.trim();
+  const cargo = document.getElementById('inputAdminCargoEdit').value.trim();
+  const emoji = document.getElementById('inputAdminEmoji').value || '🔑';
+  const color = document.getElementById('inputAdminColor').value || 'c0';
+  const passActual = document.getElementById('inputAdminPassActual').value;
+  const passNueva = document.getElementById('inputAdminPassNueva').value;
+
+  if(!nombre){ toast('El nombre es obligatorio', true); return; }
+
+  if(passNueva){
+    if(!passActual){ toast('Ingresá tu contraseña actual para cambiarla', true); return; }
+    const hashActual = await sha256Hex(passActual);
+    if(hashActual !== state.usuarios.adminPassHash){ toast('Contraseña actual incorrecta', true); return; }
+    if(passNueva.length<4){ toast('La nueva contraseña debe tener al menos 4 caracteres', true); return; }
+    state.usuarios.adminPassHash = await sha256Hex(passNueva);
+  }
+
+  state.usuarios.adminNombre = nombre;
+  state.usuarios.adminCargo = cargo;
+  state.usuarios.adminEmoji = emoji;
+  state.usuarios.adminColor = color;
+  saveState();
+  document.getElementById('modalMiAcceso').classList.remove('show');
+  toast('Tu acceso fue actualizado');
 });
 
 document.getElementById('btnAddSector').addEventListener('click', ()=>{
@@ -3335,7 +3821,8 @@ function generarPdfDia(fecha, sectoresObj){
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
 
-  const sectoresTodos = Object.entries(sectoresObj);
+  const sectoresTodos = Object.entries(sectoresObj)
+    .sort((a,b) => ORDEN_CADENA_PRODUCTIVA.indexOf(a[0]) - ORDEN_CADENA_PRODUCTIVA.indexOf(b[0]));
   const sectoresPlanificacion = sectoresTodos.filter(([,s])=>s.tipo==='planificacion');
   const sectores = sectoresTodos.filter(([,s])=>s.tipo!=='planificacion');
   const finLineaSec = sectoresObj[state.sectorFinLinea];
@@ -3530,7 +4017,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
 
   fechas.forEach(f=>{
     Object.entries(state.dias[f].sectores).forEach(([nombre,s])=>{
-      if(!esAdmin() && nombre !== sectorDelLider()) return;
+      if(!puedeVerSector(nombre)) return;
       if(setSectoresElegidos && !setSectoresElegidos.has(nombre)) return;
       const cfgSector = state.sectores.find(sc=>sc.nombre===nombre);
       const esPlanificacion = s.tipo === 'planificacion' || (cfgSector && cfgSector.tipo === 'planificacion');
@@ -4142,7 +4629,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
     y += 13;
 
     const sectoresDia = Object.entries(state.dias[fecha].sectores).filter(([nombre])=>{
-      if(!esAdmin() && nombre !== sectorDelLider()) return false;
+      if(!puedeVerSector(nombre)) return false;
       if(setSectoresElegidos && !setSectoresElegidos.has(nombre)) return false;
       return true;
     });
@@ -4344,6 +4831,7 @@ let editM2Sector = null;
 let editM2Fecha = null;
 
 function abrirModalEditarM2(nombreSector, fecha, contexto){
+  if(!puedeCorregirM2()){ toast('No tenés permiso para corregir m² cerrados', true); return; }
   editM2Sector = nombreSector;
   editM2Fecha = fecha;
   const dia = state.dias[fecha];
