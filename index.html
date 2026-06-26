@@ -4806,10 +4806,13 @@ function abrirModalEditarPulmon(fecha, contexto){
   pulmonEditContexto = contexto;
   document.getElementById('modalPulmonFecha').textContent = fecha;
 
-  // unimos los sectores que tengan pulmón registrado ese día (de pulmones[] o del día confirmado)
+  // siempre se ofrecen TODOS los sectores configurados (incluido Planificación),
+  // tengan o no un valor guardado ese día — así nunca falta uno para corregir/cargar,
+  // aunque ese día nadie lo haya pegado en su momento.
   const desdeHistorico = state.pulmones[fecha] || {};
   const diaConfirmado = state.dias[fecha];
   const nombres = new Set([
+    ...state.sectores.map(s=>s.nombre),
     ...Object.keys(desdeHistorico),
     ...(diaConfirmado ? Object.keys(diaConfirmado.sectores) : [])
   ]);
@@ -4822,7 +4825,7 @@ function abrirModalEditarPulmon(fecha, contexto){
     return `
       <div class="field">
         <label>${esc(nombre)}</label>
-        <input type="number" min="0" step="0.1" value="${valorActual}" data-pulmon-sector="${esc(nombre)}">
+        <input type="number" min="0" step="0.1" value="${valorActual||0}" data-pulmon-sector="${esc(nombre)}">
       </div>
     `;
   }).join('');
