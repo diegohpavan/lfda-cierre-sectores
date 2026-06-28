@@ -39,6 +39,7 @@
   --red:#e8584d;
   --red-dim:#e8584d1a;
   --blue:#5b9fd8;
+  --blue-dim:#5b9fd81a;
   --mono: 'IBM Plex Mono','SF Mono',Consolas,monospace;
   --sans: -apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
 }
@@ -59,6 +60,7 @@ body.tema-claro{
   --red:#c43d33;
   --red-dim:#c43d331a;
   --blue:#2d6fa8;
+  --blue-dim:#2d6fa81a;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;}
@@ -78,11 +80,51 @@ input,select,textarea{font-family:inherit;}
 
 .tabs{display:flex;gap:4px;margin-bottom:18px;border-bottom:1px solid var(--line);flex-wrap:wrap;}
 .tab-btn{background:none;border:none;color:var(--ink-dim);padding:10px 16px;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:.15s;}
+.subtab-btn{background:none;border:none;color:var(--ink-dim);padding:10px 16px;font-size:13px;font-weight:500;border-bottom:2px solid transparent;transition:.15s;cursor:pointer;}
+.subtab-btn.active{color:var(--amber);border-bottom-color:var(--amber);}
 .tab-btn:hover{color:var(--ink);}
 .tab-btn.active{color:var(--amber);border-bottom-color:var(--amber);}
 
 .view{display:none;}
 .view.active{display:block;}
+
+/* ===== shell con sidebar izquierdo ===== */
+.app-shell{display:flex;min-height:100vh;}
+.app-sidebar{flex:0 0 220px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;padding:18px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;}
+.app-sidebar-logo{display:flex;align-items:center;gap:8px;margin-bottom:6px;padding:0 6px;}
+.app-sidebar-logo img{height:20px;}
+.app-sidebar-logo .ttl{font-size:13px;font-weight:600;line-height:1.3;}
+.app-sidebar-sub{font-size:10px;color:var(--ink-dim);padding:0 6px;margin-bottom:18px;}
+.sidebar-nav-btn{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;border-radius:7px;color:var(--ink-dim);padding:10px 10px;font-size:13px;font-weight:500;text-align:left;transition:.15s;}
+.sidebar-nav-btn:hover{background:var(--bg2);color:var(--ink);}
+.sidebar-nav-btn.active{background:var(--amber-dim);color:var(--amber);font-weight:600;}
+.sidebar-subnav{display:flex;flex-direction:column;gap:2px;margin:2px 0 6px 14px;border-left:1px solid var(--line2);padding-left:10px;}
+.sidebar-subnav-btn{display:block;width:100%;background:none;border:none;color:var(--ink-dim);padding:7px 8px;font-size:12px;text-align:left;border-radius:6px;transition:.15s;}
+.sidebar-subnav-btn:hover{background:var(--bg2);color:var(--ink-dim);}
+.sidebar-subnav-btn.active{color:var(--amber);font-weight:600;}
+.app-sidebar-spacer{flex:1;}
+.app-sidebar-filtro{margin:10px 6px 14px;padding:10px;background:var(--bg2);border:1px solid var(--line2);border-radius:8px;}
+.app-sidebar-filtro label{display:block;font-size:10px;color:var(--ink-dim);margin-bottom:3px;}
+.app-sidebar-filtro input[type=date]{width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:5px;color:var(--ink);padding:5px 6px;font-size:11px;margin-bottom:6px;}
+.app-content{flex:1;min-width:0;padding:18px 24px 80px;}
+.app-sidebar-session{font-family:var(--mono);font-size:11px;color:var(--ink-dim);padding:0 6px;margin-bottom:14px;}
+.app-sidebar-session .sess-user{color:var(--ink);font-weight:600;font-size:12px;display:block;margin-bottom:2px;}
+.app-sidebar-session .sess-date{color:var(--ink-dim);font-size:11px;}
+.app-sidebar-footer{display:flex;flex-direction:column;gap:8px;padding:10px 6px 0;border-top:1px solid var(--line);margin-top:10px;}
+.app-sidebar-footer-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--ink-dim);}
+
+@media (max-width:860px){
+  .app-shell{flex-direction:column;}
+  .app-sidebar{position:static;height:auto;flex:none;border-right:none;border-bottom:1px solid var(--line);flex-direction:row;flex-wrap:wrap;align-items:center;}
+  .app-sidebar-logo{margin-bottom:0;}
+  .app-sidebar-sub{display:none;}
+  .app-sidebar-session{display:none;}
+  .sidebar-subnav{flex-direction:row;margin-left:0;border-left:none;border-top:1px solid var(--line2);padding-left:0;padding-top:6px;flex-wrap:wrap;}
+  .app-sidebar-spacer{display:none;}
+  .app-sidebar-filtro{display:none;}
+  .app-sidebar-footer{flex-direction:row;border-top:none;border-left:1px solid var(--line);margin-top:0;margin-left:auto;padding:0 0 0 10px;}
+  .app-content{padding:14px 12px 90px;}
+}
 
 /* ===== cards / panels ===== */
 .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin-bottom:16px;}
@@ -174,6 +216,20 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 .field select,.field input,.field textarea{width:100%;background:var(--bg2);border:1px solid var(--line2);border-radius:6px;color:var(--ink);padding:9px 10px;font-size:13px;}
 .field select:focus,.field input:focus,.field textarea:focus{outline:none;border-color:var(--amber);}
 .field textarea{min-height:70px;resize:vertical;}
+
+/* selector de fecha: agrandamos el ícono nativo del almanaque y dejamos claro que es clickeable */
+input[type=date]{cursor:pointer;}
+input[type=date]::-webkit-calendar-picker-indicator{
+  cursor:pointer;
+  opacity:1;
+  filter:invert(0.6);
+  padding:4px;
+  margin-right:-2px;
+  border-radius:4px;
+  transform:scale(1.25);
+}
+body.tema-claro input[type=date]::-webkit-calendar-picker-indicator{filter:invert(0.35);}
+input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);}
 .causa-chip{display:inline-block;padding:6px 12px;margin:3px;border:1px solid var(--line2);border-radius:16px;font-size:12px;color:var(--ink-dim);cursor:pointer;transition:.15s;}
 .causa-chip:hover{border-color:var(--amber);color:var(--ink);}
 .causa-chip.sel{background:var(--amber);border-color:var(--amber);color:#1a1505;font-weight:600;}
@@ -251,9 +307,16 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 
 /* ===== history ===== */
 .hist-day{background:var(--panel);border:1px solid var(--line);border-radius:8px;margin-bottom:10px;overflow:hidden;}
+.hist-day.global-bajo{border-color:var(--red);}
+.hist-day.global-bajo .hist-day-head{background:var(--red-dim);}
+.hist-day.global-cumple{border-color:var(--green);}
+.hist-day.global-cumple .hist-day-head{background:var(--green-dim);}
+.hist-day.global-optimo{border-color:var(--blue);}
+.hist-day.global-optimo .hist-day-head{background:var(--blue-dim);}
 .hist-day.en-curso{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber-dim);}
+.hist-day.en-curso .hist-day-head{background:var(--amber-dim);}
 .hist-day-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:var(--panel2);}
-.hist-day-head:hover{background:#272b32;}
+.hist-day-head:hover{filter:brightness(1.08);}
 .hist-day-head .hd-date{font-family:var(--mono);font-weight:600;font-size:18px;}
 .hist-day-body{display:none;padding:4px 16px 14px;flex-direction:column;gap:10px;padding-top:10px;}
 .hist-day.open .hist-day-body{display:flex;}
@@ -397,32 +460,65 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
   </div>
 </div>
 
-<div class="app" id="appMain" style="display:none;">
+<div class="app" id="appMain" style="display:none;padding:0;max-width:none;">
+<div class="app-shell">
 
-  <div class="topbar">
-    <div class="brand">
-      <img src="logo-lfda.png" alt="LFDA" style="height:22px;">
-      <h1>Cierre Diario por Sector</h1>
-      <span class="sub">m² objetivo vs. real · G_PRO</span>
+  <div class="app-sidebar">
+    <div class="app-sidebar-logo">
+      <img src="logo-lfda.png" alt="LFDA">
+      <div class="ttl">Cierre Diario<br>por Sector</div>
     </div>
-    <div class="dateline">
-      <div class="row" style="justify-content:flex-end;gap:8px;margin-bottom:3px;">
+    <div class="app-sidebar-sub">m² objetivo vs. real · G_PRO</div>
+
+    <div class="app-sidebar-session">
+      <span class="sess-user" id="usuarioActualLabel"></span>
+      <span class="sess-date">Hoy: <b id="todayLabel">—</b></span>
+    </div>
+
+    <button class="sidebar-nav-btn active" data-nav="hoy">📅 Hoy</button>
+
+    <button class="sidebar-nav-btn" data-nav="historial">📊 Historial</button>
+    <div class="sidebar-subnav" id="sidebarHistSubnav" style="display:none;">
+      <button class="sidebar-subnav-btn active" data-nav-sub="causas">Causas</button>
+      <button class="sidebar-subnav-btn" data-nav-sub="evolucion">Evolución</button>
+      <button class="sidebar-subnav-btn" data-nav-sub="dias">Días</button>
+    </div>
+    <div class="app-sidebar-filtro" id="sidebarFiltroCausas" style="display:none;">
+      <label>Desde</label>
+      <input type="date" id="inputFiltroGraficosDesde">
+      <label>Hasta</label>
+      <input type="date" id="inputFiltroGraficosHasta">
+      <button class="btn btn-ghost btn-sm" id="btnQuitarFiltroGraficos" style="width:100%;">Quitar filtro</button>
+    </div>
+    <div class="app-sidebar-filtro" id="sidebarFiltroEvolucion" style="display:none;">
+      <label>Desde</label>
+      <input type="date" id="inputFiltroEvolucionDesde">
+      <label>Hasta</label>
+      <input type="date" id="inputFiltroEvolucionHasta">
+      <button class="btn btn-ghost btn-sm" id="btnQuitarFiltroEvolucion" style="width:100%;">Quitar filtro</button>
+    </div>
+    <div class="app-sidebar-filtro" id="sidebarFiltroDias" style="display:none;">
+      <label>Desde</label>
+      <input type="date" id="inputFiltroHistDesde">
+      <label>Hasta</label>
+      <input type="date" id="inputFiltroHistHasta">
+      <button class="btn btn-ghost btn-sm" id="btnFiltroHistLimpiar" style="width:100%;">Quitar filtro</button>
+      <div class="hint" id="hintFiltroHist" style="margin-top:6px;font-size:10px;"></div>
+    </div>
+
+    <div class="app-sidebar-spacer"></div>
+
+    <div class="app-sidebar-footer">
+      <div class="app-sidebar-footer-row">
         <span id="syncIndicator" style="font-size:11px;color:var(--ink-faint);">○ Solo local</span>
         <button class="btn btn-ghost btn-sm" id="btnToggleTema" style="padding:2px 8px;font-size:11px;" title="Cambiar tema claro/oscuro">🌙</button>
       </div>
-      Hoy: <b id="todayLabel">—</b>
-      <div style="margin-top:4px;">
-        <span id="usuarioActualLabel" style="font-size:11px;color:var(--ink-dim);"></span>
-        <button class="btn btn-ghost btn-sm" id="btnCerrarSesion" style="margin-left:8px;padding:2px 8px;font-size:11px;">Salir</button>
-      </div>
+      <button class="sidebar-nav-btn" data-nav="config">⚙️ Configuración</button>
+      <button class="btn btn-ghost btn-sm" id="btnCerrarSesion" style="width:100%;">Salir</button>
     </div>
   </div>
 
-  <div class="tabs">
-    <button class="tab-btn active" data-view="hoy">Hoy</button>
-    <button class="tab-btn" data-view="historial">Historial</button>
-    <button class="tab-btn" data-view="config">Configuración</button>
-  </div>
+  <div class="app-content">
 
   <!-- ===================== VISTA HOY ===================== -->
   <div class="view active" id="view-hoy">
@@ -477,24 +573,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
   <!-- ===================== VISTA HISTORIAL ===================== -->
   <div class="view" id="view-historial">
 
-    <div class="panel" id="panelFiltroGraficosHistorial">
-      <div class="panel-head">
-        <h2>Período de análisis</h2>
-      </div>
-      <div class="hint" style="margin-bottom:10px;">Este rango de fechas se aplica a los 3 gráficos de abajo: causas, m² cerrados y pulmón.</div>
-      <div class="row" style="gap:10px;flex-wrap:wrap;">
-        <div class="field" style="margin-bottom:0;">
-          <label style="font-size:11px;">Desde</label>
-          <input type="date" id="inputFiltroGraficosDesde" style="font-size:13px;padding:6px 8px;">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label style="font-size:11px;">Hasta</label>
-          <input type="date" id="inputFiltroGraficosHasta" style="font-size:13px;padding:6px 8px;">
-        </div>
-        <button class="btn btn-ghost btn-sm" id="btnQuitarFiltroGraficos" style="align-self:flex-end;">Quitar filtro</button>
-      </div>
-    </div>
-
+    <div class="cfg-tabpage active" id="histTab-causas">
     <div class="panel" id="panelCausasFrecuentes">
       <div class="panel-head">
         <h2>Causas más frecuentes</h2>
@@ -513,7 +592,9 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         <div style="overflow-x:auto;"><table id="tablaMatrizCausas" class="sectors" style="font-size:12px;"></table></div>
       </div>
     </div>
+    </div>
 
+    <div class="cfg-tabpage" id="histTab-evolucion">
     <div class="panel" id="panelEvolucionM2">
       <div class="panel-head">
         <h2>Evolución de m² cerrados</h2>
@@ -538,7 +619,9 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div id="pulmonUmbralHint" class="hint" style="margin-top:6px;"></div>
       <div id="pulmonAlertasResumen" style="margin-top:14px;"></div>
     </div>
+    </div>
 
+    <div class="cfg-tabpage" id="histTab-dias">
     <div class="panel">
       <div class="panel-head">
         <h2>Historial de días cerrados</h2>
@@ -548,19 +631,8 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
           <button class="btn btn-ghost btn-sm" id="btnPdfRango">Informe PDF (rango)</button>
         </div>
       </div>
-      <div class="row" style="gap:10px;margin-bottom:14px;flex-wrap:wrap;">
-        <div class="field" style="margin-bottom:0;">
-          <label style="font-size:11px;">Desde</label>
-          <input type="date" id="inputFiltroHistDesde" style="font-size:13px;padding:6px 8px;">
-        </div>
-        <div class="field" style="margin-bottom:0;">
-          <label style="font-size:11px;">Hasta</label>
-          <input type="date" id="inputFiltroHistHasta" style="font-size:13px;padding:6px 8px;">
-        </div>
-        <button class="btn btn-ghost btn-sm" id="btnFiltroHistLimpiar" style="align-self:flex-end;">Quitar filtro</button>
-        <span class="hint" id="hintFiltroHist" style="align-self:flex-end;"></span>
-      </div>
       <div id="historialList"></div>
+    </div>
     </div>
   </div>
 
@@ -789,6 +861,10 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
     <div class="panel" style="border-color:var(--green);">
       <div class="panel-head"><h2>Respaldo de los datos</h2></div>
       <div class="hint" style="margin-bottom:10px;">Descargá una copia completa de todo (historial, pulmón, causas, usuarios) como red de seguridad. Si alguna vez hace falta recuperar información — un día puntual, causas que falten en el catálogo, o pulmón de inicio — subí el archivo correspondiente acá y la app reconoce sola qué contiene.</div>
+      <div class="row" style="margin-bottom:14px;">
+        <button class="btn btn-primary btn-sm" id="btnRespaldoActualAhora">⟳ Descargar respaldo actualizado (ahora)</button>
+        <span class="hint">Genera y descarga un respaldo con los datos de este momento, sin esperar a la próxima copia automática.</span>
+      </div>
       <div id="listaRespaldosLocales"></div>
       <div style="border-top:1px solid var(--line);margin:14px 0;"></div>
       <input type="file" id="inputCargarUnificado" accept="application/json" style="display:none;">
@@ -808,6 +884,10 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       </div>
     </div>
   </div>
+
+  </div>
+</div>
+</div>
 
 <!-- MODAL: causa 5M -->
 <div class="modal-overlay" id="modalCausa">
@@ -857,7 +937,6 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <button class="btn btn-primary" id="btnFechaContinuar">Continuar</button>
     </div>
   </div>
-</div>
 </div>
 
 <!-- MODAL: agregar o corregir un solo sector dentro de un día ya confirmado, sin tocar el resto -->
@@ -1474,7 +1553,7 @@ function iniciarAppPostLogin(){
 }
 
 function aplicarRestriccionesDeRol(){
-  const tabConfig = document.querySelector('.tab-btn[data-view="config"]');
+  const tabConfig = document.querySelector('.sidebar-nav-btn[data-nav="config"]');
   const bloquesPegado = document.getElementById('bloquesPegadoAdmin');
   const btnAgregarDiaAnterior = document.getElementById('btnAgregarDiaAnterior');
 
@@ -1736,22 +1815,25 @@ function saveState(){
 // guarda una copia con marca de tiempo en una clave separada que NUNCA se sobrescribe
 // de golpe (se acumulan los últimos N) — sirve como red de seguridad local, totalmente
 // independiente de Firestore, para poder recuperar manualmente si algo sale mal en la nube.
-function guardarRespaldoLocal(){
+// forzar=true ignora las condiciones de "pasó poco tiempo" y crea un snapshot sí o sí con el estado actual.
+function guardarRespaldoLocal(forzar=false){
   try{
     const diasActuales = Object.keys(state.dias||{}).length;
-    if(diasActuales===0) return; // no vale la pena respaldar un estado sin historial
+    if(diasActuales===0) return false; // no vale la pena respaldar un estado sin historial
     const raw = localStorage.getItem(RESPALDO_KEY);
     const respaldos = raw ? JSON.parse(raw) : [];
     const ultimoRespaldo = respaldos[respaldos.length-1];
 
-    // respaldamos si: no hay respaldo previo, cambió la cantidad de días confirmados,
-    // o pasó más de una hora desde el último respaldo guardado (para no perder
-    // correcciones/cargas hechas DENTRO de un día que ya estaba confirmado, como
-    // pulmón retroactivo, correcciones de m², o causas agregadas más tarde)
-    const unaHoraMs = 60*60*1000;
-    const pasoTiempoSuficiente = !ultimoRespaldo || (Date.now() - new Date(ultimoRespaldo.ts).getTime()) > unaHoraMs;
-    const cambioCantidadDias = !ultimoRespaldo || ultimoRespaldo.diasConfirmados !== diasActuales;
-    if(!cambioCantidadDias && !pasoTiempoSuficiente) return;
+    if(!forzar){
+      // respaldamos si: no hay respaldo previo, cambió la cantidad de días confirmados,
+      // o pasó más de una hora desde el último respaldo guardado (para no perder
+      // correcciones/cargas hechas DENTRO de un día que ya estaba confirmado, como
+      // pulmón retroactivo, correcciones de m², o causas agregadas más tarde)
+      const unaHoraMs = 60*60*1000;
+      const pasoTiempoSuficiente = !ultimoRespaldo || (Date.now() - new Date(ultimoRespaldo.ts).getTime()) > unaHoraMs;
+      const cambioCantidadDias = !ultimoRespaldo || ultimoRespaldo.diasConfirmados !== diasActuales;
+      if(!cambioCantidadDias && !pasoTiempoSuficiente) return false;
+    }
 
     respaldos.push({
       ts: new Date().toISOString(),
@@ -1760,8 +1842,10 @@ function guardarRespaldoLocal(){
     });
     while(respaldos.length > MAX_RESPALDOS) respaldos.shift();
     localStorage.setItem(RESPALDO_KEY, JSON.stringify(respaldos));
+    return true;
   }catch(e){
     console.error('No se pudo guardar el respaldo local', e);
+    return false;
   }
 }
 
@@ -1881,14 +1965,59 @@ function parseNum(s){
 /* ============================================================
    RENDER: TABS
    ============================================================ */
-document.querySelectorAll('.tab-btn').forEach(btn=>{
+// navegación centralizada: secciones principales (hoy/historial/config) y,
+// dentro de historial, las 3 subsecciones (causas/evolucion/dias) — cada una
+// con su propio bloque de filtro de fecha visible en el sidebar.
+function irASeccion(nav, sub){
+  document.querySelectorAll('.sidebar-nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.nav===nav));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+nav).classList.add('active');
+
+  const subnavWrap = document.getElementById('sidebarHistSubnav');
+  subnavWrap.style.display = (nav==='historial') ? '' : 'none';
+
+  ['sidebarFiltroCausas','sidebarFiltroEvolucion','sidebarFiltroDias'].forEach(id=>{
+    document.getElementById(id).style.display = 'none';
+  });
+
+  if(nav==='historial'){
+    const subFinal = sub || 'causas';
+    document.querySelectorAll('.sidebar-subnav-btn').forEach(b=>b.classList.toggle('active', b.dataset.navSub===subFinal));
+    document.querySelectorAll('#view-historial .cfg-tabpage').forEach(page=>{
+      page.classList.toggle('active', page.id === 'histTab-'+subFinal);
+    });
+    const idFiltro = subFinal==='causas' ? 'sidebarFiltroCausas' : subFinal==='evolucion' ? 'sidebarFiltroEvolucion' : 'sidebarFiltroDias';
+    document.getElementById(idFiltro).style.display = '';
+    renderHistorial();
+  }
+  if(nav==='config') renderConfig();
+}
+
+document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById('view-'+btn.dataset.view).classList.add('active');
-    if(btn.dataset.view==='historial') renderHistorial();
-    if(btn.dataset.view==='config') renderConfig();
+    if(btn.dataset.nav==='historial'){
+      // si ya estaba en historial, conserva la subsección activa; si no, arranca en causas
+      const subActual = document.querySelector('.sidebar-subnav-btn.active');
+      irASeccion('historial', subActual ? subActual.dataset.navSub : 'causas');
+    } else {
+      irASeccion(btn.dataset.nav);
+    }
+  });
+});
+
+// abre el almanaque nativo al tocar cualquier parte del campo de fecha, no solo el ícono
+// (delegado en document porque varios inputs de fecha se generan dinámicamente)
+document.addEventListener('click', (e)=>{
+  const inp = e.target.closest('input[type=date]');
+  if(inp && typeof inp.showPicker === 'function'){
+    try{ inp.showPicker(); }catch(err){ /* algunos navegadores lo bloquean si no es por gesto directo; se ignora */ }
+  }
+});
+
+document.querySelectorAll('.sidebar-subnav-btn[data-nav-sub]').forEach(btn=>{
+  btn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    irASeccion('historial', btn.dataset.navSub);
   });
 });
 
@@ -2202,6 +2331,24 @@ function colorEstado(estado){
   if(estado==='bajo') return 'var(--red)';
   if(estado==='optimo') return 'var(--blue)';
   return 'var(--green)';
+}
+// parte una etiqueta larga en varias líneas cortas (para mostrar horizontal en ejes de Chart.js,
+// en vez de rotada en ángulo — eso queda feo e ilegible al imprimir el PDF)
+function wrapEtiquetaChart(texto, maxCharsPorLinea=14){
+  const palabras = String(texto).split(' ');
+  const lineas = [];
+  let actual = '';
+  palabras.forEach(p=>{
+    const candidata = actual ? actual+' '+p : p;
+    if(candidata.length > maxCharsPorLinea && actual){
+      lineas.push(actual);
+      actual = p;
+    } else {
+      actual = candidata;
+    }
+  });
+  if(actual) lineas.push(actual);
+  return lineas;
 }
 
 // detecta el patrón típico de la carga de la mañana: todos los sectores normales
@@ -2666,6 +2813,15 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   const m2FinLinea = (puedeVerTodo() && finLineaSec) ? finLineaSec.cerrado : null;
   const mostrarResumenGlobal = puedeVerTodo();
 
+  // estado global del día (para pintar la cabecera sin tener que desplegar):
+  // si el usuario ve toda la planta, se basa en el sector de Fin de Línea (o en si todos cumplieron);
+  // si solo ve sus propios sectores, se basa en si ESOS sectores cumplieron.
+  const estadoFinLinea = (mostrarResumenGlobal && finLineaSec) ? estadoLogro(finLineaSec.cerrado, finLineaSec.objetivoMin, finLineaSec.objetivoOptimo) : null;
+  const estadoGlobalDia = estadoFinLinea ? estadoFinLinea : (total===0 ? null : (cumplieron===total ? 'cumple' : 'bajo'));
+  const colorGlobalDia = estadoGlobalDia ? colorEstado(estadoGlobalDia) : 'var(--ink-faint)';
+  const claseGlobalDia = estadoGlobalDia ? 'global-'+estadoGlobalDia : '';
+  const sectoresEnRojo = sectoresNormales.filter(([,s])=>s.cerrado<s.objetivoMin).map(([n])=>n);
+
   const diaGuardado = !esEnCurso ? state.dias[fecha] : null;
   const pendientesGuardados = diaGuardado ? (diaGuardado.sectoresPendientesCausa || []) : [];
   // recalculamos contra el estado actual, por si ya se completaron causas después de confirmar,
@@ -2681,17 +2837,18 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   const esDiaNoObligatorio = !esEnCurso && !fechaCuentaParaPareto(fecha);
   const incluidoComoExcepcion = (state.diasIncluirEnParetoExcepcion||[]).includes(fecha);
   const div = document.createElement('div');
-  div.className='hist-day' + (esEnCurso ? ' en-curso' : '');
+  div.className='hist-day' + (esEnCurso ? ' en-curso' : '') + (claseGlobalDia ? ' '+claseGlobalDia : '');
   div.innerHTML = `
     <div class="hist-day-head">
-      <div class="row" style="gap:14px;">
+      <div class="row" style="gap:14px;flex-wrap:wrap;">
         ${esEnCurso ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);">● EN CURSO</span>' : ''}
         ${esCargaMatutina ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);" title="Todavía no se cargó el cierre real de la jornada">☀ Carga matutina</span>' : ''}
         ${pendientesVigentes.length>0 ? `<span class="status-pill" style="border-color:var(--red);color:var(--red);background:var(--red-dim);">⚠ Incompleto — ${pendientesVigentes.length} causa(s) pendiente(s)</span>` : ''}
-        ${esDiaNoObligatorio ? `<span class="status-pill" style="border-color:var(--ink-faint);color:var(--ink-faint);" title="${NOMBRES_DIAS_SEMANA[diaDeLaSemana(fecha)]} no es jornada obligatoria — sus causas no entran al Pareto">○ No cuenta en Pareto</span>` : ''}
+        ${esDiaNoObligatorio ? `<span class="status-pill" style="border-color:var(--ink-dim);color:var(--ink);background:var(--bg2);">○ ${NOMBRES_DIAS_SEMANA[diaDeLaSemana(fecha)]} no cuenta en Pareto</span>` : ''}
         <span class="hd-date">${fecha}</span>
         ${mostrarResumenGlobal ? `<span class="status-pill ${cumplieron===total?'ok':'pending'}">${cumplieron}/${total} sectores en objetivo</span>` : ''}
-        ${mostrarResumenGlobal ? `<span class="tag-objetivo">${m2FinLinea!==null ? fmt(m2FinLinea)+' m² (Fin de Línea)' : 'sin dato de Fin de Línea'}</span>` : ''}
+        ${mostrarResumenGlobal ? `<span class="tag-objetivo" style="color:${colorGlobalDia};font-weight:700;font-size:14px;">${m2FinLinea!==null ? fmt(m2FinLinea)+' m² (Fin de Línea)'+(estadoFinLinea==='optimo'?' ★':'') : 'sin dato de Fin de Línea'}</span>` : ''}
+        ${sectoresEnRojo.length>0 ? `<span class="status-pill" style="border-color:var(--red);color:var(--red);background:var(--red-dim);" title="${sectoresEnRojo.map(esc).join(', ')}">⛔ ${sectoresEnRojo.length} sector(es) bajo el mínimo</span>` : ''}
       </div>
       <div class="row" style="gap:10px;">
         ${esDiaNoObligatorio && puedeEntrarConfig() ? `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-dim);cursor:pointer;" onclick="event.stopPropagation();"><input type="checkbox" data-incluir-excepcion-pareto="${esc(fecha)}" ${incluidoComoExcepcion?'checked':''} style="width:13px;height:13px;"> Incluir en Pareto igual</label>` : ''}
@@ -2803,6 +2960,8 @@ function renderHistorial(){
   const cont = document.getElementById('historialList');
   document.getElementById('inputFiltroGraficosDesde').value = filtroGraficosDesde || '';
   document.getElementById('inputFiltroGraficosHasta').value = filtroGraficosHasta || '';
+  document.getElementById('inputFiltroEvolucionDesde').value = filtroEvolucionDesde || '';
+  document.getElementById('inputFiltroEvolucionHasta').value = filtroEvolucionHasta || '';
   renderGraficoCausas();
   renderEvolucionM2();
   renderEvolucionPulmon();
@@ -3088,18 +3247,20 @@ function renderEvolucionPulmon(){
 // filtro de fechas único, compartido entre Pareto de causas, evolución de m² y evolución de pulmón
 let filtroGraficosDesde = null;
 let filtroGraficosHasta = null;
+let filtroEvolucionDesde = null;
+let filtroEvolucionHasta = null;
 
 function obtenerSerieFechasPulmon(){
   let fechas = Object.keys(state.pulmones || {}).sort();
-  if(filtroGraficosDesde) fechas = fechas.filter(f=>f>=filtroGraficosDesde);
-  if(filtroGraficosHasta) fechas = fechas.filter(f=>f<=filtroGraficosHasta);
+  if(filtroEvolucionDesde) fechas = fechas.filter(f=>f>=filtroEvolucionDesde);
+  if(filtroEvolucionHasta) fechas = fechas.filter(f=>f<=filtroEvolucionHasta);
   return fechas;
 }
 
 function obtenerSerieFechasConfirmadas(){
   let fechas = Object.keys(state.dias || {}).sort();
-  if(filtroGraficosDesde) fechas = fechas.filter(f=>f>=filtroGraficosDesde);
-  if(filtroGraficosHasta) fechas = fechas.filter(f=>f<=filtroGraficosHasta);
+  if(filtroEvolucionDesde) fechas = fechas.filter(f=>f>=filtroEvolucionDesde);
+  if(filtroEvolucionHasta) fechas = fechas.filter(f=>f<=filtroEvolucionHasta);
   return fechas;
 }
 
@@ -3403,18 +3564,37 @@ document.getElementById('btnFiltroHistLimpiar').addEventListener('click', ()=>{
 
 document.getElementById('inputFiltroGraficosDesde').addEventListener('change', (e)=>{
   filtroGraficosDesde = e.target.value || null;
-  refrescarGraficosHistorial();
+  renderGraficoCausas();
 });
 document.getElementById('inputFiltroGraficosHasta').addEventListener('change', (e)=>{
   filtroGraficosHasta = e.target.value || null;
-  refrescarGraficosHistorial();
+  renderGraficoCausas();
 });
 document.getElementById('btnQuitarFiltroGraficos').addEventListener('click', ()=>{
   filtroGraficosDesde = null;
   filtroGraficosHasta = null;
   document.getElementById('inputFiltroGraficosDesde').value = '';
   document.getElementById('inputFiltroGraficosHasta').value = '';
-  refrescarGraficosHistorial();
+  renderGraficoCausas();
+});
+
+document.getElementById('inputFiltroEvolucionDesde').addEventListener('change', (e)=>{
+  filtroEvolucionDesde = e.target.value || null;
+  renderEvolucionM2();
+  renderEvolucionPulmon();
+});
+document.getElementById('inputFiltroEvolucionHasta').addEventListener('change', (e)=>{
+  filtroEvolucionHasta = e.target.value || null;
+  renderEvolucionM2();
+  renderEvolucionPulmon();
+});
+document.getElementById('btnQuitarFiltroEvolucion').addEventListener('click', ()=>{
+  filtroEvolucionDesde = null;
+  filtroEvolucionHasta = null;
+  document.getElementById('inputFiltroEvolucionDesde').value = '';
+  document.getElementById('inputFiltroEvolucionHasta').value = '';
+  renderEvolucionM2();
+  renderEvolucionPulmon();
 });
 
 function refrescarGraficosHistorial(){
@@ -3445,10 +3625,7 @@ document.getElementById('btnFechaContinuar').addEventListener('click', ()=>{
   document.getElementById('pasteFin').value='';
   document.getElementById('modalFecha').classList.remove('show');
   // ir a la vista Hoy
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.querySelector('.tab-btn[data-view="hoy"]').classList.add('active');
-  document.getElementById('view-hoy').classList.add('active');
+  irASeccion('hoy');
   renderHoy();
   toast(`Cargando datos para ${fecha}`);
 });
@@ -3547,7 +3724,7 @@ document.getElementById('cfgSidebar').querySelectorAll('[data-cfg-tab]').forEach
   btn.addEventListener('click', ()=>{
     const tabId = btn.dataset.cfgTab;
     document.getElementById('cfgSidebar').querySelectorAll('[data-cfg-tab]').forEach(b=>b.classList.toggle('active', b===btn));
-    document.querySelectorAll('.cfg-tabpage').forEach(page=>{
+    document.getElementById('view-config').querySelectorAll('.cfg-tabpage').forEach(page=>{
       page.classList.toggle('active', page.id === 'cfgTab-'+tabId);
     });
   });
@@ -3805,6 +3982,27 @@ function renderListaRespaldosLocales(){
    y aplica la recuperación correspondiente (días, catálogo de causas, o pulmón de inicio). */
 document.getElementById('btnCargarUnificado').addEventListener('click', ()=>{
   document.getElementById('inputCargarUnificado').click();
+});
+
+// genera un respaldo con el estado de ESTE momento (sin esperar a las condiciones automáticas)
+// y lo descarga directo, para cuando se necesita la última versión sí o sí actualizada.
+document.getElementById('btnRespaldoActualAhora').addEventListener('click', ()=>{
+  const seGuardo = guardarRespaldoLocal(true);
+  if(!seGuardo){
+    toast('Todavía no hay historial para respaldar', true);
+    return;
+  }
+  const ahora = new Date();
+  const blob = new Blob([JSON.stringify(state)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const fechaArchivo = ahora.getFullYear()+'-'+String(ahora.getMonth()+1).padStart(2,'0')+'-'+String(ahora.getDate()).padStart(2,'0');
+  const horaArchivo = String(ahora.getHours()).padStart(2,'0')+'-'+String(ahora.getMinutes()).padStart(2,'0');
+  a.href = url; a.download = `lfda_respaldo_${fechaArchivo}_${horaArchivo}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast('Respaldo actualizado generado y descargado');
+  renderListaRespaldosLocales();
 });
 
 document.getElementById('inputCargarUnificado').addEventListener('change', (e)=>{
@@ -4867,7 +5065,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
   // Pareto real de causas (una sola serie + % acumulado) + matriz causa×sector como tabla
   const entradasCausas = Object.entries(porCausa).sort((a,b)=>b[1].total-a[1].total).slice(0,10);
   if(entradasCausas.length>0){
-    if(y > H-90){ doc.addPage(); y = 20; }
+    if(y > H-110){ doc.addPage(); y = 20; }
     doc.setFont('helvetica','bold');
     doc.setFontSize(11);
     doc.setTextColor(20,20,20);
@@ -4882,7 +5080,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
     const coloresBarrasPdf = valoresCausas.map((v,i)=> i<corteVitalGlobal ? '#e8584d' : '#e8a33d');
 
     const canvasTmp = document.createElement('canvas');
-    canvasTmp.width = 900; canvasTmp.height = 460;
+    canvasTmp.width = 900; canvasTmp.height = 540;
     const chartTmp = new Chart(canvasTmp.getContext('2d'), {
       data:{
         labels: entradasCausas.map(e=>e[0]),
@@ -4904,7 +5102,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
           }
         },
         scales:{
-          x:{ ticks:{color:'#333', font:{size:10}, maxRotation:30}, grid:{display:false} },
+          x:{ ticks:{color:'#333', font:{size:10}, maxRotation:0, minRotation:0, autoSkip:false, callback:(val,idx)=>wrapEtiquetaChart(entradasCausas[idx][0])}, grid:{display:false} },
           y:{ ticks:{color:'#333'}, grid:{color:'#ddd'}, beginAtZero:true, title:{display:true,text:'m² perdidos',font:{size:10}} },
           y1:{ position:'right', min:0, max:100, ticks:{color:'#185fa5', callback:(v)=>v+'%'}, grid:{drawOnChartArea:false} }
         }
@@ -4913,7 +5111,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
     const imgData = canvasTmp.toDataURL('image/png');
     chartTmp.destroy();
     const imgW = W-28;
-    const imgH = imgW * (460/900);
+    const imgH = imgW * (540/900);
     doc.addImage(imgData, 'PNG', 14, y+2, imgW, imgH);
     y += imgH + 8;
 
