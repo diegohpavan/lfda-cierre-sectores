@@ -585,6 +585,15 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 
     <div class="panel">
       <div class="panel-head">
+        <h2>Días que cuentan para el Pareto de causas</h2>
+      </div>
+      <div class="hint" style="margin-bottom:10px;">Tildá los días de la semana donde la jornada es obligatoria. Los días sin tildar (por ejemplo, sábados de hora extra voluntaria) se siguen viendo normal en "Hoy" e Historial, y sus m² cuentan en el % de cumplimiento — pero sus causas NO entran al Pareto, salvo que marques una excepción puntual para un día específico.</div>
+      <div id="checksDiasObligatorios" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;"></div>
+      <button class="btn btn-primary btn-sm" id="btnGuardarDiasObligatorios">Guardar</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head">
         <h2>Sectores, objetivos y causas 5M</h2>
         <button class="btn btn-ghost btn-sm" id="btnAddSector">+ Agregar sector</button>
         <button class="btn btn-ghost btn-sm" id="btnAddPlanificacion">+ Agregar sector de planificación</button>
@@ -1121,6 +1130,14 @@ function defaultState(){
     objetivoOptimoDefault: 160,
     umbralPulmonBajoDefault: 50,
     sectorFinLinea: '8-LI',
+    // qué días de la semana cuentan como "jornada obligatoria" para el Pareto de causas.
+    // índices según Date.getDay(): 0=domingo, 1=lunes ... 6=sábado.
+    // por defecto: lunes a viernes obligatorios, sábado y domingo no (suelen ser horas extra voluntarias).
+    diasObligatorios: [1,2,3,4,5],
+    // fechas puntuales (AAAA-MM-DD) que NO son día obligatorio según diasObligatorios,
+    // pero el usuario tildó explícitamente para incluir igual en el Pareto de causas
+    // (ej: un sábado especial que sí se trabajó a full y quiere que cuente)
+    diasIncluirEnParetoExcepcion: [],
     usuarios: {
       adminPassHash: '83f1ca6cf5ab96baa2feeced43a1904dee6d0007ce9605fe665eddd2dfae0dd6',
       adminNombre: 'Diego',
@@ -1603,6 +1620,8 @@ function migrarPermisosUsuarios(s){
   if(s.usuarios && !s.usuarios.adminCargo) s.usuarios.adminCargo = 'Jefe de Producción';
   if(s.usuarios && !s.usuarios.adminEmoji) s.usuarios.adminEmoji = '🔑';
   if(s.usuarios && !s.usuarios.adminColor) s.usuarios.adminColor = 'c0';
+  if(!s.diasObligatorios) s.diasObligatorios = [1,2,3,4,5];
+  if(!s.diasIncluirEnParetoExcepcion) s.diasIncluirEnParetoExcepcion = [];
 }
 
 function migrarHistoricoPulmones(s){
@@ -1675,6 +1694,20 @@ function todayISO(){
 function todayLabel(){
   const d = new Date();
   return d.toLocaleDateString('es-AR',{weekday:'long',day:'2-digit',month:'2-digit',year:'numeric'});
+}
+
+// día de la semana de una fecha "AAAA-MM-DD" según Date.getDay() (0=domingo..6=sábado),
+// parseando manualmente para no depender de la zona horaria del navegador
+function diaDeLaSemana(fechaISO){
+  const [y,m,d] = fechaISO.split('-').map(Number);
+  return new Date(y, m-1, d).getDay();
+}
+
+// si una fecha cuenta para el Pareto de causas: es un día obligatorio según la
+// configuración global, O fue marcada como excepción puntual para incluir igual.
+function fechaCuentaParaPareto(fechaISO){
+  if((state.diasIncluirEnParetoExcepcion||[]).includes(fechaISO)) return true;
+  return (state.diasObligatorios||[1,2,3,4,5]).includes(diaDeLaSemana(fechaISO));
 }
 
 /* ============================================================
@@ -2521,6 +2554,8 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
 
   const contexto = esEnCurso ? 'hoy' : fecha;
   const esCargaMatutina = esCargaMatutinaSinCierre(sectoresObj);
+  const esDiaNoObligatorio = !esEnCurso && !fechaCuentaParaPareto(fecha);
+  const incluidoComoExcepcion = (state.diasIncluirEnParetoExcepcion||[]).includes(fecha);
   const div = document.createElement('div');
   div.className='hist-day' + (esEnCurso ? ' en-curso' : '');
   div.innerHTML = `
@@ -2529,11 +2564,13 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
         ${esEnCurso ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);">● EN CURSO</span>' : ''}
         ${esCargaMatutina ? '<span class="status-pill" style="border-color:var(--amber);color:var(--amber);background:var(--amber-dim);" title="Todavía no se cargó el cierre real de la jornada">☀ Carga matutina</span>' : ''}
         ${pendientesVigentes.length>0 ? `<span class="status-pill" style="border-color:var(--red);color:var(--red);background:var(--red-dim);">⚠ Incompleto — ${pendientesVigentes.length} causa(s) pendiente(s)</span>` : ''}
+        ${esDiaNoObligatorio ? `<span class="status-pill" style="border-color:var(--ink-faint);color:var(--ink-faint);" title="${NOMBRES_DIAS_SEMANA[diaDeLaSemana(fecha)]} no es jornada obligatoria — sus causas no entran al Pareto">○ No cuenta en Pareto</span>` : ''}
         <span class="hd-date">${fecha}</span>
         ${mostrarResumenGlobal ? `<span class="status-pill ${cumplieron===total?'ok':'pending'}">${cumplieron}/${total} sectores en objetivo</span>` : ''}
         ${mostrarResumenGlobal ? `<span class="tag-objetivo">${m2FinLinea!==null ? fmt(m2FinLinea)+' m² (Fin de Línea)' : 'sin dato de Fin de Línea'}</span>` : ''}
       </div>
       <div class="row" style="gap:10px;">
+        ${esDiaNoObligatorio && puedeEntrarConfig() ? `<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--ink-dim);cursor:pointer;" onclick="event.stopPropagation();"><input type="checkbox" data-incluir-excepcion-pareto="${esc(fecha)}" ${incluidoComoExcepcion?'checked':''} style="width:13px;height:13px;"> Incluir en Pareto igual</label>` : ''}
         ${esAdmin() ? `<button class="btn btn-ghost btn-sm" data-editar-pulmon="${esc(fecha)}">Editar pulmón</button>` : ''}
         <button class="btn btn-ghost btn-sm" data-pdf-dia="${esc(fecha)}">PDF del día</button>
         <span class="chev">▶</span>
@@ -2608,6 +2645,21 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
     btnEditarPulmon.addEventListener('click', (e)=>{
       e.stopPropagation();
       abrirModalEditarPulmon(fecha, esEnCurso ? 'hoy' : fecha);
+    });
+  }
+  const chkIncluirExcepcion = div.querySelector('[data-incluir-excepcion-pareto]');
+  if(chkIncluirExcepcion){
+    chkIncluirExcepcion.addEventListener('change', ()=>{
+      if(!state.diasIncluirEnParetoExcepcion) state.diasIncluirEnParetoExcepcion = [];
+      const f = chkIncluirExcepcion.dataset.incluirExcepcionPareto;
+      if(chkIncluirExcepcion.checked){
+        if(!state.diasIncluirEnParetoExcepcion.includes(f)) state.diasIncluirEnParetoExcepcion.push(f);
+      } else {
+        state.diasIncluirEnParetoExcepcion = state.diasIncluirEnParetoExcepcion.filter(d=>d!==f);
+      }
+      saveState();
+      renderGraficoCausas();
+      toast(chkIncluirExcepcion.checked ? `${f} ahora cuenta en el Pareto` : `${f} ya no cuenta en el Pareto`);
     });
   }
   div.querySelectorAll('[data-editar-m2]').forEach(btn=>{
@@ -2725,15 +2777,16 @@ function renderGraficoCausas(){
   Object.entries(state.dias).forEach(([fecha,dia])=>{
     if(filtroGraficosDesde && fecha < filtroGraficosDesde) return;
     if(filtroGraficosHasta && fecha > filtroGraficosHasta) return;
+    if(!fechaCuentaParaPareto(fecha)) return;
     Object.entries(dia.sectores).forEach(([nombreSector, s])=>acumular(nombreSector, s));
   });
   // + causas del día de hoy en curso, si todavía no fue confirmado (no duplicar si ya está en state.dias)
-  // solo si el día de hoy entra dentro del rango filtrado
+  // solo si el día de hoy entra dentro del rango filtrado y cuenta para el Pareto
   const hoyEnCurso = state.actual.resultado;
   const hoyYaConfirmado = state.actual.fecha && !!state.dias[state.actual.fecha];
   const hoyDentroDelRango = (!filtroGraficosDesde || state.actual.fecha >= filtroGraficosDesde) &&
                              (!filtroGraficosHasta || state.actual.fecha <= filtroGraficosHasta);
-  if(hoyEnCurso && !hoyYaConfirmado && hoyDentroDelRango){
+  if(hoyEnCurso && !hoyYaConfirmado && hoyDentroDelRango && fechaCuentaParaPareto(state.actual.fecha)){
     Object.entries(hoyEnCurso).forEach(([nombreSector, s])=>acumular(nombreSector, s));
   }
 
@@ -3369,6 +3422,7 @@ function renderConfig(){
   document.getElementById('cfgObjetivoMin').value = state.objetivoMinDefault;
   document.getElementById('cfgObjetivoOptimo').value = state.objetivoOptimoDefault;
   document.getElementById('cfgUmbralPulmon').value = state.umbralPulmonBajoDefault;
+  renderDiasObligatorios();
 
   const selFinLinea = document.getElementById('cfgSectorFinLinea');
   selFinLinea.innerHTML = state.sectores.map(s=>`<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
@@ -4181,6 +4235,28 @@ document.getElementById('btnGuardarObjetivo').addEventListener('click', ()=>{
   renderHoy();
 });
 
+const NOMBRES_DIAS_SEMANA = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+
+function renderDiasObligatorios(){
+  const cont = document.getElementById('checksDiasObligatorios');
+  const seleccionados = state.diasObligatorios || [1,2,3,4,5];
+  cont.innerHTML = NOMBRES_DIAS_SEMANA.map((nombre, idx)=>`
+    <span class="causa-chip${seleccionados.includes(idx)?' sel':''}" data-dia-obligatorio="${idx}">${nombre}</span>
+  `).join('');
+  cont.querySelectorAll('[data-dia-obligatorio]').forEach(chip=>{
+    chip.addEventListener('click', ()=> chip.classList.toggle('sel'));
+  });
+}
+
+document.getElementById('btnGuardarDiasObligatorios').addEventListener('click', ()=>{
+  const seleccionados = [...document.querySelectorAll('#checksDiasObligatorios .causa-chip.sel')]
+    .map(c=>parseInt(c.dataset.diaObligatorio));
+  state.diasObligatorios = seleccionados;
+  saveState();
+  toast('Días guardados — se aplican al Pareto de causas');
+  if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+});
+
 document.getElementById('btnGuardarFinLinea').addEventListener('click', ()=>{
   const val = document.getElementById('cfgSectorFinLinea').value;
   if(!val){ toast('Elegí un sector', true); return; }
@@ -4504,7 +4580,9 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
         if(!planificacionResumen[nombre]) planificacionResumen[nombre] = {diasSostenido:0, diasTotal:0, causas:[]};
         planificacionResumen[nombre].diasTotal += 1;
         if(s.sostenido) planificacionResumen[nombre].diasSostenido += 1;
-        (s.motivoCausa||[]).forEach(c=> planificacionResumen[nombre].causas.push({fecha:f, causa:c.causa, detalle:c.detalle}));
+        if(fechaCuentaParaPareto(f)){
+          (s.motivoCausa||[]).forEach(c=> planificacionResumen[nombre].causas.push({fecha:f, causa:c.causa, detalle:c.detalle}));
+        }
         return;
       }
       if(!porSector[nombre]) porSector[nombre] = {m2total:0, dias:0, cumplidos:0, optimos:0};
@@ -4515,6 +4593,11 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
       if(estado==='optimo'){ porSector[nombre].optimos += 1; totalOptimos++; }
       if(nombre === state.sectorFinLinea){ totalM2FinLinea += s.cerrado; diasConFinLinea++; }
       totalSectorDias += 1;
+      // el Pareto de causas excluye días no obligatorios (ej: sábados, horas extra
+      // voluntarias) salvo que se haya marcado una excepción puntual para ese día —
+      // los m² totales y % de cumplimiento de arriba SÍ siguen contando esos días,
+      // porque son producción real.
+      if(!fechaCuentaParaPareto(f)) return;
       (s.motivoCausa||[]).forEach(c=>{
         if(!porCausa[c.causa]) porCausa[c.causa] = {total:0, porSector:{}, filas:[]};
         porCausa[c.causa].total += (c.m2||0);
