@@ -227,6 +227,23 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 .emoji-opcion{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;border:2px solid transparent;background:var(--bg2);cursor:pointer;transition:.12s;}
 .color-opcion{width:30px;height:30px;border-radius:50%;cursor:pointer;border:3px solid transparent;transition:.12s;}
 .color-opcion.sel{border-color:var(--ink);}
+
+/* ===== Configuración: layout de solapas laterales ===== */
+.cfg-layout{display:flex;gap:20px;align-items:flex-start;}
+.cfg-sidebar{flex:0 0 200px;display:flex;flex-direction:column;gap:4px;position:sticky;top:16px;}
+.cfg-sidebar-btn{display:flex;align-items:center;gap:10px;background:none;border:1px solid transparent;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--ink-dim);text-align:left;cursor:pointer;transition:.15s;width:100%;}
+.cfg-sidebar-btn:hover{background:var(--panel);color:var(--ink);}
+.cfg-sidebar-btn.active{background:var(--panel);border-color:var(--amber);color:var(--ink);font-weight:600;}
+.cfg-sidebar-btn .ico{font-size:15px;width:18px;text-align:center;}
+.cfg-content{flex:1;min-width:0;display:flex;flex-direction:column;gap:18px;}
+.cfg-tabpage{display:none;flex-direction:column;gap:18px;}
+.cfg-tabpage.active{display:flex;}
+
+@media (max-width:860px){
+  .cfg-layout{flex-direction:column;}
+  .cfg-sidebar{flex-direction:row;flex-wrap:wrap;position:static;width:100%;}
+  .cfg-sidebar-btn{flex:1 1 auto;justify-content:center;}
+}
 .emoji-opcion:hover{border-color:var(--line2);}
 .emoji-opcion.sel{border-color:var(--amber);background:var(--amber-dim);}
 
@@ -549,6 +566,17 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
 
   <!-- ===================== VISTA CONFIG ===================== -->
   <div class="view" id="view-config">
+    <div class="cfg-layout">
+      <div class="cfg-sidebar" id="cfgSidebar">
+        <button class="cfg-sidebar-btn active" data-cfg-tab="general"><span class="ico">⚙️</span> General</button>
+        <button class="cfg-sidebar-btn" data-cfg-tab="sectores"><span class="ico">🏭</span> Sectores y causas</button>
+        <button class="cfg-sidebar-btn" data-cfg-tab="usuarios"><span class="ico">👥</span> Usuarios y permisos</button>
+        <button class="cfg-sidebar-btn" data-cfg-tab="respaldo"><span class="ico">💾</span> Respaldo y datos</button>
+      </div>
+
+      <div class="cfg-content">
+
+      <div class="cfg-tabpage active" id="cfgTab-general">
     <div class="panel" style="border-color:var(--amber);">
       <div class="panel-head">
         <h2>Sector de Fin de Línea</h2>
@@ -591,6 +619,39 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div id="checksDiasObligatorios" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;"></div>
       <button class="btn btn-primary btn-sm" id="btnGuardarDiasObligatorios">Guardar</button>
     </div>
+      </div>
+
+      <div class="cfg-tabpage" id="cfgTab-sectores">
+    <div class="panel" style="border-color:var(--amber);">
+      <div class="panel-head">
+        <h2>Agregar causa a varios sectores a la vez</h2>
+      </div>
+      <div class="hint" style="margin-bottom:12px;">Para algo que afecta a toda la planta (ej: un corte de luz). Escribís la causa una sola vez, elegís en qué sectores debe quedar disponible, y se agrega al catálogo 5M de cada uno tildado — sin tocar las causas que ya tenían.</div>
+      <div class="row" style="gap:12px;flex-wrap:wrap;margin-bottom:10px;">
+        <div class="field" style="flex:1;min-width:200px;margin-bottom:0;">
+          <label>Causa nueva</label>
+          <input type="text" id="inputCausaMasivaCatalogoTexto" placeholder="Ej: Corte de energía">
+        </div>
+        <div class="field" style="min-width:180px;margin-bottom:0;">
+          <label>Categoría 5M</label>
+          <select id="selectCausaMasivaCatalogoCategoria">
+            <option value="Mano de obra">Mano de obra</option>
+            <option value="Máquina">Máquina</option>
+            <option value="Método">Método</option>
+            <option value="Material">Material</option>
+            <option value="Medio ambiente">Medio ambiente</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint" style="margin-bottom:6px;">Sectores donde agregar esta causa:</div>
+      <div class="row" style="gap:8px;margin-bottom:10px;">
+        <button class="btn btn-ghost btn-sm" id="btnCausaMasivaCatalogoTodos">Tildar todos</button>
+        <button class="btn btn-ghost btn-sm" id="btnCausaMasivaCatalogoNinguno">Destildar todos</button>
+      </div>
+      <div id="checksSectoresCausaMasivaCatalogo" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+      <button class="btn btn-primary btn-sm" id="btnGuardarCausaMasivaCatalogo">Agregar a los sectores tildados</button>
+      <div id="resultadoCausaMasivaCatalogo" style="margin-top:10px;"></div>
+    </div>
 
     <div class="panel">
       <div class="panel-head">
@@ -601,7 +662,9 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <div class="hint" style="margin-bottom:12px;">El nombre del sector debe coincidir EXACTAMENTE con el texto que aparece en la tabla de G_PRO (ej: "1-ALM"). Mínimo: piso aceptable, dispara declaración de causa si no se llega. Óptimo: a partir de este valor el día se marca como rendimiento óptimo.</div>
       <div id="sectorConfigList"></div>
     </div>
+      </div>
 
+      <div class="cfg-tabpage" id="cfgTab-usuarios">
     <div class="panel">
       <div class="panel-head">
         <h2>Usuarios y permisos</h2>
@@ -613,6 +676,8 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         <button class="btn btn-ghost btn-sm" id="btnEditarMiAcceso">Mi acceso de administrador</button>
       </div>
     </div>
+      </div>
+
 
     <!-- Modal nuevo/editar usuario -->
     <div class="modal-overlay" id="modalUsuarioPermisos">
@@ -720,6 +785,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       </div>
     </div>
 
+    <div class="cfg-tabpage" id="cfgTab-respaldo">
     <div class="panel" style="border-color:var(--green);">
       <div class="panel-head"><h2>Respaldo de los datos</h2></div>
       <div class="hint" style="margin-bottom:10px;">Descargá una copia completa de todo (historial, pulmón, causas, usuarios) como red de seguridad. Si alguna vez hace falta recuperar información — un día puntual, causas que falten en el catálogo, o pulmón de inicio — subí el archivo correspondiente acá y la app reconoce sola qué contiene.</div>
@@ -737,9 +803,11 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
         <span class="hint">Borra historial, configuración y cargas del día actual.</span>
       </div>
     </div>
-  </div>
+    </div>
 
-</div>
+      </div>
+    </div>
+  </div>
 
 <!-- MODAL: causa 5M -->
 <div class="modal-overlay" id="modalCausa">
@@ -755,6 +823,15 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
     <div class="row between" id="modalCausaSumaRow" style="margin-top:10px;padding:10px 12px;border-radius:6px;background:var(--bg2);">
       <span class="hint">Suma declarada: <b id="modalSumaM2" style="color:var(--ink);">0</b> m² de <b id="modalDeficitM2" style="color:var(--ink);">0</b> m² de déficit</span>
       <span id="modalSumaEstado" class="status-pill"></span>
+    </div>
+
+    <div id="modalCausaMasivaWrap" style="display:none;margin-top:14px;padding:12px 14px;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;font-weight:600;">
+        <input type="checkbox" id="chkAplicarCausaMasiva" style="width:16px;height:16px;">
+        Aplicar esta misma causa a todos los demás sectores también
+      </label>
+      <div class="hint" style="margin-top:6px;margin-bottom:8px;">Pensado para algo que afecta a toda la planta, como un corte de luz. Se va a declarar esta misma causa (con el mismo detalle) en cada sector tildado abajo — destildá el que no corresponda.</div>
+      <div id="checksSectoresCausaMasiva" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
     </div>
 
     <div class="row end" style="margin-top:16px;">
@@ -780,6 +857,7 @@ table.sectors tr.hl-bad{background:var(--red-dim);}
       <button class="btn btn-primary" id="btnFechaContinuar">Continuar</button>
     </div>
   </div>
+</div>
 </div>
 
 <!-- MODAL: agregar o corregir un solo sector dentro de un día ya confirmado, sin tocar el resto -->
@@ -2364,6 +2442,24 @@ function abrirModalCausa(nombreSector, contexto){
   });
 
   renderCausaDetalles(deficit);
+
+  // carga masiva: solo tiene sentido para quien puede ver/declarar en varios sectores
+  // (si un líder normal solo ve el suyo, no hay "otros sectores" a los que aplicar)
+  const wrapMasiva = document.getElementById('modalCausaMasivaWrap');
+  const otrosSectores = state.sectores.filter(s=>s.nombre!==nombreSector && s.tipo!=='planificacion' && puedeVerSector(s.nombre));
+  if(otrosSectores.length>0 && puedeDeclararCausas()){
+    wrapMasiva.style.display = '';
+    document.getElementById('chkAplicarCausaMasiva').checked = false;
+    const contChecks = document.getElementById('checksSectoresCausaMasiva');
+    contChecks.style.display = 'none';
+    contChecks.innerHTML = otrosSectores.map(s=>`<span class="causa-chip sel" data-sector-masivo="${esc(s.nombre)}">${esc(s.nombre)}</span>`).join('');
+    contChecks.querySelectorAll('[data-sector-masivo]').forEach(chip=>{
+      chip.addEventListener('click', ()=> chip.classList.toggle('sel'));
+    });
+  } else {
+    wrapMasiva.style.display = 'none';
+  }
+
   document.getElementById('modalCausa').classList.add('show');
 }
 
@@ -2437,6 +2533,10 @@ document.getElementById('btnCausaCancel').addEventListener('click', ()=>{
   document.getElementById('modalCausa').classList.remove('show');
 });
 
+document.getElementById('chkAplicarCausaMasiva').addEventListener('change', (e)=>{
+  document.getElementById('checksSectoresCausaMasiva').style.display = e.target.checked ? 'flex' : 'none';
+});
+
 document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
   if(causasDetalle.length===0){ toast('Seleccioná al menos una causa', true); return; }
   const sinDetalle = causasDetalle.some(c=>!c.detalle.trim());
@@ -2453,6 +2553,30 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
       dia.sectoresPendientesCausa = dia.sectoresPendientesCausa.filter(n=>n!==causaSectorActivo);
     }
   }
+
+  // carga masiva: agrega (no reemplaza) estas mismas causas en cada sector tildado,
+  // sumándolas a lo que ese sector ya tuviera declarado — un corte de luz no debería
+  // borrar otras causas que ese sector ya había anotado ese día.
+  let cantidadSectoresAfectados = 0;
+  if(document.getElementById('chkAplicarCausaMasiva').checked){
+    const sectoresDestino = [...document.querySelectorAll('#checksSectoresCausaMasiva .causa-chip.sel')].map(c=>c.dataset.sectorMasivo);
+    sectoresDestino.forEach(nombreDestino=>{
+      const destino = (causaContextoActivo === 'hoy')
+        ? state.actual.resultado[nombreDestino]
+        : state.dias[causaContextoActivo].sectores[nombreDestino];
+      if(!destino) return;
+      if(!destino.motivoCausa) destino.motivoCausa = [];
+      destino.motivoCausa.push(...nuevasCausas.map(c=>({...c})));
+      if(causaContextoActivo !== 'hoy'){
+        const dia = state.dias[causaContextoActivo];
+        if(dia.sectoresPendientesCausa){
+          dia.sectoresPendientesCausa = dia.sectoresPendientesCausa.filter(n=>n!==nombreDestino);
+        }
+      }
+      cantidadSectoresAfectados++;
+    });
+  }
+
   saveState();
   document.getElementById('modalCausa').classList.remove('show');
 
@@ -2465,7 +2589,7 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
   if(document.getElementById('view-historial').classList.contains('active')){
     renderHistorial();
   }
-  toast('Motivo guardado');
+  toast(cantidadSectoresAfectados>0 ? `Motivo guardado en ${causaSectorActivo} + ${cantidadSectoresAfectados} sector(es) más` : 'Motivo guardado');
 });
 
 document.getElementById('btnConfirmarDia').addEventListener('click', ()=>{
@@ -3418,11 +3542,23 @@ document.getElementById('btnSectorPuntualGuardar').addEventListener('click', ()=
 /* ============================================================
    VISTA CONFIG
    ============================================================ */
+// solapas laterales de Configuración: switch simple de visibilidad, sin re-render
+document.getElementById('cfgSidebar').querySelectorAll('[data-cfg-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const tabId = btn.dataset.cfgTab;
+    document.getElementById('cfgSidebar').querySelectorAll('[data-cfg-tab]').forEach(b=>b.classList.toggle('active', b===btn));
+    document.querySelectorAll('.cfg-tabpage').forEach(page=>{
+      page.classList.toggle('active', page.id === 'cfgTab-'+tabId);
+    });
+  });
+});
+
 function renderConfig(){
   document.getElementById('cfgObjetivoMin').value = state.objetivoMinDefault;
   document.getElementById('cfgObjetivoOptimo').value = state.objetivoOptimoDefault;
   document.getElementById('cfgUmbralPulmon').value = state.umbralPulmonBajoDefault;
   renderDiasObligatorios();
+  renderChecksCausaMasivaCatalogo();
 
   const selFinLinea = document.getElementById('cfgSectorFinLinea');
   selFinLinea.innerHTML = state.sectores.map(s=>`<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
@@ -3851,6 +3987,62 @@ function aplicarCargaCatalogo(datos){
 
   mostrarResultadoCargarUnificado(resumenHtml, false);
   toast('Catálogo de causas actualizado');
+}
+
+/* ----- agregar una causa al catálogo 5M de varios sectores a la vez, desde un formulario ----- */
+function renderChecksCausaMasivaCatalogo(){
+  const cont = document.getElementById('checksSectoresCausaMasivaCatalogo');
+  if(!cont) return;
+  const sectoresNormales = state.sectores.filter(s=>s.tipo!=='planificacion');
+  cont.innerHTML = sectoresNormales.map(s=>`<span class="causa-chip sel" data-sector-catalogo-masivo="${esc(s.nombre)}">${esc(s.nombre)}</span>`).join('');
+  cont.querySelectorAll('[data-sector-catalogo-masivo]').forEach(chip=>{
+    chip.addEventListener('click', ()=> chip.classList.toggle('sel'));
+  });
+}
+
+const btnCausaMasivaCatalogoTodos = document.getElementById('btnCausaMasivaCatalogoTodos');
+if(btnCausaMasivaCatalogoTodos){
+  btnCausaMasivaCatalogoTodos.addEventListener('click', ()=>{
+    document.querySelectorAll('#checksSectoresCausaMasivaCatalogo .causa-chip').forEach(c=>c.classList.add('sel'));
+  });
+}
+const btnCausaMasivaCatalogoNinguno = document.getElementById('btnCausaMasivaCatalogoNinguno');
+if(btnCausaMasivaCatalogoNinguno){
+  btnCausaMasivaCatalogoNinguno.addEventListener('click', ()=>{
+    document.querySelectorAll('#checksSectoresCausaMasivaCatalogo .causa-chip').forEach(c=>c.classList.remove('sel'));
+  });
+}
+
+const btnGuardarCausaMasivaCatalogo = document.getElementById('btnGuardarCausaMasivaCatalogo');
+if(btnGuardarCausaMasivaCatalogo){
+  btnGuardarCausaMasivaCatalogo.addEventListener('click', ()=>{
+    const texto = document.getElementById('inputCausaMasivaCatalogoTexto').value.trim();
+    const categoria = document.getElementById('selectCausaMasivaCatalogoCategoria').value;
+    const sectoresElegidos = [...document.querySelectorAll('#checksSectoresCausaMasivaCatalogo .causa-chip.sel')].map(c=>c.dataset.sectorCatalogoMasivo);
+    const resultadoDiv = document.getElementById('resultadoCausaMasivaCatalogo');
+
+    if(!texto){ toast('Escribí el nombre de la causa', true); return; }
+    if(sectoresElegidos.length===0){ toast('Tildá al menos un sector', true); return; }
+
+    let agregadas = 0, yaExistian = 0;
+    sectoresElegidos.forEach(nombreSector=>{
+      const cfgSector = state.sectores.find(s=>s.nombre===nombreSector);
+      if(!cfgSector) return;
+      if(!cfgSector.causas) cfgSector.causas = {};
+      if(!cfgSector.causas[categoria]) cfgSector.causas[categoria] = [];
+      if(cfgSector.causas[categoria].includes(texto)){
+        yaExistian++;
+      } else {
+        cfgSector.causas[categoria].push(texto);
+        agregadas++;
+      }
+    });
+
+    saveState();
+    resultadoDiv.innerHTML = `<div class="hint" style="color:var(--green);">Listo: "${esc(texto)}" se agregó al catálogo de ${agregadas} sector(es). ${yaExistian>0 ? `${yaExistian} ya la tenían y se omitieron.` : ''}</div>`;
+    document.getElementById('inputCausaMasivaCatalogoTexto').value = '';
+    toast(`Causa agregada a ${agregadas} sector(es)`);
+  });
 }
 
 /* ----- recuperar pulmón de inicio de turno de días pasados, desde un archivo JSON -----
