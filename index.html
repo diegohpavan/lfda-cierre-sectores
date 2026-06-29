@@ -2390,8 +2390,13 @@ function crearBloquePlanificacion(nombre, r){
               <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
             </div>
           `).join('')
-          : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía — declarar desde Historial</span></div>`
+          : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía</span></div>`
         }
+        ${puedeDeclararCausas() ? `
+          <div class="sb-pendiente-row">
+            <button class="btn btn-sm ${r.motivoCausa.length ? 'btn-ghost' : 'btn-danger'}" data-edit-causa="${esc(nombre)}|hoy">${r.motivoCausa.length ? '✎ Editar '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>
+          </div>
+        ` : ''}
       </div>
     `}
   `;
@@ -2436,6 +2441,13 @@ function renderResultado(resultadoExterno){
     }
     tbody.appendChild(crearBloqueSector(nombre, r, state.actual.fecha));
   });
+  tbody.querySelectorAll('[data-edit-causa]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const [nombreSector, contextoBtn] = btn.dataset.editCausa.split('|');
+      abrirModalCausa(nombreSector, contextoBtn);
+    });
+  });
 
   // confirmar el día completo depende del permiso "confirmarDia" (el admin siempre lo tiene)
   const btnConfirmar = document.getElementById('btnConfirmarDia');
@@ -2443,14 +2455,14 @@ function renderResultado(resultadoExterno){
     btnConfirmar.style.display='none';
   } else {
     btnConfirmar.style.display='';
-    // las causas se declaran únicamente desde Historial (no bloquea confirmar el día)
+    // las causas pueden declararse desde Hoy o desde Historial (no bloquea confirmar el día)
     const sectoresSinCausa = Object.entries(resultado).filter(([,r]) => {
       const enFalta = r.tipo==='planificacion' ? !r.sostenido : (r.cerrado < r.objetivoMin);
       return enFalta && r.motivoCausa.length===0;
     }).map(([nombre])=>nombre);
     btnConfirmar.disabled = false;
     btnConfirmar.dataset.sectoresSinCausa = JSON.stringify(sectoresSinCausa);
-    btnConfirmar.title = sectoresSinCausa.length>0 ? `Faltan causas en: ${sectoresSinCausa.join(', ')}. Declarálas desde Historial.` : '';
+    btnConfirmar.title = sectoresSinCausa.length>0 ? `Faltan causas en: ${sectoresSinCausa.join(', ')}.` : '';
   }
 }
 
@@ -2488,8 +2500,13 @@ function crearBloqueSector(nombre, r, fechaParaPulmonInicio){
               <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
             </div>
           `).join('')
-          : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía — declarar desde Historial</span></div>`
+          : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía</span></div>`
         }
+        ${puedeDeclararCausas() ? `
+          <div class="sb-pendiente-row">
+            <button class="btn btn-sm ${r.motivoCausa.length ? 'btn-ghost' : 'btn-danger'}" data-edit-causa="${esc(nombre)}|hoy">${r.motivoCausa.length ? '✎ Editar '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>
+          </div>
+        ` : ''}
       </div>
     `}
   `;
@@ -2509,7 +2526,7 @@ function abrirModalCausa(nombreSector, contexto){
   causaSectorActivo = nombreSector;
   causaContextoActivo = contexto || 'hoy';
   const r = (causaContextoActivo === 'hoy')
-    ? state.actual.resultado[nombreSector]
+    ? obtenerResultadoVigente()[nombreSector]
     : state.dias[causaContextoActivo].sectores[nombreSector];
 
   // clonamos para no mutar el resultado hasta guardar
@@ -2691,7 +2708,15 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
   const nuevasCausas = causasDetalle.map(c=>({...c, m2: round1(c.m2)}));
 
   if(causaContextoActivo === 'hoy'){
-    state.actual.resultado[causaSectorActivo].motivoCausa = nuevasCausas;
+    const resultadoVigente = obtenerResultadoVigente();
+    resultadoVigente[causaSectorActivo].motivoCausa = nuevasCausas;
+    guardarResultadoVigente(resultadoVigente);
+    // si el día de hoy ya estaba confirmado y este sector seguía en la lista de
+    // pendientes, lo sacamos (mismo criterio que al declarar desde Historial)
+    const diaConfirmadoHoy = state.dias[state.actual.fecha];
+    if(diaConfirmadoHoy && diaConfirmadoHoy.sectoresPendientesCausa){
+      diaConfirmadoHoy.sectoresPendientesCausa = diaConfirmadoHoy.sectoresPendientesCausa.filter(n=>n!==causaSectorActivo);
+    }
   } else {
     state.dias[causaContextoActivo].sectores[causaSectorActivo].motivoCausa = nuevasCausas;
     // si este sector estaba en la lista de pendientes del día confirmado, lo sacamos
@@ -2709,16 +2734,14 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
     const sectoresDestino = [...document.querySelectorAll('#checksSectoresCausaMasiva .causa-chip.sel')].map(c=>c.dataset.sectorMasivo);
     sectoresDestino.forEach(nombreDestino=>{
       const destino = (causaContextoActivo === 'hoy')
-        ? state.actual.resultado[nombreDestino]
+        ? obtenerResultadoVigente()[nombreDestino]
         : state.dias[causaContextoActivo].sectores[nombreDestino];
       if(!destino) return;
       if(!destino.motivoCausa) destino.motivoCausa = [];
       destino.motivoCausa.push(...nuevasCausas.map(c=>({...c})));
-      if(causaContextoActivo !== 'hoy'){
-        const dia = state.dias[causaContextoActivo];
-        if(dia.sectoresPendientesCausa){
-          dia.sectoresPendientesCausa = dia.sectoresPendientesCausa.filter(n=>n!==nombreDestino);
-        }
+      const diaParaPendientes = (causaContextoActivo === 'hoy') ? state.dias[state.actual.fecha] : state.dias[causaContextoActivo];
+      if(diaParaPendientes && diaParaPendientes.sectoresPendientesCausa){
+        diaParaPendientes.sectoresPendientesCausa = diaParaPendientes.sectoresPendientesCausa.filter(n=>n!==nombreDestino);
       }
       cantidadSectoresAfectados++;
     });
