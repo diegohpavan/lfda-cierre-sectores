@@ -872,13 +872,6 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       <div id="resultadoCargarUnificado" style="margin-top:10px;"></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-head"><h2>Datos</h2></div>
-      <div class="row">
-        <button class="btn btn-danger btn-sm" id="btnResetAll">Borrar todos los datos</button>
-        <span class="hint">Borra historial, configuración y cargas del día actual.</span>
-      </div>
-    </div>
     </div>
 
       </div>
@@ -890,6 +883,22 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
 </div>
 
 <!-- MODAL: causa 5M -->
+<div class="modal-overlay" id="modalConfirmPass">
+  <div class="modal" style="max-width:380px;">
+    <h3 id="modalConfirmPassTitle">Confirmar acción</h3>
+    <p id="modalConfirmPassDesc" style="font-size:13px;color:var(--ink-dim);margin-bottom:16px;"></p>
+    <div class="field">
+      <label>Contraseña de administrador</label>
+      <input type="password" id="inputConfirmPass" placeholder="Ingresá la contraseña" autocomplete="off">
+    </div>
+    <div id="modalConfirmPassError" style="color:var(--red);font-size:12px;margin-top:6px;display:none;">Contraseña incorrecta.</div>
+    <div class="row" style="gap:10px;margin-top:18px;justify-content:flex-end;">
+      <button class="btn btn-ghost btn-sm" id="btnConfirmPassCancel">Cancelar</button>
+      <button class="btn btn-danger btn-sm" id="btnConfirmPassOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modalCausa">
   <div class="modal" style="max-width:560px;">
     <h3 id="modalCausaTitle">Sector — no alcanzó el objetivo</h3>
@@ -3971,16 +3980,65 @@ function renderListaRespaldosLocales(){
     return;
   }
 
+  const esAdminVista = esAdmin();
   cont.innerHTML = respaldos.slice().reverse().map((r,i)=>{
     const idxReal = respaldos.length-1-i;
     const fechaTxt = new Date(r.ts).toLocaleString('es-AR');
     return `
-      <div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line);">
-        <span style="font-size:12px;">${esc(fechaTxt)} — ${r.diasConfirmados} día(s) confirmados</span>
+      <div class="row between" style="padding:8px 0;border-bottom:1px solid var(--line);gap:10px;align-items:center;">
+        ${esAdminVista ? `<input type="checkbox" class="chk-respaldo" data-idx="${idxReal}" style="width:15px;height:15px;flex-shrink:0;cursor:pointer;">` : ''}
+        <span style="font-size:12px;flex:1;">${esc(fechaTxt)} — ${r.diasConfirmados} día(s) confirmados</span>
         <button class="btn btn-ghost btn-sm" data-descargar-respaldo="${idxReal}">Descargar JSON</button>
       </div>
     `;
   }).join('');
+
+  if(esAdminVista){
+    const btnEliminar = document.createElement('div');
+    btnEliminar.style.cssText = 'display:flex;gap:10px;align-items:center;margin-top:12px;';
+    btnEliminar.innerHTML = `
+      <button class="btn btn-ghost btn-sm" id="btnSeleccionarTodosRespaldos">Seleccionar todos</button>
+      <button class="btn btn-danger btn-sm" id="btnEliminarRespaldosSelec" disabled>Eliminar seleccionados</button>
+    `;
+    cont.appendChild(btnEliminar);
+
+    cont.querySelector('#btnSeleccionarTodosRespaldos').addEventListener('click', ()=>{
+      const chks = cont.querySelectorAll('.chk-respaldo');
+      const todosSelec = [...chks].every(c=>c.checked);
+      chks.forEach(c=>c.checked=!todosSelec);
+      actualizarBtnEliminar();
+    });
+
+    cont.querySelectorAll('.chk-respaldo').forEach(chk=>{
+      chk.addEventListener('change', actualizarBtnEliminar);
+    });
+
+    function actualizarBtnEliminar(){
+      const selec = cont.querySelectorAll('.chk-respaldo:checked').length;
+      const btn = cont.querySelector('#btnEliminarRespaldosSelec');
+      btn.disabled = selec === 0;
+      btn.textContent = selec > 0 ? `Eliminar ${selec} seleccionado(s)` : 'Eliminar seleccionados';
+    }
+
+    cont.querySelector('#btnEliminarRespaldosSelec').addEventListener('click', ()=>{
+      const seleccionados = [...cont.querySelectorAll('.chk-respaldo:checked')].map(c=>parseInt(c.dataset.idx));
+      if(seleccionados.length===0) return;
+      pedirConfirmacionPass(
+        'Eliminar respaldos',
+        `Vas a eliminar ${seleccionados.length} respaldo(s) de la lista local. Esta acción no se puede deshacer.`,
+        ()=>{
+          try{
+            const raw = localStorage.getItem(RESPALDO_KEY);
+            let lista = raw ? JSON.parse(raw) : [];
+            lista = lista.filter((_,i)=>!seleccionados.includes(i));
+            localStorage.setItem(RESPALDO_KEY, JSON.stringify(lista));
+            toast(`${seleccionados.length} respaldo(s) eliminado(s)`);
+            renderListaRespaldosLocales();
+          }catch(e){ toast('Error al eliminar respaldos', true); }
+        }
+      );
+    });
+  }
 
   cont.querySelectorAll('[data-descargar-respaldo]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -4680,17 +4738,43 @@ document.getElementById('btnGuardarFinLinea').addEventListener('click', ()=>{
   if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
 });
 
-document.getElementById('btnResetAll').addEventListener('click', ()=>{
-  if(confirm('¿Seguro? Esto borra TODO: historial, configuración y cargas. No se puede deshacer.')){
-    localStorage.removeItem(LS_KEY);
-    state = defaultState();
-    saveState();
-    renderHoy();
-    renderConfig();
-    renderHistorial();
-    toast('Datos borrados');
-  }
+/* ----- modal de confirmación por contraseña para acciones destructivas ----- */
+const PASS_DESTRUCTIVA = '2015';
+let _passCallback = null;
+
+function pedirConfirmacionPass(titulo, descripcion, callback){
+  _passCallback = callback;
+  document.getElementById('modalConfirmPassTitle').textContent = titulo;
+  document.getElementById('modalConfirmPassDesc').textContent = descripcion;
+  document.getElementById('inputConfirmPass').value = '';
+  document.getElementById('modalConfirmPassError').style.display = 'none';
+  document.getElementById('modalConfirmPass').classList.add('show');
+  setTimeout(()=>document.getElementById('inputConfirmPass').focus(), 100);
+}
+
+document.getElementById('btnConfirmPassCancel').addEventListener('click', ()=>{
+  document.getElementById('modalConfirmPass').classList.remove('show');
+  _passCallback = null;
 });
+
+document.getElementById('btnConfirmPassOk').addEventListener('click', ()=>{
+  const val = document.getElementById('inputConfirmPass').value;
+  if(val !== PASS_DESTRUCTIVA){
+    document.getElementById('modalConfirmPassError').style.display = '';
+    document.getElementById('inputConfirmPass').value = '';
+    document.getElementById('inputConfirmPass').focus();
+    return;
+  }
+  document.getElementById('modalConfirmPass').classList.remove('show');
+  if(_passCallback) _passCallback();
+  _passCallback = null;
+});
+
+document.getElementById('inputConfirmPass').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') document.getElementById('btnConfirmPassOk').click();
+  if(e.key==='Escape') document.getElementById('btnConfirmPassCancel').click();
+});
+
 
 /* ============================================================
    REPORTES PDF
