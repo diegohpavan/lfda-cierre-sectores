@@ -236,8 +236,13 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
 .causa-group-label{font-family:var(--mono);font-size:10px;letter-spacing:1px;color:var(--ink-faint);text-transform:uppercase;margin:10px 0 4px;}
 
 .causa-detalle-row{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:10px 12px;margin-bottom:10px;}
-.causa-detalle-row .cd-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.causa-detalle-row .cd-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:10px;}
 .causa-detalle-row .cd-name{font-weight:600;font-size:12px;color:var(--amber);}
+.causa-detalle-row .cd-head-actions{display:flex; gap:12px; flex-shrink:0;}
+.btn-link{background:none;border:none;padding:0;font-size:11px;font-weight:600;cursor:pointer;color:var(--ink-dim);text-decoration:underline;text-underline-offset:2px;}
+.btn-link:hover{color:var(--ink);}
+.btn-link-danger{color:var(--ink-faint);}
+.btn-link-danger:hover{color:#d9614f;}
 .causa-detalle-row .cd-grid{display:grid;grid-template-columns:1fr 120px;gap:10px;align-items:start;}
 .causa-detalle-row textarea{min-height:50px;font-size:12px;}
 .causa-detalle-row input[type=number]{font-size:14px;text-align:right;width:100%;min-width:0;padding:8px 10px;}
@@ -2616,34 +2621,6 @@ function abrirModalCausa(nombreSector, contexto){
 
   renderCausaDetalles(deficit);
 
-  // causas declaradas que NO están en el catálogo de este sector (ej: aplicadas masivamente
-  // desde otro sector) — las mostramos igual para que se puedan destildar y eliminar
-  const todasLasCausasDelCatalogo = Object.values(causas).flat();
-  const causasHuerfanas = causasDetalle.filter(cd => !todasLasCausasDelCatalogo.includes(cd.causa));
-  if(causasHuerfanas.length > 0){
-    const lbl = document.createElement('div');
-    lbl.className = 'causa-group-label';
-    lbl.textContent = 'APLICADAS DESDE OTRO SECTOR';
-    lbl.style.cssText = 'color:var(--amber);margin-top:10px;';
-    chipsCont.appendChild(lbl);
-    const wrap = document.createElement('div');
-    causasHuerfanas.forEach(cd=>{
-      const chip = document.createElement('span');
-      chip.className = 'causa-chip sel';
-      chip.style.cssText = 'border-color:var(--amber);background:var(--amber);color:#1a1505;';
-      chip.textContent = cd.causa;
-      chip.title = 'Esta causa fue aplicada masivamente desde otro sector. Hacé clic para quitarla.';
-      chip.addEventListener('click', ()=>{
-        const idx = causasDetalle.findIndex(c=>c.causa===cd.causa);
-        if(idx>-1) causasDetalle.splice(idx,1);
-        chip.remove();
-        renderCausaDetalles(deficit, esPlanificacion);
-      });
-      wrap.appendChild(chip);
-    });
-    chipsCont.appendChild(wrap);
-  }
-
   // carga masiva: solo tiene sentido para quien puede ver/declarar en varios sectores
   // (si un líder normal solo ve el suyo, no hay "otros sectores" a los que aplicar)
   const wrapMasiva = document.getElementById('modalCausaMasivaWrap');
@@ -2664,6 +2641,13 @@ function abrirModalCausa(nombreSector, contexto){
   document.getElementById('modalCausa').classList.add('show');
 }
 
+function syncChipsSelState(){
+  document.querySelectorAll('#modalCausaChips .causa-chip').forEach(chip=>{
+    const tieneAlguna = causasDetalle.some(cd=>cd.causa===chip.textContent);
+    chip.classList.toggle('sel', tieneAlguna);
+  });
+}
+
 function renderCausaDetalles(deficit, esPlanificacion){
   const cont = document.getElementById('modalCausaDetalles');
   cont.innerHTML='';
@@ -2676,7 +2660,13 @@ function renderCausaDetalles(deficit, esPlanificacion){
     const row = document.createElement('div');
     row.className='causa-detalle-row';
     row.innerHTML = `
-      <div class="cd-head"><span class="cd-name">${esc(cd.causa)}</span></div>
+      <div class="cd-head">
+        <span class="cd-name">${esc(cd.causa)}</span>
+        <span class="cd-head-actions">
+          <button type="button" class="btn-link" data-dup-idx="${idx}">+ agregar otra ocurrencia</button>
+          <button type="button" class="btn-link btn-link-danger" data-remove-idx="${idx}">Quitar</button>
+        </span>
+      </div>
       <div class="cd-grid" style="${esPlanificacion?'grid-template-columns:1fr;':''}">
         <div>
           <textarea data-detalle-idx="${idx}" placeholder="¿Qué pasó exactamente? Ej: CM1 y CM3 fuera de funcionamiento">${esc(cd.detalle)}</textarea>
@@ -2689,6 +2679,22 @@ function renderCausaDetalles(deficit, esPlanificacion){
       </div>
     `;
     cont.appendChild(row);
+  });
+
+  cont.querySelectorAll('[data-dup-idx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.dupIdx);
+      causasDetalle.splice(idx+1, 0, {causa: causasDetalle[idx].causa, detalle:'', m2:0});
+      renderCausaDetalles(deficit, esPlanificacion);
+    });
+  });
+  cont.querySelectorAll('[data-remove-idx]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const idx = parseInt(btn.dataset.removeIdx);
+      causasDetalle.splice(idx, 1);
+      syncChipsSelState();
+      renderCausaDetalles(deficit, esPlanificacion);
+    });
   });
 
   cont.querySelectorAll('[data-detalle-idx]').forEach(ta=>{
@@ -4128,8 +4134,7 @@ document.getElementById('inputCargarUnificado').addEventListener('change', (e)=>
       return;
     }
     const tipo = detectarTipoArchivoRecuperacion(datos);
-    if(tipo==='state') aplicarRestauracionState(datos);
-    else if(tipo==='dias') aplicarRecuperacionDias(datos);
+    if(tipo==='dias') aplicarRecuperacionDias(datos);
     else if(tipo==='causas') aplicarCargaCatalogo(datos);
     else if(tipo==='pulmon') aplicarCargaPulmon(datos);
     else mostrarResultadoCargarUnificado('No se reconoció el formato del archivo. Revisá que sea uno de los JSON generados para recuperación de días, causas o pulmón.', true);
@@ -4150,10 +4155,6 @@ function mostrarResultadoCargarUnificado(html, esError){
 // - pulmón:  { "2026-06-22": { "1-ALM": 706 } }                      -> primer valor es objeto cuyos valores son números
 function detectarTipoArchivoRecuperacion(datos){
   if(!datos || typeof datos !== 'object') return null;
-
-  // respaldo completo del state (generado por "Descargar respaldo actualizado" o por los automáticos)
-  if('dias' in datos && 'sectores' in datos && 'usuarios' in datos) return 'state';
-
   const primeraClave = Object.keys(datos)[0];
   if(!primeraClave) return null;
   const primerValor = datos[primeraClave];
@@ -4167,27 +4168,6 @@ function detectarTipoArchivoRecuperacion(datos){
   if(Array.isArray(segundoValor)) return 'causas';
   if(segundoValor && typeof segundoValor === 'object' && 'm2' in segundoValor) return 'dias';
   return null;
-}
-
-/* ----- restauración completa del state desde un respaldo JSON generado por la app ----- */
-function aplicarRestauracionState(datos){
-  pedirConfirmacionPass(
-    'Restaurar respaldo completo',
-    `Vas a reemplazar todos los datos actuales (${Object.keys(state.dias||{}).length} día(s) confirmados) con los del respaldo (${Object.keys(datos.dias||{}).length} día(s)). No se puede deshacer.`,
-    ()=>{
-      try{
-        state = Object.assign(defaultState(), datos);
-        saveState();
-        renderHoy();
-        renderHistorial();
-        renderConfig();
-        mostrarResultadoCargarUnificado(`Respaldo restaurado: ${Object.keys(datos.dias||{}).length} día(s) confirmados cargados.`);
-        toast('Respaldo restaurado correctamente');
-      }catch(e){
-        mostrarResultadoCargarUnificado('Error al restaurar el respaldo: ' + e.message, true);
-      }
-    }
-  );
 }
 
 /* ----- recuperar/corregir días puntuales desde un archivo JSON (ej: a partir de informes PDF) -----
