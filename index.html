@@ -606,6 +606,10 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
         <span class="hint">Las líneas de mínimo y óptimo se muestran al elegir 1-2 sectores.</span>
       </div>
       <div class="hint" style="margin-bottom:10px;">Tocá los sectores que querés comparar en el gráfico.</div>
+      <div class="row" style="margin-bottom:10px;gap:10px;">
+        <button type="button" class="btn-link" id="btnM2Todos">Todos</button>
+        <button type="button" class="btn-link" id="btnM2Ninguno">Ninguno</button>
+      </div>
       <div id="checksM2Sectores" class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;"></div>
       <div id="m2EvolucionEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Todavía no hay días confirmados en este rango.</div>
       <div id="m2EvolucionChartWrap" style="height:300px;"><canvas id="chartM2Evolucion"></canvas></div>
@@ -618,6 +622,10 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
         <span class="hint">La línea de umbral se muestra en el gráfico al elegir 1-2 sectores.</span>
       </div>
       <div class="hint" style="margin-bottom:10px;">Tocá los sectores que querés comparar en el gráfico. Datos tomados de lo pegado al inicio de cada turno, aunque el día no se haya confirmado.</div>
+      <div class="row" style="margin-bottom:10px;gap:10px;">
+        <button type="button" class="btn-link" id="btnPulmonTodos">Todos</button>
+        <button type="button" class="btn-link" id="btnPulmonNinguno">Ninguno</button>
+      </div>
       <div id="checksPulmonSectores" class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;"></div>
       <div id="pulmonEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Todavía no hay pulmones registrados. Se guardan automáticamente cada vez que pegás el inicio de turno.</div>
       <div id="pulmonChartWrap" style="height:300px;"><canvas id="chartPulmon"></canvas></div>
@@ -3310,6 +3318,15 @@ function renderEvolucionPulmon(){
   renderResumenAlertasPulmon();
 }
 
+document.getElementById('btnPulmonTodos').addEventListener('click', ()=>{
+  sectoresPulmonSeleccionados = new Set(nombresConPulmonRegistrado());
+  renderEvolucionPulmon();
+});
+document.getElementById('btnPulmonNinguno').addEventListener('click', ()=>{
+  sectoresPulmonSeleccionados = new Set();
+  renderEvolucionPulmon();
+});
+
 // filtro de fechas único, compartido entre Pareto de causas, evolución de m² y evolución de pulmón
 let filtroGraficosDesde = null;
 let filtroGraficosHasta = null;
@@ -3502,6 +3519,15 @@ function renderEvolucionM2(){
   dibujarChartM2Evolucion();
   renderResumenAlertasM2();
 }
+
+document.getElementById('btnM2Todos').addEventListener('click', ()=>{
+  sectoresM2Seleccionados = new Set(nombresConCierreRegistrado());
+  renderEvolucionM2();
+});
+document.getElementById('btnM2Ninguno').addEventListener('click', ()=>{
+  sectoresM2Seleccionados = new Set();
+  renderEvolucionM2();
+});
 
 function dibujarChartM2Evolucion(){
   const fechas = obtenerSerieFechasConfirmadas();
