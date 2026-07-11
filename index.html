@@ -826,11 +826,6 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
           </div>
         </div>
 
-        <div id="avEditBar">
-          <button class="btn" id="avEditToggle">🔧 Editar diseño</button>
-          <button class="btn" id="avResetLayoutBtn">↺ Restablecer diseño</button>
-          <span class="hint" id="avEditHint" style="display:none;">Arrastrá el título de un bloque para moverlo. Arrastrá la esquina inferior derecha para cambiar su tamaño.</span>
-        </div>
       </div>
     </div>
 
@@ -3121,32 +3116,27 @@ function avLiDailySeries(){
 const AV_WIDGET_IDS = ['hero','pipeline','barChart','lineChart','ranking'];
 // posiciones/tamaños por defecto (coordenadas en el espacio de diseño de 1600px de ancho)
 const AV_WIDGET_DEFAULTS = {
-  header:    {x:0,    y:0,   w:1600, h:85},
-  hero:      {x:0,    y:95,  w:1170, h:125},
-  pipeline:  {x:0,    y:230, w:1170, h:150},
-  lineChart: {x:0,    y:390, w:565,  h:260},
-  barChart:  {x:575,  y:390, w:595,  h:260},
-  ranking:   {x:1180, y:95,  w:420,  h:555}
+  header:    {x:0,    y:0,   w:1600, h:130},
+  hero:      {x:0,    y:140, w:1170, h:130},
+  pipeline:  {x:0,    y:280, w:1170, h:175},
+  lineChart: {x:0,    y:465, w:565,  h:280},
+  barChart:  {x:575,  y:465, w:595,  h:280},
+  ranking:   {x:1180, y:140, w:420,  h:605}
 };
 let avResizeObserver = null;
 let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
 
 function avAplicarLayout(){
-  if(!state.avanceLayout || !state.avanceLayout.widgets){
-    state.avanceLayout = { widgets: {} };
-  }
-  if(!state.avanceLayout.widgets) state.avanceLayout.widgets = {};
-  const lay = state.avanceLayout;
-
+  // distribución fija (sin edición ni guardado — si hace falta ajustarla, se cambia
+  // directamente en AV_WIDGET_DEFAULTS)
   const grid = document.getElementById('avCustomGrid');
   if(!grid) return;
 
   let maxBottom = 0;
   grid.querySelectorAll('.av-widget').forEach(el=>{
     const id = el.dataset.widget;
-    const def = AV_WIDGET_DEFAULTS[id];
-    const saved = lay.widgets[id];
-    const pos = Object.assign({}, def, saved||{});
+    const pos = AV_WIDGET_DEFAULTS[id];
+    if(!pos) return;
     el.style.left = pos.x+'px';
     el.style.top = pos.y+'px';
     el.style.width = pos.w+'px';
@@ -3154,121 +3144,7 @@ function avAplicarLayout(){
     maxBottom = Math.max(maxBottom, pos.y+pos.h);
   });
   grid.style.height = (maxBottom+10)+'px';
-
-  avConectarResizeObserver();
 }
-
-function avConectarResizeObserver(){
-  const grid = document.getElementById('avCustomGrid');
-  if(!grid) return;
-  if(avResizeObserver) avResizeObserver.disconnect();
-  const yaConectado = new WeakSet(); // el primer aviso de cada widget solo confirma el tamaño ya aplicado, no es un resize real
-  avResizeObserver = new ResizeObserver(entries=>{
-    let huboCambioReal = false;
-    entries.forEach(entry=>{
-      const id = entry.target.dataset.widget;
-      if(!id) return;
-      if(!yaConectado.has(entry.target)){
-        yaConectado.add(entry.target);
-        return;
-      }
-      if(!state.avanceLayout.widgets[id]) state.avanceLayout.widgets[id] = Object.assign({}, AV_WIDGET_DEFAULTS[id]);
-      state.avanceLayout.widgets[id].w = entry.target.offsetWidth;
-      state.avanceLayout.widgets[id].h = entry.target.offsetHeight;
-      huboCambioReal = true;
-    });
-    if(huboCambioReal){
-      avRecalcularAltoGrid();
-      avFitStage();
-      saveState();
-    }
-  });
-  grid.querySelectorAll('.av-widget').forEach(el=> avResizeObserver.observe(el));
-}
-
-function avRecalcularAltoGrid(){
-  const grid = document.getElementById('avCustomGrid');
-  if(!grid) return;
-  let maxBottom = 0;
-  grid.querySelectorAll('.av-widget').forEach(el=>{
-    const top = parseFloat(el.style.top)||0;
-    const h = parseFloat(el.style.height)||0;
-    maxBottom = Math.max(maxBottom, top+h);
-  });
-  grid.style.height = (maxBottom+10)+'px';
-}
-
-function avActualizarModoEdicion(activo){
-  const view = document.getElementById('view-avance');
-  view.classList.toggle('av-editing', activo);
-  document.getElementById('avEditHint').style.display = activo ? '' : 'none';
-  document.getElementById('avEditToggle').classList.toggle('active', activo);
-  if(!activo){
-    // al salir del modo edición es el momento natural de "ya terminé de acomodar todo" —
-    // forzamos el guardado ya, sin esperar el debounce de 600ms, para no perder nada
-    // si recargás la página enseguida.
-    saveState();
-    document.getElementById('avEditToggle').textContent = '💾 Guardando diseño…';
-    setTimeout(()=>{ document.getElementById('avEditToggle').textContent = '🔧 Editar diseño'; }, 900);
-  }
-}
-
-// arrastre libre: mousedown en la manija, mueve el widget en x/y siguiendo el mouse,
-// usando el factor de escala actual del escenario para que el movimiento se sienta 1:1
-document.querySelectorAll('#avCustomGrid .av-widget').forEach(w=>{
-  const handle = w.querySelector('.av-widget-handle');
-  handle.addEventListener('mousedown', e=>{
-    if(!document.getElementById('view-avance').classList.contains('av-editing')) return;
-    e.preventDefault();
-    const stage = document.getElementById('stage');
-    const stageScale = stage ? (stage.getBoundingClientRect().width / 1600) : 1;
-    avDragInfo = {
-      widget: w,
-      startX: e.clientX,
-      startY: e.clientY,
-      startLeft: parseFloat(w.style.left)||0,
-      startTop: parseFloat(w.style.top)||0,
-      scale: stageScale
-    };
-    w.classList.add('av-dragging');
-  });
-});
-
-document.addEventListener('mousemove', e=>{
-  if(!avDragInfo) return;
-  const dx = (e.clientX - avDragInfo.startX) / avDragInfo.scale;
-  const dy = (e.clientY - avDragInfo.startY) / avDragInfo.scale;
-  const nuevoLeft = Math.max(0, avDragInfo.startLeft + dx);
-  const nuevoTop = Math.max(0, avDragInfo.startTop + dy);
-  avDragInfo.widget.style.left = nuevoLeft+'px';
-  avDragInfo.widget.style.top = nuevoTop+'px';
-  avRecalcularAltoGrid();
-  avFitStage();
-});
-
-document.addEventListener('mouseup', ()=>{
-  if(!avDragInfo) return;
-  avDragInfo.widget.classList.remove('av-dragging');
-  const id = avDragInfo.widget.dataset.widget;
-  if(!state.avanceLayout.widgets[id]) state.avanceLayout.widgets[id] = Object.assign({}, AV_WIDGET_DEFAULTS[id]);
-  state.avanceLayout.widgets[id].x = parseFloat(avDragInfo.widget.style.left)||0;
-  state.avanceLayout.widgets[id].y = parseFloat(avDragInfo.widget.style.top)||0;
-  avDragInfo = null;
-  saveState();
-});
-
-document.getElementById('avEditToggle').addEventListener('click', ()=>{
-  const activo = !document.getElementById('view-avance').classList.contains('av-editing');
-  avActualizarModoEdicion(activo);
-  avFitStage();
-});
-document.getElementById('avResetLayoutBtn').addEventListener('click', ()=>{
-  if(!confirm('¿Volver el diseño a la distribución original? Se pierden las posiciones/tamaños que hayas guardado.')) return;
-  state.avanceLayout = { widgets: {} };
-  avAplicarLayout();
-  avFitStage();
-  saveState();
-});
 
 function avFitStage(){
   const stage = document.getElementById('stage');
