@@ -688,6 +688,12 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       <span class="hint">Totales diarios de producción individual, separados por complejidad donde aplica. Se carga a mano, semana por semana, desde la hoja de papel.</span>
     </div>
 
+    <div class="cfg-sidebar" style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="cfg-sidebar-btn active" data-detalle-tab="carga" style="flex:none;">📥 Carga</button>
+      <button class="cfg-sidebar-btn" data-detalle-tab="graficas" style="flex:none;">📊 Gráficas</button>
+    </div>
+
+    <div class="cfg-tabpage active" id="detalleTab-carga">
     <div class="panel">
       <div class="field-row" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
         <div class="field">
@@ -719,6 +725,30 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       <div class="panel-head"><h3 style="font-size:14px;">Semanas cargadas — <span id="resumenDetalleActorNombre"></span></h3></div>
       <div id="resumenDetalleCont"></div>
     </div>
+    </div>
+
+    <div class="cfg-tabpage" id="detalleTab-graficas">
+    <div class="panel">
+      <div class="field-row" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+        <div class="field">
+          <label style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Sector</label>
+          <select id="detalleGraficoSectorSelect" style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:8px 10px;border-radius:6px;min-width:170px;"></select>
+        </div>
+      </div>
+      <div class="panel-head">
+        <h2 id="detalleGraficoTitulo">Evolución de producción</h2>
+        <span class="hint">Elegí uno o más para comparar en el gráfico.</span>
+      </div>
+      <div class="row" style="margin-bottom:10px;gap:10px;">
+        <button type="button" class="btn-link" id="btnDetalleGraficoTodos">Todos</button>
+        <button type="button" class="btn-link" id="btnDetalleGraficoNinguno">Ninguno</button>
+      </div>
+      <div id="checksDetalleGrafico" class="row" style="margin-bottom:12px;flex-wrap:wrap;gap:8px;"></div>
+      <div id="detalleGraficoEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Todavía no hay nada cargado en este sector.</div>
+      <div id="detalleGraficoChartWrap" style="height:300px;"><canvas id="chartDetalleEvolucion"></canvas></div>
+      <div id="detalleGraficoResumen" style="margin-top:14px;"></div>
+    </div>
+    </div>
   </div>
 
   <!-- ===================== VISTA AVANCE POR SECTOR (TV) ===================== -->
@@ -742,6 +772,7 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
   <div class="right">
     <div id="avClock"><span class="d">--:--</span>--/--/----</div>
     <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
+    <button class="btn" id="avOpenTabBtn">🔗 Abrir en pestaña nueva</button>
     <button class="btn" id="avTvToggle">▭ Modo TV</button>
   </div>
 </header>
@@ -1403,6 +1434,7 @@ function aplicarEstadoRemoto(data){
     migrarObjetivosPorSector(state);
     migrarPermisosUsuarios(state);
     migrarHistoricoPulmones(state);
+    avLimpiarHistoricoPromediado();
     localStorage.setItem(LS_KEY, JSON.stringify(state));
     // si la pantalla de login sigue visible (todavía no entró nadie), destrabamos
     // el cartel de "Sincronizando…" y mostramos la lista ya con los datos al día
@@ -2342,6 +2374,15 @@ function avLimpiarHistoricoPromediado(){
       delete state.dias[fecha];
     }
   });
+  // limpieza aparte: migrarHistoricoPulmones() le crea a CADA fecha de state.dias una
+  // entrada en state.pulmones (aunque quede vacía) — eso estira el eje del gráfico de
+  // pulmón con fechas sin ningún dato real. Sacamos las que quedaron vacías.
+  Object.keys(state.pulmones||{}).forEach(fecha=>{
+    if(state.pulmones[fecha] && Object.keys(state.pulmones[fecha]).length===0){
+      delete state.pulmones[fecha];
+      cambios = true;
+    }
+  });
   if(cambios) saveState();
 }
 
@@ -2396,6 +2437,142 @@ function detalleFechaSumarDias(fechaISO, n){
 // puede editar el detalle de este sector: admin, o líder de ese sector puntual
 function puedeEditarDetalle(sectorKey){
   return esAdmin() || sectorDelLider()===sectorKey;
+}
+
+document.querySelectorAll('#view-detalle [data-detalle-tab]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('#view-detalle [data-detalle-tab]').forEach(b=>b.classList.toggle('active', b===btn));
+    document.getElementById('detalleTab-carga').classList.toggle('active', btn.dataset.detalleTab==='carga');
+    document.getElementById('detalleTab-graficas').classList.toggle('active', btn.dataset.detalleTab==='graficas');
+    if(btn.dataset.detalleTab==='graficas') renderDetalleGraficoSectorSelect();
+  });
+});
+
+let detalleGraficoSectorActual = null;
+let detalleGraficoSeleccionados = null; // Set de nombres de actor
+let chartDetalleEvolucionInstance = null;
+
+function renderDetalleGraficoSectorSelect(){
+  ensureProduccionDetalle();
+  const cfg = state.produccionDetalle.config;
+  const sel = document.getElementById('detalleGraficoSectorSelect');
+  const sectoresDisponibles = Object.keys(cfg).filter(k => cfg[k].activo && puedeVerSector(k));
+  const prev = detalleGraficoSectorActual;
+  sel.innerHTML = sectoresDisponibles.map(k=>`<option value="${k}">${esc(cfg[k].label)}</option>`).join('');
+  if(!sectoresDisponibles.length) return;
+  detalleGraficoSectorActual = sectoresDisponibles.includes(prev) ? prev : sectoresDisponibles[0];
+  sel.value = detalleGraficoSectorActual;
+  detalleGraficoSeleccionados = null; // se recalcula al cambiar de sector
+  renderDetalleGrafico();
+}
+document.getElementById('detalleGraficoSectorSelect').addEventListener('change', e=>{
+  detalleGraficoSectorActual = e.target.value;
+  detalleGraficoSeleccionados = null;
+  renderDetalleGrafico();
+});
+
+// total del actor en una fecha puntual, sumado por todos los niveles de complejidad
+function totalActorEnFecha(sectorKey, actor, fecha){
+  const cfg = state.produccionDetalle.config[sectorKey];
+  const reg = (state.produccionDetalle.registros[sectorKey] && state.produccionDetalle.registros[sectorKey][actor] && state.produccionDetalle.registros[sectorKey][actor][fecha]) || null;
+  if(!reg) return null;
+  const uKey = cfg.unidades[0].key;
+  if(cfg.tipo==='multi'){
+    if(!reg.length) return null;
+    return reg.reduce((acc,fila)=> acc + DETALLE_NIVELES.reduce((a,n)=> a + ((fila[n]&&fila[n][uKey])||0),0), 0);
+  }
+  if(!cfg.complejidad) return reg[uKey] || 0;
+  return DETALLE_NIVELES.reduce((a,n)=> a + ((reg[n]&&reg[n][uKey])||0), 0);
+}
+
+function renderDetalleGrafico(){
+  const cfg = state.produccionDetalle.config[detalleGraficoSectorActual];
+  document.getElementById('detalleGraficoTitulo').textContent = `Evolución de producción — ${cfg.label}`;
+  const checksCont = document.getElementById('checksDetalleGrafico');
+  const emptyDiv = document.getElementById('detalleGraficoEmpty');
+  const wrap = document.getElementById('detalleGraficoChartWrap');
+  const registros = state.produccionDetalle.registros[detalleGraficoSectorActual] || {};
+  const actores = cfg.actores || [];
+
+  // fechas: unión de todas las fechas con algo cargado, para cualquier actor de este sector
+  const fechasSet = new Set();
+  actores.forEach(a=> Object.keys(registros[a]||{}).forEach(f=>fechasSet.add(f)));
+  const fechas = [...fechasSet].sort();
+
+  if(!actores.length || !fechas.length){
+    checksCont.innerHTML='';
+    emptyDiv.style.display='';
+    wrap.style.display='none';
+    document.getElementById('detalleGraficoResumen').innerHTML='';
+    if(chartDetalleEvolucionInstance){ chartDetalleEvolucionInstance.destroy(); chartDetalleEvolucionInstance=null; }
+    return;
+  }
+  emptyDiv.style.display='none';
+  wrap.style.display='';
+
+  if(detalleGraficoSeleccionados===null){
+    detalleGraficoSeleccionados = new Set(actores.slice(0,5));
+  }
+
+  checksCont.innerHTML = actores.map(a=>{
+    const sel = detalleGraficoSeleccionados.has(a);
+    return `<span class="causa-chip${sel?' sel':''}" data-chip-detalle-actor="${esc(a)}">${esc(a)}</span>`;
+  }).join('');
+  checksCont.querySelectorAll('[data-chip-detalle-actor]').forEach(chip=>{
+    chip.addEventListener('click', ()=>{
+      const a = chip.dataset.chipDetalleActor;
+      if(detalleGraficoSeleccionados.has(a)) detalleGraficoSeleccionados.delete(a);
+      else detalleGraficoSeleccionados.add(a);
+      renderDetalleGrafico();
+    });
+  });
+
+  document.getElementById('btnDetalleGraficoTodos').onclick = ()=>{ detalleGraficoSeleccionados = new Set(actores); renderDetalleGrafico(); };
+  document.getElementById('btnDetalleGraficoNinguno').onclick = ()=>{ detalleGraficoSeleccionados = new Set(); renderDetalleGrafico(); };
+
+  const seleccionados = [...detalleGraficoSeleccionados];
+  const datasets = seleccionados.map((actor,i)=>({
+    label: `${actor} (${cfg.unidades[0].label})`,
+    data: fechas.map(f => totalActorEnFecha(detalleGraficoSectorActual, actor, f)),
+    borderColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+    backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
+    tension: 0.25,
+    spanGaps: true,
+    pointRadius: 3,
+    borderWidth: 2
+  }));
+
+  const canvas = document.getElementById('chartDetalleEvolucion');
+  if(chartDetalleEvolucionInstance) chartDetalleEvolucionInstance.destroy();
+  chartDetalleEvolucionInstance = new Chart(canvas.getContext('2d'), {
+    type:'line',
+    data:{ labels: fechas, datasets },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{ labels:{color:'#e8e9ea', font:{size:11}, boxWidth:12} },
+        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } }
+      },
+      scales:{
+        x:{ ticks:{color:'#8d9199', font:{size:10}}, grid:{color:'#2c3038'} },
+        y:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, title:{display:true,text:cfg.unidades[0].label,color:'#8d9199'} }
+      }
+    }
+  });
+
+  // resumen por actor seleccionado
+  const resumenCont = document.getElementById('detalleGraficoResumen');
+  resumenCont.innerHTML = `<div class="row" style="flex-wrap:wrap;gap:12px;">${seleccionados.map((actor,i)=>{
+    const valores = fechas.map(f=>totalActorEnFecha(detalleGraficoSectorActual, actor, f)).filter(v=>v!==null);
+    const total = valores.reduce((a,b)=>a+b,0);
+    const prom = valores.length ? (total/valores.length) : 0;
+    return `<div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;min-width:180px;">
+      <div style="font-size:12.5px;font-weight:700;color:${PALETA_LINEAS[i%PALETA_LINEAS.length]};margin-bottom:4px;">${esc(actor)}</div>
+      <div class="hint">${valores.length} día(s) con carga · promedio ${fmt(prom,1)} · total ${fmt(total)}</div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 function renderDetalle(){
@@ -2461,6 +2638,11 @@ function construirGridDetalle(){
   const cfg = state.produccionDetalle.config[detalleSectorActual];
   const soloLectura = !puedeEditarDetalle(detalleSectorActual);
   const lunes = document.getElementById('semanaDetalleInput').value || detalleLunesDeEstaSemana();
+  const hoyStr = new Date().toISOString().slice(0,10);
+  const esAdministrador = esAdmin();
+  // un líder puede cargar/editar solo el día de hoy; los días anteriores quedan
+  // bloqueados para que no se puedan adulterar cargas viejas. El admin no tiene este límite.
+  const fechaBloqueada = (fecha)=> !esAdministrador && fecha!==hoyStr;
 
   if(!detalleActorActual){
     wrap.innerHTML = `<div class="hint">Todavía no hay ningún ${cfg.actorLabel.toLowerCase()} cargado en este sector. Usá "+ Nuevo" para agregar el primero.</div>`;
@@ -2475,6 +2657,7 @@ function construirGridDetalle(){
         <th colspan="${cfg.unidades.length}" style="font-size:11px;color:var(--ink-dim);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">Normal</th>
         <th colspan="${cfg.unidades.length}" style="font-size:11px;color:var(--amber);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">Jumbo</th>
         <th colspan="${cfg.unidades.length}" style="font-size:11px;color:var(--ink);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">Evolution</th>
+        <th rowspan="2" style="width:40px;border-bottom:1px solid var(--line2);"></th>
       </tr>
       <tr>
         ${[0,1,2].map(i=>cfg.unidades.map((u,j)=>`<th style="font-size:10px;color:var(--ink-faint);padding:4px;${j===0?'border-left:1px solid var(--line2);':''}">${esc(u.label)}</th>`).join('')).join('')}
@@ -2482,18 +2665,33 @@ function construirGridDetalle(){
     : `<tr>
         <th style="text-align:left;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;padding:6px;border-bottom:1px solid var(--line2);">Día</th>
         ${cfg.unidades.map(u=>`<th style="font-size:11px;color:var(--ink-dim);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">${esc(u.label)}</th>`).join('')}
+        <th style="width:40px;border-bottom:1px solid var(--line2);"></th>
       </tr>`;
 
   if(cfg.tipo==='simple'){
     const filas = DETALLE_DIAS.map((nombreDia,i)=>{
       const fecha = detalleFechaSumarDias(lunes, i);
       const valores = registrosActor[fecha] || {};
+      const bloqueado = soloLectura || fechaBloqueada(fecha);
+      const tieneDatos = Object.keys(valores).length>0;
+      const btnBorrar = (esAdministrador && tieneDatos) ? `<button type="button" class="btn btn-ghost btn-sm" data-borrar-dia="${fecha}" title="Borrar este día" style="padding:3px 7px;font-size:11px;">🗑</button>` : '';
       return `<tr>
-        <td style="padding:5px;font-weight:600;font-size:13px;white-space:nowrap;">${nombreDia}<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${fecha}</span></td>
-        ${nivelesInputsHtml(fecha, valores, cfg.unidades, soloLectura)}
+        <td style="padding:5px;font-weight:600;font-size:13px;white-space:nowrap;">${nombreDia}<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${fecha}</span>${bloqueado && !esAdministrador && tieneDatos ? '<br><span style="color:var(--ink-faint);font-size:10px;">🔒 bloqueado</span>' : ''}</td>
+        ${nivelesInputsHtml(fecha, valores, cfg.unidades, bloqueado)}
+        <td style="text-align:center;">${btnBorrar}</td>
       </tr>`;
     }).join('');
     wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;"><thead>${headerCols}</thead><tbody>${filas}</tbody></table>`;
+    wrap.querySelectorAll('[data-borrar-dia]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const fecha = btn.dataset.borrarDia;
+        if(!confirm(`¿Borrar la carga de ${fecha}? No se puede deshacer.`)) return;
+        delete registrosActor[fecha];
+        saveState();
+        construirGridDetalle();
+        renderResumenDetalle();
+      });
+    });
     return;
   }
 
@@ -2501,22 +2699,25 @@ function construirGridDetalle(){
   const operariosCatalogo = cfg.operarios || [];
   const bloquesDias = DETALLE_DIAS.map((nombreDia, i)=>{
     const fecha = detalleFechaSumarDias(lunes, i);
+    const bloqueado = soloLectura || fechaBloqueada(fecha);
     const filasOperario = registrosActor[fecha] || [];
+    const tieneDatos = filasOperario.length>0;
     const filasHtml = filasOperario.map((fila, idx)=>{
       const opts = operariosCatalogo.map(o=>`<option value="${esc(o)}" ${fila.operario===o?'selected':''}>${esc(o)}</option>`).join('');
       const valoresNiv = {}; DETALLE_NIVELES.forEach(n=>valoresNiv[n]=fila[n]||{});
       return `<div class="detalle-op-row" data-fecha="${fecha}" data-idx="${idx}" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
-        <select data-op-select style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:6px 8px;border-radius:5px;font-size:12.5px;min-width:150px;" ${soloLectura?'disabled':''}>
+        <select data-op-select style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:6px 8px;border-radius:5px;font-size:12.5px;min-width:150px;" ${bloqueado?'disabled':''}>
           <option value="">— operario —</option>${opts}
         </select>
-        ${DETALLE_NIVELES.map(niv=>`<input type="number" min="0" ${soloLectura?'disabled':''} data-op-niv="${niv}" value="${(valoresNiv[niv]&&valoresNiv[niv][cfg.unidades[0].key])||''}" placeholder="${niv[0].toUpperCase()}" title="${niv}" style="width:52px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 4px;border-radius:5px;text-align:center;">`).join('')}
-        ${soloLectura ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-op-quitar style="padding:4px 9px;font-size:11px;">Quitar</button>`}
+        ${DETALLE_NIVELES.map(niv=>`<input type="number" min="0" ${bloqueado?'disabled':''} data-op-niv="${niv}" value="${(valoresNiv[niv]&&valoresNiv[niv][cfg.unidades[0].key])||''}" placeholder="${niv[0].toUpperCase()}" title="${niv}" style="width:52px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 4px;border-radius:5px;text-align:center;">`).join('')}
+        ${bloqueado ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-op-quitar style="padding:4px 9px;font-size:11px;">Quitar</button>`}
       </div>`;
     }).join('');
+    const btnBorrarDia = (esAdministrador && tieneDatos) ? `<button type="button" class="btn btn-ghost btn-sm" data-borrar-dia-multi="${fecha}" title="Borrar todo lo cargado este día" style="padding:3px 7px;font-size:11px;float:right;">🗑</button>` : '';
     return `<div class="panel" style="padding:12px 14px;margin-bottom:10px;" data-dia-bloque="${fecha}">
-      <div style="font-weight:600;font-size:13px;margin-bottom:8px;">${nombreDia} <span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${fecha}</span></div>
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;">${nombreDia} <span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${fecha}</span>${bloqueado && !esAdministrador && tieneDatos ? ' <span style="color:var(--ink-faint);font-size:10px;">🔒 bloqueado</span>' : ''}${btnBorrarDia}</div>
       <div class="detalle-op-rows" data-fecha-rows="${fecha}">${filasHtml}</div>
-      ${soloLectura ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-op-agregar="${fecha}" style="margin-top:4px;">+ agregar operario</button>`}
+      ${bloqueado ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-op-agregar="${fecha}" style="margin-top:4px;">+ agregar operario</button>`}
     </div>`;
   }).join('');
 
@@ -2524,6 +2725,16 @@ function construirGridDetalle(){
     <div class="hint" style="margin-bottom:10px;">Columnas de la derecha: N=Normal, J=Jumbo, E=Evolution (${esc(cfg.unidades[0].label.toLowerCase())}).</div>
     ${bloquesDias}`;
 
+  wrap.querySelectorAll('[data-borrar-dia-multi]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const fecha = btn.dataset.borrarDiaMulti;
+      if(!confirm(`¿Borrar todo lo cargado el ${fecha}? No se puede deshacer.`)) return;
+      delete registrosActor[fecha];
+      saveState();
+      construirGridDetalle();
+      renderResumenDetalle();
+    });
+  });
   wrap.querySelectorAll('[data-op-agregar]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const fecha = btn.dataset.opAgregar;
@@ -2549,7 +2760,7 @@ function renderResumenDetalle(){
   const cont = document.getElementById('resumenDetalleCont');
   const registrosActor = (detalleActorActual && state.produccionDetalle.registros[detalleSectorActual][detalleActorActual]) || {};
   const fechas = Object.keys(registrosActor).sort();
-  if(!fechas.length){ cont.innerHTML = '<div class="hint">Todavía no hay nada cargado.</div>'; return; }
+  if(!fechas.length){ cont.innerHTML = '<div class="hint">Todavía no hay nada cargado.</div>'; renderGraficosDetalle(); return; }
 
   function totalUnidadPrincipal(valorDia){
     const uKey = cfg.unidades[0].key;
@@ -2593,6 +2804,96 @@ function renderResumenDetalle(){
           </tr>`).join('')}
       </tbody>
     </table>`;
+  renderGraficosDetalle();
+}
+
+function renderGraficosDetalle(){
+  const cfg = state.produccionDetalle.config[detalleSectorActual];
+  const cont = document.getElementById('detalleGraficosCont');
+  if(!cont) return;
+
+  if(!detalleActorActual){ cont.innerHTML = '<div class="hint">Elegí uno para ver sus gráficos.</div>'; return; }
+
+  // 1) totales por complejidad para el actor actual, para cada unidad (cuadros/aberturas/barras)
+  const registrosActor = state.produccionDetalle.registros[detalleSectorActual][detalleActorActual] || {};
+  const totalesPorNivel = {}; // { normal: {cuadros:N, aberturas:N}, jumbo:{...}, evolution:{...} } o {sinNivel:{...}}
+  DETALLE_NIVELES.forEach(n=> totalesPorNivel[n] = {});
+  cfg.unidades.forEach(u=> DETALLE_NIVELES.forEach(n=> totalesPorNivel[n][u.key]=0));
+
+  Object.values(registrosActor).forEach(valorDia=>{
+    if(cfg.tipo==='multi'){
+      (valorDia||[]).forEach(fila=>{
+        DETALLE_NIVELES.forEach(n=>{ totalesPorNivel[n][cfg.unidades[0].key] += (fila[n]&&fila[n][cfg.unidades[0].key])||0; });
+      });
+    }else if(cfg.complejidad){
+      DETALLE_NIVELES.forEach(n=>{
+        cfg.unidades.forEach(u=>{ totalesPorNivel[n][u.key] += (valorDia[n]&&valorDia[n][u.key])||0; });
+      });
+    }else{
+      cfg.unidades.forEach(u=>{ totalesPorNivel['normal'][u.key] += valorDia[u.key]||0; });
+    }
+  });
+
+  const nivelesAMostrar = cfg.complejidad ? DETALLE_NIVELES : ['normal'];
+  const nivelColor = {normal:'#8d9199', jumbo:'#e8a33d', evolution:'#5b8def'};
+  const nivelLabel = {normal:'Normal', jumbo:'Jumbo', evolution:'Evolution'};
+
+  let svg1 = '';
+  {
+    const W=560, H=170, padL=44, padR=10, padT=14, padB=26;
+    const barras = [];
+    nivelesAMostrar.forEach(niv=>{
+      cfg.unidades.forEach(u=>{
+        barras.push({label: cfg.complejidad ? `${nivelLabel[niv]}` : esc(u.label), sub: u.label, val: totalesPorNivel[niv][u.key], color: nivelColor[niv]});
+      });
+    });
+    const maxV = Math.max(...barras.map(b=>b.val), 1) * 1.15;
+    const gap = 14;
+    const barW = (W-padL-padR-gap*(barras.length-1)) / barras.length;
+    const y = v => H-padB - (H-padT-padB)*(v/maxV);
+    barras.forEach((b,i)=>{
+      const bx = padL + i*(barW+gap);
+      const bh = (H-padT-padB)*(b.val/maxV);
+      svg1 += `<rect x="${bx}" y="${H-padB-bh}" width="${barW}" height="${bh}" fill="${b.color}" rx="3"/>`;
+      svg1 += `<text x="${bx+barW/2}" y="${H-padB-bh-6}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink)">${b.val}</text>`;
+      svg1 += `<text x="${bx+barW/2}" y="${H-8}" text-anchor="middle" font-size="9.5" fill="var(--ink-faint)">${b.label}${cfg.complejidad?` (${b.sub})`:''}</text>`;
+    });
+  }
+
+  let html = `
+    <div style="display:flex; gap:24px; flex-wrap:wrap;">
+      <div>
+        <div style="font-size:12px; color:var(--ink-dim); margin-bottom:6px;">Total acumulado — ${esc(detalleActorActual)}</div>
+        <svg viewBox="0 0 560 170" style="width:560px; max-width:100%; height:auto;">${svg1}</svg>
+      </div>`;
+
+  // 2) para sectores tipo 'multi': ranking de operarios de todo el sector
+  if(cfg.tipo==='multi'){
+    const totalesOperario = {};
+    Object.values(state.produccionDetalle.registros[detalleSectorActual]||{}).forEach(porFecha=>{
+      Object.values(porFecha).forEach(filasDia=>{
+        (filasDia||[]).forEach(fila=>{
+          if(!fila.operario) return;
+          const tot = DETALLE_NIVELES.reduce((a,n)=> a + ((fila[n]&&fila[n][cfg.unidades[0].key])||0), 0);
+          totalesOperario[fila.operario] = (totalesOperario[fila.operario]||0) + tot;
+        });
+      });
+    });
+    const ranking = Object.entries(totalesOperario).sort((a,b)=>b[1]-a[1]);
+    const maxOp = Math.max(...ranking.map(r=>r[1]), 1);
+    html += `
+      <div style="flex:1; min-width:220px;">
+        <div style="font-size:12px; color:var(--ink-dim); margin-bottom:6px;">Rendimiento por operario — ${esc(cfg.label)} (${esc(cfg.unidades[0].label)}, todas las máquinas)</div>
+        ${ranking.length ? ranking.map(([op,val])=>`
+          <div style="margin-bottom:6px;">
+            <div style="display:flex; justify-content:space-between; font-size:12.5px;"><span>${esc(op)}</span><span style="font-weight:700;font-family:var(--mono);">${val}</span></div>
+            <div style="height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;"><div style="height:100%;width:${(val/maxOp*100)}%;background:var(--amber);"></div></div>
+          </div>`).join('') : '<div class="hint">Todavía no hay operarios cargados.</div>'}
+      </div>`;
+  }
+
+  html += `</div>`;
+  cont.innerHTML = html;
 }
 
 document.getElementById('detalleSectorSelect').addEventListener('change', e=>{
@@ -2803,8 +3104,8 @@ function avConectarResizeObserver(){
       const id = entry.target.dataset.widget;
       if(!id) return;
       if(!state.avanceLayout.widgets[id]) state.avanceLayout.widgets[id] = Object.assign({}, AV_WIDGET_DEFAULTS[id]);
-      state.avanceLayout.widgets[id].w = Math.round(entry.contentRect.width);
-      state.avanceLayout.widgets[id].h = Math.round(entry.contentRect.height + 34); // + alto de la manija
+      state.avanceLayout.widgets[id].w = entry.target.offsetWidth;
+      state.avanceLayout.widgets[id].h = entry.target.offsetHeight;
       avRecalcularAltoGrid();
       avFitStage();
     });
@@ -2902,10 +3203,9 @@ function avFitStage(){
   stage.style.height = naturalH + 'px';
   stage.style.transform = `scale(${scale})`;
 
-  // centra el escenario si sobra espacio en algún lado (pantalla más ancha o más alta que el contenido escalado)
-  const offsetX = Math.max((wrap.clientWidth - 1600*scale) / 2, 0);
-  const offsetY = Math.max((wrap.clientHeight - naturalH*scale) / 2, 0);
-  stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+  // siempre arranca pegado arriba a la izquierda — si sobra espacio, queda del
+  // lado derecho/abajo, nunca como margen muerto a la izquierda
+  stage.style.transform = `scale(${scale})`;
 }
 window.addEventListener('resize', ()=>{
   if(document.getElementById('view-avance').classList.contains('active')) avFitStage();
@@ -3160,6 +3460,10 @@ document.getElementById('avCfgToggle').addEventListener('click', ()=>{
   document.getElementById('avConfigDrawer').classList.toggle('open');
   setTimeout(avFitStage, 50);
 });
+document.getElementById('avOpenTabBtn').addEventListener('click', ()=>{
+  const url = location.pathname + '?tv=1';
+  window.open(url, '_blank');
+});
 document.getElementById('avTvToggle').addEventListener('click', ()=>{
   document.getElementById('view-avance').classList.toggle('tv-mode');
   setTimeout(avFitStage, 50);
@@ -3275,7 +3579,20 @@ function guardarResultadoVigente(resultado){
   }
 }
 
+let avAutoAbiertoDesdeUrl = false;
 function renderHoy(){
+  if(!avAutoAbiertoDesdeUrl){
+    avAutoAbiertoDesdeUrl = true;
+    if(new URLSearchParams(location.search).get('tv')==='1'){
+      irASeccion('avance');
+      setTimeout(()=>{
+        document.getElementById('view-avance').classList.add('tv-mode');
+        document.getElementById('avConfigDrawer').classList.remove('open');
+        avFitStage();
+      }, 50);
+      return;
+    }
+  }
   ensureActualDia();
   document.getElementById('todayLabel').textContent = capitalize(todayLabel());
 
