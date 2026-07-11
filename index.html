@@ -734,6 +734,10 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
           <label style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Sector</label>
           <select id="detalleGraficoSectorSelect" style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:8px 10px;border-radius:6px;min-width:170px;"></select>
         </div>
+        <div class="field" id="detalleGraficoUnidadWrap" style="display:none;">
+          <label style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Unidad</label>
+          <div id="detalleGraficoUnidadBtns" class="row" style="gap:6px;"></div>
+        </div>
       </div>
       <div class="panel-head">
         <h2 id="detalleGraficoTitulo">Evolución de producción</h2>
@@ -2450,6 +2454,7 @@ document.querySelectorAll('#view-detalle [data-detalle-tab]').forEach(btn=>{
 
 let detalleGraficoSectorActual = null;
 let detalleGraficoSeleccionados = null; // Set de nombres de actor
+let detalleGraficoUnidadIdx = 0; // qué unidad de cfg.unidades se está graficando (0=primera, 1=segunda si existe)
 let chartDetalleEvolucionInstance = null;
 
 function renderDetalleGraficoSectorSelect(){
@@ -2463,20 +2468,22 @@ function renderDetalleGraficoSectorSelect(){
   detalleGraficoSectorActual = sectoresDisponibles.includes(prev) ? prev : sectoresDisponibles[0];
   sel.value = detalleGraficoSectorActual;
   detalleGraficoSeleccionados = null; // se recalcula al cambiar de sector
+  detalleGraficoUnidadIdx = 0;
   renderDetalleGrafico();
 }
 document.getElementById('detalleGraficoSectorSelect').addEventListener('change', e=>{
   detalleGraficoSectorActual = e.target.value;
   detalleGraficoSeleccionados = null;
+  detalleGraficoUnidadIdx = 0;
   renderDetalleGrafico();
 });
 
 // total del actor en una fecha puntual, sumado por todos los niveles de complejidad
-function totalActorEnFecha(sectorKey, actor, fecha){
+function totalActorEnFecha(sectorKey, actor, fecha, unidadIdx){
   const cfg = state.produccionDetalle.config[sectorKey];
   const reg = (state.produccionDetalle.registros[sectorKey] && state.produccionDetalle.registros[sectorKey][actor] && state.produccionDetalle.registros[sectorKey][actor][fecha]) || null;
   if(!reg) return null;
-  const uKey = cfg.unidades[0].key;
+  const uKey = cfg.unidades[unidadIdx||0].key;
   if(cfg.tipo==='multi'){
     if(!reg.length) return null;
     return reg.reduce((acc,fila)=> acc + DETALLE_NIVELES.reduce((a,n)=> a + ((fila[n]&&fila[n][uKey])||0),0), 0);
@@ -2510,6 +2517,26 @@ function renderDetalleGrafico(){
   emptyDiv.style.display='none';
   wrap.style.display='';
 
+  // selector de unidad (solo si el sector tiene más de una, ej. Armado: cuadros/aberturas)
+  const unidadWrap = document.getElementById('detalleGraficoUnidadWrap');
+  const unidadBtnsCont = document.getElementById('detalleGraficoUnidadBtns');
+  if(cfg.unidades.length>1){
+    unidadWrap.style.display='';
+    unidadBtnsCont.innerHTML = cfg.unidades.map((u,i)=>
+      `<button type="button" class="btn btn-sm ${i===detalleGraficoUnidadIdx?'btn-primary':'btn-ghost'}" data-unidad-idx="${i}">${esc(u.label)}</button>`
+    ).join('');
+    unidadBtnsCont.querySelectorAll('[data-unidad-idx]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        detalleGraficoUnidadIdx = Number(btn.dataset.unidadIdx);
+        renderDetalleGrafico();
+      });
+    });
+  }else{
+    unidadWrap.style.display='none';
+    detalleGraficoUnidadIdx = 0;
+  }
+  const unidadActual = cfg.unidades[detalleGraficoUnidadIdx] || cfg.unidades[0];
+
   if(detalleGraficoSeleccionados===null){
     detalleGraficoSeleccionados = new Set(actores.slice(0,5));
   }
@@ -2532,8 +2559,8 @@ function renderDetalleGrafico(){
 
   const seleccionados = [...detalleGraficoSeleccionados];
   const datasets = seleccionados.map((actor,i)=>({
-    label: `${actor} (${cfg.unidades[0].label})`,
-    data: fechas.map(f => totalActorEnFecha(detalleGraficoSectorActual, actor, f)),
+    label: `${actor} (${unidadActual.label})`,
+    data: fechas.map(f => totalActorEnFecha(detalleGraficoSectorActual, actor, f, detalleGraficoUnidadIdx)),
     borderColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
     backgroundColor: PALETA_LINEAS[i % PALETA_LINEAS.length],
     tension: 0.25,
@@ -2557,7 +2584,7 @@ function renderDetalleGrafico(){
       },
       scales:{
         x:{ ticks:{color:'#8d9199', font:{size:10}}, grid:{color:'#2c3038'} },
-        y:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, title:{display:true,text:cfg.unidades[0].label,color:'#8d9199'} }
+        y:{ ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true, title:{display:true,text:unidadActual.label,color:'#8d9199'} }
       }
     }
   });
@@ -2565,7 +2592,7 @@ function renderDetalleGrafico(){
   // resumen por actor seleccionado
   const resumenCont = document.getElementById('detalleGraficoResumen');
   resumenCont.innerHTML = `<div class="row" style="flex-wrap:wrap;gap:12px;">${seleccionados.map((actor,i)=>{
-    const valores = fechas.map(f=>totalActorEnFecha(detalleGraficoSectorActual, actor, f)).filter(v=>v!==null);
+    const valores = fechas.map(f=>totalActorEnFecha(detalleGraficoSectorActual, actor, f, detalleGraficoUnidadIdx)).filter(v=>v!==null);
     const total = valores.reduce((a,b)=>a+b,0);
     const prom = valores.length ? (total/valores.length) : 0;
     return `<div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;min-width:180px;">
@@ -3099,18 +3126,27 @@ function avConectarResizeObserver(){
   const grid = document.getElementById('avCustomGrid');
   if(!grid) return;
   if(avResizeObserver) avResizeObserver.disconnect();
+  const yaConectado = new WeakSet(); // el primer aviso de cada widget solo confirma el tamaño ya aplicado, no es un resize real
   avResizeObserver = new ResizeObserver(entries=>{
+    let huboCambioReal = false;
     entries.forEach(entry=>{
       const id = entry.target.dataset.widget;
       if(!id) return;
+      if(!yaConectado.has(entry.target)){
+        yaConectado.add(entry.target);
+        return;
+      }
       if(!state.avanceLayout.widgets[id]) state.avanceLayout.widgets[id] = Object.assign({}, AV_WIDGET_DEFAULTS[id]);
       state.avanceLayout.widgets[id].w = entry.target.offsetWidth;
       state.avanceLayout.widgets[id].h = entry.target.offsetHeight;
+      huboCambioReal = true;
+    });
+    if(huboCambioReal){
       avRecalcularAltoGrid();
       avFitStage();
-    });
-    clearTimeout(window._avResizeSaveTimer);
-    window._avResizeSaveTimer = setTimeout(()=>{ saveState(); }, 700);
+      clearTimeout(window._avResizeSaveTimer);
+      window._avResizeSaveTimer = setTimeout(()=>{ saveState(); }, 700);
+    }
   });
   grid.querySelectorAll('.av-widget').forEach(el=> avResizeObserver.observe(el));
 }
@@ -3585,11 +3621,12 @@ function renderHoy(){
     avAutoAbiertoDesdeUrl = true;
     if(new URLSearchParams(location.search).get('tv')==='1'){
       irASeccion('avance');
-      setTimeout(()=>{
-        document.getElementById('view-avance').classList.add('tv-mode');
-        document.getElementById('avConfigDrawer').classList.remove('open');
-        avFitStage();
-      }, 50);
+      document.getElementById('view-avance').classList.add('tv-mode');
+      document.getElementById('avConfigDrawer').classList.remove('open');
+      // una pestaña nueva tarda más en asentar el layout que un toggle in-place —
+      // reintentamos el ajuste varias veces mientras la página termina de cargar
+      [50, 300, 800, 1500].forEach(ms=> setTimeout(avFitStage, ms));
+      window.addEventListener('load', ()=> setTimeout(avFitStage, 100));
       return;
     }
   }
