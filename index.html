@@ -443,7 +443,7 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
 #view-avance .av-widget{position:absolute; background:var(--av-panel); border:1px solid var(--av-line); border-radius:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; min-width:220px; min-height:120px;}
 #view-avance .av-widget[data-widget="header"]{overflow:visible; z-index:20;}
 #view-avance .av-widget-handle{padding:7px 12px; font-size:11px; font-weight:600; color:var(--av-muted); border-bottom:1px solid var(--av-line); user-select:none; flex-shrink:0; letter-spacing:.02em;}
-#view-avance .av-widget-body{flex:1; min-height:0; padding:10px 12px; overflow:auto;}
+#view-avance .av-widget-body{flex:1; min-height:0; padding:10px 12px; overflow:hidden;}
 #view-avance.av-editing .av-widget{resize:both; overflow:auto; border:1.5px dashed var(--av-brand);}
 #view-avance.av-editing .av-widget-handle{cursor:grab; background:var(--av-panel-2); color:var(--av-text);}
 #view-avance.av-editing .av-widget.av-dragging{cursor:grabbing; opacity:.75; z-index:50; box-shadow:0 8px 24px rgba(0,0,0,.5);}
@@ -3117,11 +3117,11 @@ const AV_WIDGET_IDS = ['hero','pipeline','barChart','lineChart','ranking'];
 // posiciones/tamaños por defecto (coordenadas en el espacio de diseño de 1600px de ancho)
 const AV_WIDGET_DEFAULTS = {
   header:    {x:0,    y:0,   w:1600, h:130},
-  hero:      {x:0,    y:140, w:1170, h:130},
-  pipeline:  {x:0,    y:280, w:1170, h:175},
-  lineChart: {x:0,    y:465, w:565,  h:280},
-  barChart:  {x:575,  y:465, w:595,  h:280},
-  ranking:   {x:1180, y:140, w:420,  h:605}
+  hero:      {x:0,    y:140, w:1170, h:155},
+  pipeline:  {x:0,    y:305, w:1170, h:210},
+  lineChart: {x:0,    y:525, w:565,  h:280},
+  barChart:  {x:575,  y:525, w:595,  h:280},
+  ranking:   {x:1180, y:140, w:420,  h:665}
 };
 let avResizeObserver = null;
 let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
@@ -3283,34 +3283,22 @@ function avCalcularRanking(fechas){
       const s = state.dias[f] && state.dias[f].sectores ? state.dias[f].sectores[key] : null;
       if(s && typeof s.cerrado==='number'){ cerrado += s.cerrado; }
     });
-    const obj = avSectorObjetivos(key);
-    const objetivoPeriodo = obj.min * fechas.length;
-    const cumplimiento = objetivoPeriodo>0 ? Math.min((cerrado/objetivoPeriodo)*100, 130) : 0;
-
-    const umbral = avSectorUmbralPulmon(key);
-    let diasConPulmon=0, diasSobreUmbral=0;
-    fechas.forEach(f=>{
-      const v = state.pulmones[f] ? state.pulmones[f][key] : undefined;
-      if(v!==undefined){ diasConPulmon++; if(v>=umbral) diasSobreUmbral++; }
-    });
-    const disciplina = diasConPulmon>0 ? (diasSobreUmbral/diasConPulmon*100) : 0;
-
-    const score = Math.round((Math.min(cumplimiento,100) + disciplina)/2);
-    return { key, cumplimiento: Math.round(cumplimiento), disciplina: Math.round(disciplina), score };
-  }).sort((a,b)=>b.score-a.score);
+    return { key, cerrado: Math.round(cerrado*10)/10 };
+  }).sort((a,b)=>b.cerrado-a.cerrado);
 }
 function avRenderRankingLista(elId, ranking){
   const cont = document.getElementById(elId);
   const clases = ['top1','top2','top3'];
+  const maxVal = Math.max(...ranking.map(r=>r.cerrado), 1);
   cont.innerHTML = ranking.map((r,i)=>`
-    <div class="rank-row ${clases[i]||''}" title="Cumplimiento ${r.cumplimiento}% · Disciplina de pulmón ${r.disciplina}%">
+    <div class="rank-row ${clases[i]||''}">
       <div class="rank-pos">${i+1}</div>
       <div style="flex:1;">
         <div style="display:flex; justify-content:space-between; align-items:baseline;">
           <span class="rank-name">${AV_SECTOR_SHORT[r.key]}</span>
-          <span class="rank-score">${r.score}</span>
+          <span class="rank-score">${avFmt(r.cerrado,0)}</span>
         </div>
-        <div class="rank-bar"><div style="width:${Math.min(r.score,100)}%;"></div></div>
+        <div class="rank-bar"><div style="width:${Math.min(r.cerrado/maxVal*100,100)}%;"></div></div>
       </div>
     </div>
   `).join('');
