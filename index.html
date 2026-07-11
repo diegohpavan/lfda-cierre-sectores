@@ -21,6 +21,8 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0b0c0e;
@@ -425,6 +427,33 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
   #loginCintaSectores{ grid-template-columns:1fr !important; }
   .kpis{ grid-template-columns:1fr; }
 }
+
+/* ===== Vista Avance por Sector (TV) — encapsulado bajo #view-avance ===== */
+#view-avance{
+
+    --av-bg:#0A0B0D; --av-panel:#141618; --av-panel-2:#1B1E21; --av-line:#282B2F;
+    --av-text:#F2F3F5; --av-muted:#8A8E94; --av-muted-2:#54585D;
+    --av-brand:#E1432E; --av-brand-dim:#4A1D17;
+    --av-good:#4FAE7C; --av-warn:#D9A23E; --av-bad:#E1432E;
+  
+}
+#view-avance .eyebrow{font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-size:11.5px; font-weight:600; letter-spacing:.14em; color:var(--av-brand); text-transform:uppercase;}#view-avance h1, #view-avance h2, #view-avance h3{font-family:'Inter',sans-serif; margin:0; text-transform:uppercase; letter-spacing:.01em;}#view-avance .mono{font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums;}#view-avance header{display:flex; justify-content:space-between; align-items:flex-end; padding-bottom:10px; margin-bottom:10px; border-bottom:1px solid var(--av-line); position:relative;}#view-avance header::after{content:''; position:absolute; left:0; bottom:-1px; width:64px; height:2px; background:var(--av-brand);}#view-avance header .title-block h1{font-size:24px; font-weight:800; letter-spacing:.01em;}#view-avance header .title-block .sub{color:var(--av-muted); font-size:13px; margin-top:4px; display:flex; align-items:center; gap:10px;}#view-avance header .right{display:flex; align-items:center; gap:14px;}#view-avance #avClock{font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-size:15px; color:var(--av-muted); text-align:right;}#view-avance #avClock .d{color:var(--av-text); font-size:18px; display:block;}#view-avance .btn{background:var(--av-panel-2); border:1px solid var(--av-line); color:var(--av-text); font-family:'Inter',sans-serif; font-size:13px; font-weight:500; padding:9px 14px; border-radius:6px; cursor:pointer;}#view-avance .btn:hover{border-color:var(--av-brand);}#view-avance .btn.icon{padding:9px 12px;}#view-avance .sync-dot{width:8px; height:8px; border-radius:50%; display:inline-block;}#view-avance .sync-dot.on{background:var(--av-good); box-shadow:0 0 6px var(--av-good);}#view-avance .sync-dot.off{background:var(--av-bad);}#view-avance .sync-dot.wait{background:var(--av-warn);}#view-avance .month-nav{display:flex; align-items:center; gap:8px;}#view-avance .month-nav button{background:none; border:1px solid var(--av-line); color:var(--av-text); border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:14px;}#view-avance .month-nav button:hover{border-color:var(--av-brand);}#view-avance .month-nav .lbl{font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-size:13px; min-width:120px; text-align:center;}#view-avance .hero{background:var(--av-panel); border:1px solid var(--av-line); border-left:4px solid var(--av-brand); border-radius:10px; padding:14px 22px; display:flex; flex-wrap:wrap; gap:30px; align-items:center; margin-bottom:10px;}#view-avance .hero .headline{min-width:260px;}#view-avance .hero .headline .eyebrow{margin-bottom:6px;}#view-avance .hero .headline .big{font-size:52px; line-height:1; font-weight:800; letter-spacing:-.01em;}#view-avance .hero .headline .big .unit{font-size:28px; color:var(--av-muted); margin-left:8px; font-family:'Inter',sans-serif;}#view-avance .hero-stats{display:flex; gap:36px; flex-wrap:wrap; flex:1;}#view-avance .hero-stat{min-width:120px;}#view-avance .hero-stat .lbl{font-size:11.5px; color:var(--av-muted); text-transform:uppercase; letter-spacing:.06em;}#view-avance .hero-stat .val{font-size:22px; font-weight:600; margin-top:2px;}#view-avance .hero-stat .val.good{color:var(--av-good);}#view-avance .hero-stat .val.warn{color:var(--av-warn);}#view-avance .hero-stat .val.bad{color:var(--av-bad);}#view-avance .status-chip{display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:.04em;}#view-avance .status-chip .dot{width:9px;height:9px;border-radius:50%;}#view-avance .status-chip.good{background:rgba(79,174,124,.14); color:var(--av-good);}#view-avance .status-chip.good .dot{background:var(--av-good);}#view-avance .status-chip.warn{background:rgba(217,162,62,.14); color:var(--av-warn);}#view-avance .status-chip.warn .dot{background:var(--av-warn);}#view-avance .status-chip.bad{background:rgba(217,97,79,.14); color:var(--av-bad);}#view-avance .status-chip.bad .dot{background:var(--av-bad);}#view-avance .section-label{display:flex; align-items:baseline; gap:10px; margin:8px 0 6px;}#view-avance .section-label h2{font-size:14px; color:var(--av-muted); letter-spacing:.1em; font-weight:500;}#view-avance .section-label .line{flex:1; height:1px; background:var(--av-line);}#view-avance .pipeline{display:flex; gap:0; overflow-x:auto; padding-bottom:4px;}#view-avance .pipeline::-webkit-scrollbar{height:6px;}#view-avance .pipeline::-webkit-scrollbar-thumb{background:var(--av-line); border-radius:3px;}#view-avance .sector-card{background:var(--av-panel); border:1px solid var(--av-line); padding:8px 12px; min-width:150px; flex:1; position:relative;}#view-avance .sector-card:not(:last-child){border-right:none;}#view-avance .sector-card:first-child{border-radius:8px 0 0 8px;}#view-avance .sector-card:last-child{border-radius:0 8px 8px 0;}#view-avance .sector-card.hero-sector{border-color:var(--av-brand); border-width:1px 2px; z-index:1;}#view-avance .flow-arrow{position:absolute; right:-9px; top:50%; transform:translateY(-50%); width:16px; height:16px; z-index:2; color:var(--av-muted-2);}#view-avance .sector-card:last-child .flow-arrow{display:none;}#view-avance .sector-name{font-size:12px; font-weight:600; color:var(--av-text); text-transform:uppercase; letter-spacing:.03em;}#view-avance .sector-name .li-tag{color:var(--av-brand); font-size:9px; margin-left:5px; font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums;}#view-avance .gauge-track{height:8px; background:var(--av-panel-2); border-radius:4px; margin:10px 0 8px; position:relative;}#view-avance .gauge-fill{height:100%; border-radius:4px; background:var(--av-brand);}#view-avance .sector-figs{display:flex; flex-direction:column; gap:3px;}#view-avance .sector-figs .row{display:flex; justify-content:space-between; font-size:12px;}#view-avance .sector-figs .row .k{color:var(--av-muted);}#view-avance .sector-figs .row .v{font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-weight:500;}#view-avance .trend{font-size:10px; margin-left:4px;}#view-avance .trend.up{color:var(--av-good);}#view-avance .trend.down{color:var(--av-bad);}#view-avance .chart-panel{background:var(--av-panel); border:1px solid var(--av-line); border-radius:10px; padding:10px 14px 6px; margin-top:0;}#view-avance .chart-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}#view-avance .chart-head h3{font-size:14px; color:var(--av-text); letter-spacing:.04em;}#view-avance .legend{display:flex; gap:16px; font-size:11.5px; color:var(--av-muted);}#view-avance .legend span{display:inline-flex; align-items:center; gap:6px;}#view-avance .legend i{width:14px; height:3px; display:inline-block; border-radius:2px;}#view-avance #avConfigDrawer{display:none; background:var(--av-panel); border:1px solid var(--av-line); border-radius:10px; padding:20px 22px; margin-bottom:20px;}#view-avance #avConfigDrawer.open{display:block;}#view-avance .cfg-grid{display:flex; gap:26px; flex-wrap:wrap;}#view-avance .cfg-field label{display:block; font-size:11.5px; color:var(--av-muted); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;}#view-avance .cfg-field input{background:var(--av-panel-2); border:1px solid var(--av-line); color:var(--av-text); font-family:'Inter',sans-serif; font-variant-numeric:tabular-nums; font-size:14px; padding:8px 10px; border-radius:6px; width:150px;}#view-avance .cfg-field select{background:var(--av-panel-2); border:1px solid var(--av-line); color:var(--av-text); font-family:'Inter',sans-serif; font-size:14px; padding:8px 10px; border-radius:6px; width:230px;}#view-avance .help-txt{font-size:11.5px; color:var(--av-muted-2); margin-top:10px; line-height:1.5;}#view-avance .empty-note{background:var(--av-panel); border:1px dashed var(--av-line); border-radius:10px; padding:30px; text-align:center; color:var(--av-muted); margin-bottom:20px;}#view-avance #avEditBar{display:flex; align-items:center; gap:14px; margin-bottom:10px;}
+#view-avance #avEditToggle.active{background:var(--av-brand); border-color:var(--av-brand); color:#fff;}
+#view-avance #avCustomGrid{position:relative; width:100%;}
+#view-avance .av-widget{position:absolute; background:var(--av-panel); border:1px solid var(--av-line); border-radius:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; min-width:220px; min-height:120px;}
+#view-avance .av-widget-handle{padding:7px 12px; font-size:11px; font-weight:600; color:var(--av-muted); border-bottom:1px solid var(--av-line); user-select:none; flex-shrink:0; letter-spacing:.02em;}
+#view-avance .av-widget-body{flex:1; min-height:0; padding:10px 12px; overflow:auto;}
+#view-avance.av-editing .av-widget{resize:both; overflow:auto; border:1.5px dashed var(--av-brand);}
+#view-avance.av-editing .av-widget-handle{cursor:grab; background:var(--av-panel-2); color:var(--av-text);}
+#view-avance.av-editing .av-widget.av-dragging{cursor:grabbing; opacity:.75; z-index:50; box-shadow:0 8px 24px rgba(0,0,0,.5);}
+#view-avance .av-widget .hero{margin-bottom:0; height:100%;}
+#view-avance .av-widget .pipeline{height:100%;}
+#view-avance .rank-row{display:flex; align-items:center; gap:10px; padding:5px 6px; border-bottom:1px solid var(--av-line); cursor:default;}#view-avance .rank-row{display:flex; align-items:center; gap:10px; padding:5px 6px; border-bottom:1px solid var(--av-line); cursor:default;}#view-avance .rank-row:last-child{border-bottom:none;}#view-avance .rank-pos{width:26px; text-align:center; font-weight:800; font-size:15px; color:var(--av-muted);}#view-avance .rank-row.top1 .rank-pos{color:#E8C34A;}#view-avance .rank-row.top2 .rank-pos{color:#B9BEC6;}#view-avance .rank-row.top3 .rank-pos{color:#C9834A;}#view-avance .rank-name{flex:1; font-weight:600; font-size:12.5px;}#view-avance .rank-name .tag{color:var(--av-muted); font-weight:400; font-size:9.5px; display:block; margin-top:0;}#view-avance .rank-score{font-weight:800; font-size:15px; width:40px; text-align:right;}#view-avance .rank-bar{height:3px; border-radius:2px; background:var(--av-panel-2); margin-top:2px; overflow:hidden;}#view-avance .rank-bar div{height:100%; background:var(--av-brand);}#view-avance.tv-mode #avConfigDrawer, #view-avance.tv-mode .cfg-toggle{display:none !important;}/* escenario a tamaño fijo, escalado entero */
+#view-avance #stageWrap{position:relative; width:100vw; height:100vh; overflow:auto;}#view-avance #stage{position:absolute; top:0; left:0; width:1600px; transform-origin: top left; padding:14px 22px 16px; display:flex; flex-direction:column;}#view-avance #avDashboardBody{flex:1; display:flex; flex-direction:column; justify-content:space-evenly; min-height:0;}#view-avance .dash-block{flex-shrink:0;}
+
+#view-avance{ position:fixed; inset:0; z-index:500; background:var(--av-bg); color:var(--av-text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; overflow:hidden; }
+#view-avance, #view-avance *{ box-sizing:border-box; }
+
 </style>
 </head>
 <body>
@@ -488,6 +517,9 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       <button class="sidebar-subnav-btn" data-nav-sub="evolucion">Evolución</button>
       <button class="sidebar-subnav-btn" data-nav-sub="dias">Días</button>
     </div>
+
+    <button class="sidebar-nav-btn" data-nav="detalle">🔩 Producción x operario</button>
+    <button class="sidebar-nav-btn" data-nav="avance">📺 Avance por Sector (TV)</button>
     <div class="app-sidebar-filtro" id="sidebarFiltroCausas" style="display:none;">
       <label>Desde</label>
       <input type="date" id="inputFiltroGraficosDesde">
@@ -649,12 +681,180 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
     </div>
   </div>
 
+  <!-- ===================== VISTA PRODUCCIÓN POR OPERARIO/MÁQUINA ===================== -->
+  <div class="view" id="view-detalle">
+    <div class="panel-head">
+      <h2>Producción por operario / máquina</h2>
+      <span class="hint">Totales diarios de producción individual, separados por complejidad donde aplica. Se carga a mano, semana por semana, desde la hoja de papel.</span>
+    </div>
+
+    <div class="panel">
+      <div class="field-row" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+        <div class="field">
+          <label style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Sector</label>
+          <select id="detalleSectorSelect" style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:8px 10px;border-radius:6px;min-width:170px;"></select>
+        </div>
+        <div class="field">
+          <label id="detalleActorLabel" style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Actor</label>
+          <select id="detalleActorSelect" style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:8px 10px;border-radius:6px;min-width:200px;"></select>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnNuevoActor">+ Nuevo</button>
+        <div class="field">
+          <label style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Lunes de la semana</label>
+          <input type="date" id="semanaDetalleInput" style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:8px 10px;border-radius:6px;">
+        </div>
+        <button class="btn btn-ghost btn-sm" id="btnSemanaActualDetalle">Esta semana</button>
+      </div>
+
+      <div id="detalleGridWrap"></div>
+
+      <div id="detalleSoloLectura" class="hint" style="display:none;margin-top:10px;">👁 Estás viendo esto en modo solo lectura.</div>
+      <div id="detalleGuardarRow" style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+        <span class="hint" id="saveMsgDetalle"></span>
+        <button class="btn btn-primary" id="btnGuardarDetalle">Guardar semana</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3 style="font-size:14px;">Semanas cargadas — <span id="resumenDetalleActorNombre"></span></h3></div>
+      <div id="resumenDetalleCont"></div>
+    </div>
+  </div>
+
+  <!-- ===================== VISTA AVANCE POR SECTOR (TV) ===================== -->
+  <div class="view" id="view-avance">
+<div id="stageWrap"><div id="stage">
+
+<header>
+  <div class="title-block">
+    <div class="eyebrow">LFDA · Producción</div>
+    <h1>Avance por Sector</h1>
+    <div class="sub">
+      <span class="sync-dot on" id="avSyncDot"></span>
+      <span id="avSyncLabel">En vivo</span>
+      <div class="month-nav">
+        <button id="avMesPrev">‹</button>
+        <span class="lbl" id="avMesLabel">—</span>
+        <button id="avMesNext">›</button>
+      </div>
+    </div>
+  </div>
+  <div class="right">
+    <div id="avClock"><span class="d">--:--</span>--/--/----</div>
+    <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
+    <button class="btn" id="avTvToggle">▭ Modo TV</button>
+  </div>
+</header>
+
+<div id="avConfigDrawer">
+  <div class="cfg-grid">
+    <div class="cfg-field">
+      <label>Días hábiles de este mes</label>
+      <input type="number" id="avDiasHabilesInput">
+    </div>
+    <div class="cfg-field">
+      <label>Resolución de la pantalla</label>
+      <select id="avResSelect">
+        <option value="auto">Automático (ajustar a la ventana)</option>
+        <option value="1920x1080" selected>1920 × 1080 (Full HD)</option>
+        <option value="1366x768">1366 × 768</option>
+        <option value="3840x2160">3840 × 2160 (4K)</option>
+        <option value="1280x720">1280 × 720</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="help-txt">
+    Los objetivos mín./óptimo por sector y el histórico completo vienen directo de esta misma app — no hay que cargar nada acá.
+    Los días hábiles se calculan solos (lunes a viernes, según tu configuración de días obligatorios), pero podés ajustarlos si hubo un feriado.
+    Elegí la resolución real de la pantalla/TV donde se va a mostrar para que encaje exacto y no haga falta scrollear.
+    Para mover o cambiar el tamaño de cada bloque, usá el botón "🔧 Editar diseño" abajo del todo.
+  </div>
+</div>
+
+<div id="avNoDataNote" class="empty-note" style="display:none;">
+  Todavía no hay días confirmados para este mes.
+</div>
+
+<div id="avDashboardBody" style="display:none;">
+  <div id="avEditBar">
+    <button class="btn" id="avEditToggle">🔧 Editar diseño</button>
+    <span class="hint" id="avEditHint" style="display:none;">Arrastrá el título de un bloque para moverlo. Arrastrá la esquina inferior derecha para cambiar su tamaño.</span>
+  </div>
+
+  <div id="avCustomGrid">
+    <div class="av-widget" data-widget="hero">
+      <div class="av-widget-handle">⠿ Fin de línea · acumulado real</div>
+      <div class="av-widget-body"><div class="hero" id="avHeroBlock"></div></div>
+    </div>
+
+    <div class="av-widget" data-widget="pipeline">
+      <div class="av-widget-handle">⠿ Flujo de producción</div>
+      <div class="av-widget-body">
+        <div class="pipeline" id="avPipeline"></div>
+      </div>
+    </div>
+
+    <div class="av-widget" data-widget="barChart">
+      <div class="av-widget-handle">⠿ Estimación vs. acumulado</div>
+      <div class="av-widget-body">
+        <div class="chart-panel" style="height:100%;">
+          <div class="chart-head">
+            <h3>Estimación (barra) vs. acumulado (relleno)</h3>
+            <div class="legend">
+              <span><i style="background:var(--av-brand);"></i>Acumulado</span>
+              <span style="opacity:.5;"><i style="background:var(--av-muted-2);"></i>Estimación</span>
+              <span><i style="background:var(--av-bad);"></i>Mín.</span>
+              <span><i style="background:var(--av-warn);"></i>Óptimo</span>
+            </div>
+          </div>
+          <svg id="avBarChartSvg" viewBox="0 0 1200 240" preserveAspectRatio="none" style="width:100%; height:calc(100% - 26px); display:block;"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="av-widget" data-widget="lineChart">
+      <div class="av-widget-handle">⠿ Fin de línea · ritmo diario</div>
+      <div class="av-widget-body">
+        <div class="chart-panel" style="height:100%;">
+          <div class="chart-head">
+            <h3 id="avLineChartTitle">Fin de línea · ritmo diario acumulado</h3>
+            <div class="legend">
+              <span><i style="background:var(--av-bad);"></i>Mínimo</span>
+              <span><i style="background:var(--av-warn);"></i>Óptimo</span>
+              <span><i style="background:var(--av-brand);"></i>Real</span>
+            </div>
+          </div>
+          <svg id="avChartSvg" viewBox="0 0 1200 240" preserveAspectRatio="none" style="width:100%; height:calc(100% - 26px); display:block;"></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="av-widget" data-widget="ranking">
+      <div class="av-widget-handle">⠿ Ranking de sectores</div>
+      <div class="av-widget-body" style="display:flex; flex-direction:column; gap:10px;">
+        <div class="chart-panel" style="flex:1; min-height:0; overflow:auto;">
+          <div class="chart-head"><h3>Hoy</h3></div>
+          <div id="avRankingHoy"></div>
+        </div>
+        <div class="chart-panel" style="flex:1; min-height:0; overflow:auto;">
+          <div class="chart-head"><h3 id="avRankingMesTitulo">Este mes</h3></div>
+          <div id="avRankingMes"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>
+  </div>
+
   <!-- ===================== VISTA CONFIG ===================== -->
   <div class="view" id="view-config">
     <div class="cfg-layout">
       <div class="cfg-sidebar" id="cfgSidebar">
         <button class="cfg-sidebar-btn active" data-cfg-tab="general"><span class="ico">⚙️</span> General</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="sectores"><span class="ico">🏭</span> Sectores y causas</button>
+        <button class="cfg-sidebar-btn" data-cfg-tab="detalle"><span class="ico">🔩</span> Producción x operario</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="usuarios"><span class="ico">👥</span> Usuarios y permisos</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="respaldo"><span class="ico">💾</span> Respaldo y datos</button>
       </div>
@@ -746,6 +946,14 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       </div>
       <div class="hint" style="margin-bottom:12px;">El nombre del sector debe coincidir EXACTAMENTE con el texto que aparece en la tabla de G_PRO (ej: "1-ALM"). Mínimo: piso aceptable, dispara declaración de causa si no se llega. Óptimo: a partir de este valor el día se marca como rendimiento óptimo.</div>
       <div id="sectorConfigList"></div>
+    </div>
+      </div>
+
+      <div class="cfg-tabpage" id="cfgTab-detalle">
+    <div class="panel">
+      <h2>Producción por operario / máquina</h2>
+      <div class="hint" style="margin-bottom:16px;">Nombres predefinidos que aparecen en los desplegables de "Producción x operario". Para Armado y Acristalado son las personas; para CM y Soldado son las máquinas, y aparte el catálogo de operarios que pueden asignarse a cada máquina.</div>
+      <div id="detalleConfigList"></div>
     </div>
       </div>
 
@@ -1184,6 +1392,9 @@ function aplicarEstadoRemoto(data){
       sectores: data.sectores,
       dias: data.dias || {},
       pulmones: data.pulmones || {},
+      armadoDetalle: data.armadoDetalle || null,
+      produccionDetalle: data.produccionDetalle || null,
+      avanceLayout: data.avanceLayout || {widgets:{}},
       actual: data.actual || null
     };
     // conservamos lo que está en curso de tipeo en los textareas, pero actualizamos el resto del estado
@@ -1203,6 +1414,8 @@ function aplicarEstadoRemoto(data){
     renderHoy();
     if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
     if(document.getElementById('view-config').classList.contains('active')) renderConfig();
+    if(document.getElementById('view-detalle').classList.contains('active')) renderDetalle();
+    if(document.getElementById('view-avance').classList.contains('active')) renderAvance();
     toast('Datos actualizados desde otra PC');
   }catch(e){
     console.error('Error aplicando estado remoto', e);
@@ -1252,6 +1465,8 @@ function subirEstadoAFirestore(){
         sectores: state.sectores,
         dias: state.dias || {},
         pulmones: state.pulmones || {},
+        produccionDetalle: state.produccionDetalle || {config:null, registros:{}},
+        avanceLayout: state.avanceLayout || {widgets:{}},
         actual: state.actual || null,
         _formatoCampos: true,
         _instanceId: INSTANCE_ID,
@@ -1348,6 +1563,13 @@ function defaultState(){
     ],
     dias: {},          // { '2026-06-22': { sectores: { '1-ALM': {pulmon, objetivoMin, objetivoOptimo, cerrado, motivoCausa:[{causa,detalle,m2}]} } } }
     pulmones: {},      // { '2026-06-22': { '1-ALM': {udsPul, supPul} } } — histórico de lo pegado en INICIO de turno, independiente de si el día se confirma
+    produccionDetalle: {   // producción diaria por operario/máquina, distinta del total del sector — cargado semanalmente a mano desde la hoja de papel
+      config: null,    // se completa con detalleConfigDefault() la primera vez que se abre la sección
+      registros: {}    // { '6-ARM': { 'Vera Gastón': { '2026-03-02': {normal:{cuadros,aberturas},...} } }, '2-MEC': { 'CM1': { '2026-03-02': [{operario,normal:{barras},...}] } } }
+    },
+    avanceLayout: {   // posición (x,y) y tamaño (w,h) de cada bloque del dashboard TV "Avance por Sector" — se edita arrastrando ahí mismo ("🔧 Editar diseño")
+      widgets: {}   // { hero:{x,y,w,h}, pipeline:{...}, barChart:{...}, lineChart:{...}, ranking:{...} } — se completa solo al mover/redimensionar
+    },
     actual: {           // carga en progreso del día de hoy, no confirmada
       fecha: null,
       inicio: null,     // { sector: {udsPul, supPul, supFin} }
@@ -1990,6 +2212,968 @@ function parseNum(s){
 // navegación centralizada: secciones principales (hoy/historial/config) y,
 // dentro de historial, las 3 subsecciones (causas/evolucion/dias) — cada una
 // con su propio bloque de filtro de fecha visible en el sidebar.
+/* ============================================================
+   PRODUCCIÓN POR OPERARIO / MÁQUINA — motor genérico multi-sector
+   Dos tipos de sector:
+   - "simple": un actor (persona) por día, una fila fija en la grilla semanal
+     (Armado, Acristalado)
+   - "multi": un actor (máquina) por día que puede tener varios operarios
+     distintos ese mismo día (CM, Soldado) — filas agregables/quitables.
+   ============================================================ */
+const DETALLE_DIAS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const DETALLE_NIVELES = ['normal','jumbo','evolution'];
+let detalleSectorActual = null;
+let detalleActorActual = null;
+
+function detalleConfigDefault(){
+  return {
+    '6-ARM': {activo:true, tipo:'simple', label:'Armado', actorLabel:'Armador', actores:[
+        'Coimbra, Brian Daniel','Alcaron, Adán Gustavo','De Los Santos, Leonardo Luis Marcelo','De Los Santos, Leonardo Omar',
+        'Garcete Baez, Carlos Javier','López, Edgardo Gabriel','López, José Antonio','Santacruz, Portillo Fredy',
+        'Vecino, Matías Alberto','Venialgo Prieto, Willian Daniel','Vera, Gastón Alberto'
+      ],
+      unidades:[{key:'cuadros',label:'Cuadros'},{key:'aberturas',label:'Aberturas'}], complejidad:true},
+    '2-MEC': {activo:true, tipo:'multi', label:'CM', actorLabel:'Máquina', actores:['CM1','CM2','CM3'],
+      operarios:['García, Pablo Ariel','Benitez, Alexis German','Celiz, Cristian Eduardo','Gimenez, Nicolás','Roldán, Nicolás Ezequiel'],
+      unidades:[{key:'barras',label:'Barras'}], complejidad:true},
+    '3-SOL': {activo:true, tipo:'multi', label:'Soldado', actorLabel:'Máquina', actores:['Soldadora 1','Soldadora 2','Soldadora Manual'],
+      operarios:['Amarillo, Ricardo Ariel','Amarillo, Cristian Daniel','Garnica, Juan José','Quiroga, González Yonatan','Rufino, Boris Gabriel'],
+      unidades:[{key:'cuadros',label:'Cuadros'}], complejidad:true},
+    '7-ACR': {activo:true, tipo:'simple', label:'Acristalado', actorLabel:'Operario', actores:[],
+      unidades:[{key:'cuadros',label:'Cuadros'}], complejidad:false}
+  };
+}
+
+function renderConfigDetalle(){
+  ensureProduccionDetalle();
+  const cont = document.getElementById('detalleConfigList');
+  const cfg = state.produccionDetalle.config;
+  const orden = ['6-ARM','2-MEC','3-SOL','7-ACR'];
+
+  function listaEditableHtml(titulo, items, sectorKey, tipo){
+    // tipo: 'actor' u 'operario' — distingue a qué array de config apunta cada chip
+    return `
+      <div style="margin-bottom:18px;">
+        <div style="font-size:12px;font-weight:600;color:var(--ink-dim);margin-bottom:6px;">${esc(titulo)}</div>
+        <div class="causa-edit-list">
+          ${items.map((nombre,i)=>`
+            <span class="causa-chip sel" style="cursor:default;display:inline-flex;align-items:center;gap:6px;">
+              ${esc(nombre)}
+              <span data-quitar-item="${sectorKey}|${tipo}|${i}" style="cursor:pointer;color:var(--ink-faint);font-weight:700;" title="Quitar">✕</span>
+            </span>`).join('') || '<span class="hint">Todavía no hay ninguno cargado.</span>'}
+        </div>
+        <div class="row" style="gap:8px;margin-top:8px;max-width:340px;">
+          <input type="text" placeholder="Agregar nombre…" data-nuevo-item="${sectorKey}|${tipo}" style="flex:1;">
+          <button class="btn btn-ghost btn-sm" data-agregar-item="${sectorKey}|${tipo}">Agregar</button>
+        </div>
+      </div>`;
+  }
+
+  cont.innerHTML = orden.map(sectorKey=>{
+    const c = cfg[sectorKey];
+    if(!c) return '';
+    const bloqueActores = listaEditableHtml(`${c.actorLabel} de ${c.label}`, c.actores, sectorKey, 'actor');
+    const bloqueOperarios = c.tipo==='multi'
+      ? listaEditableHtml(`Operarios que pueden asignarse en ${c.label}`, c.operarios||[], sectorKey, 'operario')
+      : '';
+    return `
+      <div class="cfg-sector" style="margin-bottom:20px;">
+        <div class="cfg-sector-head" style="margin-bottom:10px;"><strong>${esc(c.label)}</strong></div>
+        ${bloqueActores}
+        ${bloqueOperarios}
+      </div>`;
+  }).join('');
+
+  function agregarItem(sectorKey, tipo, valor){
+    const c = cfg[sectorKey];
+    const nombre = valor.trim();
+    if(!nombre) return;
+    const arr = tipo==='actor' ? c.actores : (c.operarios || (c.operarios=[]));
+    if(arr.includes(nombre)){ alert('Ya existe.'); return; }
+    arr.push(nombre);
+    saveState();
+    renderConfigDetalle();
+  }
+
+  cont.querySelectorAll('[data-agregar-item]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const [sectorKey, tipo] = btn.dataset.agregarItem.split('|');
+      const input = cont.querySelector(`[data-nuevo-item="${sectorKey}|${tipo}"]`);
+      agregarItem(sectorKey, tipo, input.value);
+    });
+  });
+  cont.querySelectorAll('[data-nuevo-item]').forEach(input=>{
+    input.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        const [sectorKey, tipo] = input.dataset.nuevoItem.split('|');
+        agregarItem(sectorKey, tipo, input.value);
+      }
+    });
+  });
+  cont.querySelectorAll('[data-quitar-item]').forEach(span=>{
+    span.addEventListener('click', ()=>{
+      const [sectorKey, tipo, idxStr] = span.dataset.quitarItem.split('|');
+      const idx = Number(idxStr);
+      const c = cfg[sectorKey];
+      const arr = tipo==='actor' ? c.actores : c.operarios;
+      if(!confirm(`¿Quitar "${arr[idx]}" de la lista? (no borra lo ya cargado con ese nombre, solo deja de aparecer para elegir)`)) return;
+      arr.splice(idx,1);
+      saveState();
+      renderConfigDetalle();
+    });
+  });
+}
+
+function avLimpiarHistoricoPromediado(){
+  // revierte la siembra de enero-junio 2026 que se había hecho promediando totales
+  // mensuales — Diego pidió volver atrás porque desdibujaba el gráfico de Evolución.
+  // Solo toca los días marcados con _historicoPromediado (nunca datos reales cargados a mano).
+  let cambios = false;
+  Object.keys(state.dias||{}).forEach(fecha=>{
+    const dia = state.dias[fecha];
+    if(!dia || !dia.sectores) return;
+    Object.keys(dia.sectores).forEach(sector=>{
+      if(dia.sectores[sector] && dia.sectores[sector]._historicoPromediado){
+        delete dia.sectores[sector];
+        cambios = true;
+      }
+    });
+    if(Object.keys(dia.sectores).length===0){
+      delete state.dias[fecha];
+    }
+  });
+  if(cambios) saveState();
+}
+
+function ensureProduccionDetalle(){
+  if(!state.produccionDetalle){
+    state.produccionDetalle = {config: detalleConfigDefault(), registros: {}};
+  }
+  if(!state.produccionDetalle.config) state.produccionDetalle.config = detalleConfigDefault();
+  if(!state.produccionDetalle.registros) state.produccionDetalle.registros = {};
+  // migración: si existía la versión vieja de solo-Armado, se incorpora acá una vez
+  if(state.armadoDetalle && !state.produccionDetalle.registros['6-ARM']){
+    state.produccionDetalle.config['6-ARM'].actores = state.armadoDetalle.armadores || ['Vera Gastón'];
+    state.produccionDetalle.registros['6-ARM'] = state.armadoDetalle.registros || {};
+  }
+  Object.keys(detalleConfigDefault()).forEach(k=>{
+    if(!state.produccionDetalle.config[k]) state.produccionDetalle.config[k] = detalleConfigDefault()[k];
+    if(!state.produccionDetalle.registros[k]) state.produccionDetalle.registros[k] = {};
+  });
+  // siembra puntual de los nombres reales del equipo (una sola vez — solo si sigue en el
+  // placeholder original o vacío; si ya lo tocaste a mano, no se pisa nada)
+  const cfg = state.produccionDetalle.config;
+  const def = detalleConfigDefault();
+  let sembrado = false;
+  if(cfg['6-ARM'] && cfg['6-ARM'].actores.length===1 && cfg['6-ARM'].actores[0]==='Vera Gastón'){
+    cfg['6-ARM'].actores = def['6-ARM'].actores;
+    sembrado = true;
+  }
+  if(cfg['2-MEC'] && (!cfg['2-MEC'].operarios || cfg['2-MEC'].operarios.length===0)){
+    cfg['2-MEC'].operarios = def['2-MEC'].operarios;
+    sembrado = true;
+  }
+  if(cfg['3-SOL'] && (!cfg['3-SOL'].operarios || cfg['3-SOL'].operarios.length===0)){
+    cfg['3-SOL'].operarios = def['3-SOL'].operarios;
+    sembrado = true;
+  }
+  if(sembrado) saveState();
+}
+
+function detalleLunesDeEstaSemana(){
+  const d = new Date();
+  const dow = d.getDay();
+  const diff = dow===0 ? -6 : 1-dow;
+  d.setDate(d.getDate()+diff);
+  return d.toISOString().slice(0,10);
+}
+function detalleFechaSumarDias(fechaISO, n){
+  const d = new Date(fechaISO+'T00:00:00');
+  d.setDate(d.getDate()+n);
+  return d.toISOString().slice(0,10);
+}
+
+// puede editar el detalle de este sector: admin, o líder de ese sector puntual
+function puedeEditarDetalle(sectorKey){
+  return esAdmin() || sectorDelLider()===sectorKey;
+}
+
+function renderDetalle(){
+  ensureProduccionDetalle();
+  const cfg = state.produccionDetalle.config;
+  const selSector = document.getElementById('detalleSectorSelect');
+
+  const sectoresDisponibles = Object.keys(cfg).filter(k => cfg[k].activo && puedeVerSector(k));
+  const prevSector = detalleSectorActual;
+  selSector.innerHTML = sectoresDisponibles.map(k=>`<option value="${k}">${esc(cfg[k].label)}</option>`).join('');
+  if(!sectoresDisponibles.length){
+    document.querySelector('#view-detalle .panel-head .hint').textContent = 'No tenés sectores con este detalle habilitado para ver.';
+    document.getElementById('detalleGridWrap').innerHTML = '';
+    return;
+  }
+  detalleSectorActual = sectoresDisponibles.includes(prevSector) ? prevSector : sectoresDisponibles[0];
+  selSector.value = detalleSectorActual;
+
+  const semanaInput = document.getElementById('semanaDetalleInput');
+  if(!semanaInput.value) semanaInput.value = detalleLunesDeEstaSemana();
+
+  poblarActoresDetalle();
+  construirGridDetalle();
+  renderResumenDetalle();
+}
+
+function poblarActoresDetalle(){
+  const cfg = state.produccionDetalle.config[detalleSectorActual];
+  document.getElementById('detalleActorLabel').textContent = cfg.actorLabel;
+  const sel = document.getElementById('detalleActorSelect');
+  const prev = detalleActorActual;
+  sel.innerHTML = cfg.actores.map(a=>`<option value="${esc(a)}">${esc(a)}</option>`).join('');
+  detalleActorActual = cfg.actores.includes(prev) ? prev : (cfg.actores[0] || null);
+  if(detalleActorActual) sel.value = detalleActorActual;
+
+  const puedeEditar = puedeEditarDetalle(detalleSectorActual);
+  document.getElementById('detalleGuardarRow').style.display = puedeEditar ? 'flex' : 'none';
+  document.getElementById('detalleSoloLectura').style.display = puedeEditar ? 'none' : 'block';
+  document.getElementById('btnNuevoActor').style.display = puedeEditar ? '' : 'none';
+}
+
+function nivelesInputsHtml(fecha, valores, unidades, soloLectura){
+  // valores: { normal:{unidad:val,...}, jumbo:{...}, evolution:{...} } o { unidad: val } si no hay complejidad
+  const cfg = state.produccionDetalle.config[detalleSectorActual];
+  const dis = soloLectura ? 'disabled' : '';
+  if(!cfg.complejidad){
+    return unidades.map(u=>{
+      const v = (valores && valores[u.key]) || '';
+      return `<td style="padding:5px;text-align:center;"><input type="number" min="0" ${dis} data-fecha="${fecha}" data-campo="${u.key}" value="${v}" style="width:56px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 4px;border-radius:5px;text-align:center;"></td>`;
+    }).join('');
+  }
+  return DETALLE_NIVELES.map((niv,i)=>{
+    return unidades.map(u=>{
+      const v = (valores && valores[niv] && valores[niv][u.key]) || '';
+      const sepL = (i>0 && u===unidades[0]) ? 'border-left:1px solid var(--line2);' : '';
+      return `<td style="padding:5px;text-align:center;${sepL}"><input type="number" min="0" ${dis} data-fecha="${fecha}" data-niv="${niv}" data-campo="${u.key}" value="${v}" style="width:56px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 4px;border-radius:5px;text-align:center;"></td>`;
+    }).join('');
+  }).join('');
+}
+
+function construirGridDetalle(){
+  const wrap = document.getElementById('detalleGridWrap');
+  const cfg = state.produccionDetalle.config[detalleSectorActual];
+  const soloLectura = !puedeEditarDetalle(detalleSectorActual);
+  const lunes = document.getElementById('semanaDetalleInput').value || detalleLunesDeEstaSemana();
+
+  if(!detalleActorActual){
+    wrap.innerHTML = `<div class="hint">Todavía no hay ningún ${cfg.actorLabel.toLowerCase()} cargado en este sector. Usá "+ Nuevo" para agregar el primero.</div>`;
+    return;
+  }
+
+  const registrosActor = (state.produccionDetalle.registros[detalleSectorActual][detalleActorActual]) || {};
+
+  const headerCols = cfg.complejidad
+    ? `<tr>
+        <th rowspan="2" style="text-align:left;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;padding:6px;border-bottom:1px solid var(--line2);">Día</th>
+        <th colspan="${cfg.unidades.length}" style="font-size:11px;color:var(--ink-dim);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">Normal</th>
+        <th colspan="${cfg.unidades.length}" style="font-size:11px;color:var(--amber);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">Jumbo</th>
+        <th colspan="${cfg.unidades.length}" style="font-size:11px;color:var(--ink);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">Evolution</th>
+      </tr>
+      <tr>
+        ${[0,1,2].map(i=>cfg.unidades.map((u,j)=>`<th style="font-size:10px;color:var(--ink-faint);padding:4px;${j===0?'border-left:1px solid var(--line2);':''}">${esc(u.label)}</th>`).join('')).join('')}
+      </tr>`
+    : `<tr>
+        <th style="text-align:left;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;padding:6px;border-bottom:1px solid var(--line2);">Día</th>
+        ${cfg.unidades.map(u=>`<th style="font-size:11px;color:var(--ink-dim);padding:6px;border-bottom:1px solid var(--line2);border-left:1px solid var(--line2);">${esc(u.label)}</th>`).join('')}
+      </tr>`;
+
+  if(cfg.tipo==='simple'){
+    const filas = DETALLE_DIAS.map((nombreDia,i)=>{
+      const fecha = detalleFechaSumarDias(lunes, i);
+      const valores = registrosActor[fecha] || {};
+      return `<tr>
+        <td style="padding:5px;font-weight:600;font-size:13px;white-space:nowrap;">${nombreDia}<br><span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${fecha}</span></td>
+        ${nivelesInputsHtml(fecha, valores, cfg.unidades, soloLectura)}
+      </tr>`;
+    }).join('');
+    wrap.innerHTML = `<table style="width:100%;border-collapse:collapse;"><thead>${headerCols}</thead><tbody>${filas}</tbody></table>`;
+    return;
+  }
+
+  // tipo === 'multi': por día, lista de operarios agregable
+  const operariosCatalogo = cfg.operarios || [];
+  const bloquesDias = DETALLE_DIAS.map((nombreDia, i)=>{
+    const fecha = detalleFechaSumarDias(lunes, i);
+    const filasOperario = registrosActor[fecha] || [];
+    const filasHtml = filasOperario.map((fila, idx)=>{
+      const opts = operariosCatalogo.map(o=>`<option value="${esc(o)}" ${fila.operario===o?'selected':''}>${esc(o)}</option>`).join('');
+      const valoresNiv = {}; DETALLE_NIVELES.forEach(n=>valoresNiv[n]=fila[n]||{});
+      return `<div class="detalle-op-row" data-fecha="${fecha}" data-idx="${idx}" style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
+        <select data-op-select style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:6px 8px;border-radius:5px;font-size:12.5px;min-width:150px;" ${soloLectura?'disabled':''}>
+          <option value="">— operario —</option>${opts}
+        </select>
+        ${DETALLE_NIVELES.map(niv=>`<input type="number" min="0" ${soloLectura?'disabled':''} data-op-niv="${niv}" value="${(valoresNiv[niv]&&valoresNiv[niv][cfg.unidades[0].key])||''}" placeholder="${niv[0].toUpperCase()}" title="${niv}" style="width:52px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 4px;border-radius:5px;text-align:center;">`).join('')}
+        ${soloLectura ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-op-quitar style="padding:4px 9px;font-size:11px;">Quitar</button>`}
+      </div>`;
+    }).join('');
+    return `<div class="panel" style="padding:12px 14px;margin-bottom:10px;" data-dia-bloque="${fecha}">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;">${nombreDia} <span style="color:var(--ink-faint);font-weight:400;font-size:11px;">${fecha}</span></div>
+      <div class="detalle-op-rows" data-fecha-rows="${fecha}">${filasHtml}</div>
+      ${soloLectura ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-op-agregar="${fecha}" style="margin-top:4px;">+ agregar operario</button>`}
+    </div>`;
+  }).join('');
+
+  wrap.innerHTML = `
+    <div class="hint" style="margin-bottom:10px;">Columnas de la derecha: N=Normal, J=Jumbo, E=Evolution (${esc(cfg.unidades[0].label.toLowerCase())}).</div>
+    ${bloquesDias}`;
+
+  wrap.querySelectorAll('[data-op-agregar]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const fecha = btn.dataset.opAgregar;
+      if(!registrosActor[fecha]) registrosActor[fecha] = [];
+      registrosActor[fecha].push({operario:'', normal:{}, jumbo:{}, evolution:{}});
+      state.produccionDetalle.registros[detalleSectorActual][detalleActorActual] = registrosActor;
+      construirGridDetalle();
+    });
+  });
+  wrap.querySelectorAll('[data-op-quitar]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const row = btn.closest('.detalle-op-row');
+      const fecha = row.dataset.fecha, idx = Number(row.dataset.idx);
+      registrosActor[fecha].splice(idx,1);
+      construirGridDetalle();
+    });
+  });
+}
+
+function renderResumenDetalle(){
+  const cfg = state.produccionDetalle.config[detalleSectorActual];
+  document.getElementById('resumenDetalleActorNombre').textContent = detalleActorActual || '—';
+  const cont = document.getElementById('resumenDetalleCont');
+  const registrosActor = (detalleActorActual && state.produccionDetalle.registros[detalleSectorActual][detalleActorActual]) || {};
+  const fechas = Object.keys(registrosActor).sort();
+  if(!fechas.length){ cont.innerHTML = '<div class="hint">Todavía no hay nada cargado.</div>'; return; }
+
+  function totalUnidadPrincipal(valorDia){
+    const uKey = cfg.unidades[0].key;
+    if(cfg.tipo==='multi'){
+      return (valorDia||[]).reduce((acc,fila)=>{
+        return acc + DETALLE_NIVELES.reduce((a,n)=> a + ((fila[n]&&fila[n][uKey])||0), 0);
+      },0);
+    }
+    if(!cfg.complejidad) return (valorDia && valorDia[uKey]) || 0;
+    return DETALLE_NIVELES.reduce((a,n)=> a + ((valorDia[n]&&valorDia[n][uKey])||0), 0);
+  }
+
+  const semanas = {};
+  fechas.forEach(f=>{
+    const d = new Date(f+'T00:00:00');
+    const dow = d.getDay();
+    const diff = dow===0 ? -6 : 1-dow;
+    const l = new Date(d); l.setDate(d.getDate()+diff);
+    const lunesKey = l.toISOString().slice(0,10);
+    if(!semanas[lunesKey]) semanas[lunesKey] = {total:0, dias:0};
+    const tot = totalUnidadPrincipal(registrosActor[f]);
+    semanas[lunesKey].total += tot;
+    if(tot>0) semanas[lunesKey].dias++;
+  });
+
+  const semanasOrdenadas = Object.keys(semanas).sort().reverse();
+  const labelUnidad = cfg.unidades[0].label;
+  cont.innerHTML = `
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr>
+        <th style="text-align:left;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line2);">Semana (lunes)</th>
+        <th style="text-align:left;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line2);">Días con carga</th>
+        <th style="text-align:right;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--line2);">${esc(labelUnidad)}</th>
+      </tr></thead>
+      <tbody>
+        ${semanasOrdenadas.map(l=>`
+          <tr>
+            <td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--line);">${l}</td>
+            <td style="padding:8px 10px;font-size:13px;border-bottom:1px solid var(--line);">${semanas[l].dias} / 6</td>
+            <td style="padding:8px 10px;font-size:13px;text-align:right;font-family:var(--mono);font-weight:600;border-bottom:1px solid var(--line);">${semanas[l].total}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+document.getElementById('detalleSectorSelect').addEventListener('change', e=>{
+  detalleSectorActual = e.target.value;
+  detalleActorActual = null;
+  poblarActoresDetalle();
+  construirGridDetalle();
+  renderResumenDetalle();
+});
+document.getElementById('detalleActorSelect').addEventListener('change', e=>{
+  detalleActorActual = e.target.value;
+  construirGridDetalle();
+  renderResumenDetalle();
+});
+document.getElementById('btnNuevoActor').addEventListener('click', ()=>{
+  const cfg = state.produccionDetalle.config[detalleSectorActual];
+  if(cfg.tipo==='multi'){
+    const nombre = prompt(`Nombre del nuevo operario (para asignar en ${cfg.label}):`);
+    if(!nombre || !nombre.trim()) return;
+    const n = nombre.trim();
+    if(!cfg.operarios) cfg.operarios = [];
+    if(cfg.operarios.includes(n)){ alert('Ya existe.'); return; }
+    cfg.operarios.push(n);
+    saveState();
+    construirGridDetalle();
+    return;
+  }
+  const nombre = prompt(`Nombre del nuevo ${cfg.actorLabel.toLowerCase()}:`);
+  if(!nombre || !nombre.trim()) return;
+  const n = nombre.trim();
+  if(cfg.actores.includes(n)){ alert('Ya existe.'); return; }
+  cfg.actores.push(n);
+  saveState();
+  detalleActorActual = n;
+  poblarActoresDetalle();
+  construirGridDetalle();
+  renderResumenDetalle();
+});
+document.getElementById('semanaDetalleInput').addEventListener('change', construirGridDetalle);
+document.getElementById('btnSemanaActualDetalle').addEventListener('click', ()=>{
+  document.getElementById('semanaDetalleInput').value = detalleLunesDeEstaSemana();
+  construirGridDetalle();
+});
+document.getElementById('btnGuardarDetalle').addEventListener('click', ()=>{
+  const cfg = state.produccionDetalle.config[detalleSectorActual];
+  if(!detalleActorActual){ alert(`Elegí un ${cfg.actorLabel.toLowerCase()} primero.`); return; }
+  const registros = state.produccionDetalle.registros[detalleSectorActual];
+  if(!registros[detalleActorActual]) registros[detalleActorActual] = {};
+  const registrosActor = registros[detalleActorActual];
+
+  if(cfg.tipo==='simple'){
+    const wrap = document.getElementById('detalleGridWrap');
+    wrap.querySelectorAll('input[type=number]').forEach(inp=>{
+      const fecha = inp.dataset.fecha;
+      const val = inp.value==='' ? 0 : Number(inp.value);
+      if(!registrosActor[fecha]) registrosActor[fecha] = {};
+      if(!cfg.complejidad){
+        registrosActor[fecha][inp.dataset.campo] = val;
+      }else{
+        const niv = inp.dataset.niv;
+        if(!registrosActor[fecha][niv]) registrosActor[fecha][niv] = {};
+        registrosActor[fecha][niv][inp.dataset.campo] = val;
+      }
+    });
+  } else {
+    document.querySelectorAll('.detalle-op-rows').forEach(cont=>{
+      const fecha = cont.dataset.fechaRows;
+      const filas = [];
+      cont.querySelectorAll('.detalle-op-row').forEach(row=>{
+        const operario = row.querySelector('[data-op-select]').value;
+        const fila = {operario, normal:{}, jumbo:{}, evolution:{}};
+        row.querySelectorAll('[data-op-niv]').forEach(inp=>{
+          const val = inp.value==='' ? 0 : Number(inp.value);
+          fila[inp.dataset.opNiv][cfg.unidades[0].key] = val;
+        });
+        if(operario) filas.push(fila);
+      });
+      registrosActor[fecha] = filas;
+    });
+  }
+
+  saveState();
+  document.getElementById('saveMsgDetalle').textContent = 'Guardado ✓ — ' + new Date().toLocaleTimeString('es-AR');
+  renderResumenDetalle();
+});
+
+/* ============================================================
+   VISTA AVANCE POR SECTOR (TV) — lee directo del mismo `state`
+   ya sincronizado por esta app. No abre conexión propia a Firebase.
+   ============================================================ */
+let avTargetRes = {w:1920, h:1080};
+let avMesActual = null;
+let avDiasHabilesOverride = null;
+
+const AV_SECTOR_ORDER = ['1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
+const AV_SECTOR_SHORT = {
+  '1-ALM':'Abast.', '2-MEC':'CM', '3-SOL':'Soldado', '4-VID':'Vidrios',
+  '5-DVH':'DVH', '6-ARM':'Armado', '7-ACR':'Acrist.', '8-LI':'Fin Línea'
+};
+
+function avFmt(n, dec){
+  if(n===null || n===undefined || isNaN(n)) return '—';
+  return n.toLocaleString('es-AR', {minimumFractionDigits:dec||0, maximumFractionDigits:dec||0});
+}
+function avDaysInMonth(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
+function avHabilCount(ym, uptoDay, diasObligatorios){
+  const [y,m] = ym.split('-').map(Number);
+  let c=0;
+  for(let d=1; d<=uptoDay; d++){
+    const wd = new Date(y,m-1,d).getDay();
+    if(diasObligatorios.includes(wd)) c++;
+  }
+  return c;
+}
+function avSectorObjetivos(key){
+  const def = (state.sectores||[]).find(s=>s.nombre===key);
+  return { min: def ? def.objetivoMin : 0, opt: def ? def.objetivoOptimo : 0 };
+}
+function avFechasDelMes(){
+  return Object.keys(state.dias||{}).filter(f=>f.startsWith(avMesActual)).sort();
+}
+function avSectorStats(key){
+  const fechas = avFechasDelMes();
+  let sum=0, count=0, lastVal=null, lastDate=null;
+  for(const f of fechas){
+    const dia = state.dias[f];
+    const s = dia && dia.sectores ? dia.sectores[key] : null;
+    if(s && typeof s.cerrado === 'number'){
+      sum += s.cerrado; count++; lastVal = s.cerrado; lastDate = f;
+    }
+  }
+  const prom = count>0 ? sum/count : 0;
+  const dh = avDiasHabilesActuales();
+  const dt = avDiasTranscurridos();
+  const dr = Math.max(dh-dt, 0);
+  const estimacion = count>0 ? sum + prom*dr : sum;
+  return {sum, prom, count, lastVal, lastDate, estimacion};
+}
+function avDiasHabilesActuales(){
+  if(avDiasHabilesOverride!==null) return avDiasHabilesOverride;
+  return avHabilCount(avMesActual, avDaysInMonth(avMesActual), state.diasObligatorios||[1,2,3,4,5]);
+}
+function avDiasTranscurridos(){
+  const now = new Date();
+  const ymNow = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const dObl = state.diasObligatorios||[1,2,3,4,5];
+  if(avMesActual < ymNow) return avDiasHabilesActuales();
+  if(avMesActual > ymNow) return 0;
+  return avHabilCount(avMesActual, now.getDate(), dObl);
+}
+function avLiDailySeries(){
+  const key = state.sectorFinLinea || '8-LI';
+  const fechas = avFechasDelMes();
+  const out = []; let cum=0;
+  for(const f of fechas){
+    const dia = state.dias[f];
+    const s = dia && dia.sectores ? dia.sectores[key] : null;
+    if(s && typeof s.cerrado === 'number'){ cum += s.cerrado; out.push({date:f, cum}); }
+  }
+  return out;
+}
+
+const AV_WIDGET_IDS = ['hero','pipeline','barChart','lineChart','ranking'];
+// posiciones/tamaños por defecto (coordenadas en el espacio de diseño de 1600px de ancho)
+const AV_WIDGET_DEFAULTS = {
+  hero:      {x:0,    y:0,   w:1600, h:130},
+  pipeline:  {x:0,    y:144, w:1600, h:160},
+  barChart:  {x:0,    y:318, w:1150, h:260},
+  lineChart: {x:0,    y:592, w:1150, h:260},
+  ranking:   {x:1164, y:318, w:436,  h:534}
+};
+let avResizeObserver = null;
+let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
+
+function avAplicarLayout(){
+  if(!state.avanceLayout || !state.avanceLayout.widgets){
+    state.avanceLayout = { widgets: {} };
+  }
+  if(!state.avanceLayout.widgets) state.avanceLayout.widgets = {};
+  const lay = state.avanceLayout;
+
+  const grid = document.getElementById('avCustomGrid');
+  if(!grid) return;
+
+  let maxBottom = 0;
+  grid.querySelectorAll('.av-widget').forEach(el=>{
+    const id = el.dataset.widget;
+    const def = AV_WIDGET_DEFAULTS[id];
+    const saved = lay.widgets[id];
+    const pos = Object.assign({}, def, saved||{});
+    el.style.left = pos.x+'px';
+    el.style.top = pos.y+'px';
+    el.style.width = pos.w+'px';
+    el.style.height = pos.h+'px';
+    maxBottom = Math.max(maxBottom, pos.y+pos.h);
+  });
+  grid.style.height = (maxBottom+10)+'px';
+
+  avConectarResizeObserver();
+}
+
+function avConectarResizeObserver(){
+  const grid = document.getElementById('avCustomGrid');
+  if(!grid) return;
+  if(avResizeObserver) avResizeObserver.disconnect();
+  avResizeObserver = new ResizeObserver(entries=>{
+    entries.forEach(entry=>{
+      const id = entry.target.dataset.widget;
+      if(!id) return;
+      if(!state.avanceLayout.widgets[id]) state.avanceLayout.widgets[id] = Object.assign({}, AV_WIDGET_DEFAULTS[id]);
+      state.avanceLayout.widgets[id].w = Math.round(entry.contentRect.width);
+      state.avanceLayout.widgets[id].h = Math.round(entry.contentRect.height + 34); // + alto de la manija
+      avRecalcularAltoGrid();
+      avFitStage();
+    });
+    clearTimeout(window._avResizeSaveTimer);
+    window._avResizeSaveTimer = setTimeout(()=>{ saveState(); }, 700);
+  });
+  grid.querySelectorAll('.av-widget').forEach(el=> avResizeObserver.observe(el));
+}
+
+function avRecalcularAltoGrid(){
+  const grid = document.getElementById('avCustomGrid');
+  if(!grid) return;
+  let maxBottom = 0;
+  grid.querySelectorAll('.av-widget').forEach(el=>{
+    const top = parseFloat(el.style.top)||0;
+    const h = parseFloat(el.style.height)||0;
+    maxBottom = Math.max(maxBottom, top+h);
+  });
+  grid.style.height = (maxBottom+10)+'px';
+}
+
+function avActualizarModoEdicion(activo){
+  const view = document.getElementById('view-avance');
+  view.classList.toggle('av-editing', activo);
+  document.getElementById('avEditHint').style.display = activo ? '' : 'none';
+  document.getElementById('avEditToggle').classList.toggle('active', activo);
+}
+
+// arrastre libre: mousedown en la manija, mueve el widget en x/y siguiendo el mouse,
+// usando el factor de escala actual del escenario para que el movimiento se sienta 1:1
+document.querySelectorAll('#avCustomGrid .av-widget').forEach(w=>{
+  const handle = w.querySelector('.av-widget-handle');
+  handle.addEventListener('mousedown', e=>{
+    if(!document.getElementById('view-avance').classList.contains('av-editing')) return;
+    e.preventDefault();
+    const stage = document.getElementById('stage');
+    const stageScale = stage ? (stage.getBoundingClientRect().width / 1600) : 1;
+    avDragInfo = {
+      widget: w,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLeft: parseFloat(w.style.left)||0,
+      startTop: parseFloat(w.style.top)||0,
+      scale: stageScale
+    };
+    w.classList.add('av-dragging');
+  });
+});
+
+document.addEventListener('mousemove', e=>{
+  if(!avDragInfo) return;
+  const dx = (e.clientX - avDragInfo.startX) / avDragInfo.scale;
+  const dy = (e.clientY - avDragInfo.startY) / avDragInfo.scale;
+  const nuevoLeft = Math.max(0, avDragInfo.startLeft + dx);
+  const nuevoTop = Math.max(0, avDragInfo.startTop + dy);
+  avDragInfo.widget.style.left = nuevoLeft+'px';
+  avDragInfo.widget.style.top = nuevoTop+'px';
+  avRecalcularAltoGrid();
+  avFitStage();
+});
+
+document.addEventListener('mouseup', ()=>{
+  if(!avDragInfo) return;
+  avDragInfo.widget.classList.remove('av-dragging');
+  const id = avDragInfo.widget.dataset.widget;
+  if(!state.avanceLayout.widgets[id]) state.avanceLayout.widgets[id] = Object.assign({}, AV_WIDGET_DEFAULTS[id]);
+  state.avanceLayout.widgets[id].x = parseFloat(avDragInfo.widget.style.left)||0;
+  state.avanceLayout.widgets[id].y = parseFloat(avDragInfo.widget.style.top)||0;
+  avDragInfo = null;
+  saveState();
+});
+
+document.getElementById('avEditToggle').addEventListener('click', ()=>{
+  const activo = !document.getElementById('view-avance').classList.contains('av-editing');
+  avActualizarModoEdicion(activo);
+  avFitStage();
+});
+
+function avFitStage(){
+  const stage = document.getElementById('stage');
+  const wrap = document.getElementById('stageWrap');
+  if(!stage || !wrap) return;
+  stage.style.height = 'auto';
+  stage.style.transform = 'scale(1)';
+  const naturalH = stage.scrollHeight;
+
+  // referencia: el tamaño de pantalla elegido (si hay uno fijo) o la ventana real (automático)
+  const refW = avTargetRes ? avTargetRes.w : wrap.clientWidth;
+  const refH = avTargetRes ? avTargetRes.h : wrap.clientHeight;
+
+  // calza por ancho Y por alto contra la referencia elegida, PERO nunca más grande
+  // de lo que realmente entra en la ventana actual — así nunca hace falta scrollear,
+  // sea cual sea la resolución elegida y sea cual sea el tamaño real de la ventana.
+  const scale = Math.min(refW / 1600, refH / naturalH, wrap.clientWidth / 1600, wrap.clientHeight / naturalH);
+  stage.style.height = naturalH + 'px';
+  stage.style.transform = `scale(${scale})`;
+
+  // centra el escenario si sobra espacio en algún lado (pantalla más ancha o más alta que el contenido escalado)
+  const offsetX = Math.max((wrap.clientWidth - 1600*scale) / 2, 0);
+  const offsetY = Math.max((wrap.clientHeight - naturalH*scale) / 2, 0);
+  stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+window.addEventListener('resize', ()=>{
+  if(document.getElementById('view-avance').classList.contains('active')) avFitStage();
+});
+
+function renderAvance(){
+  avLimpiarHistoricoPromediado();
+  if(!avMesActual){
+    const now0 = new Date();
+    avMesActual = `${now0.getFullYear()}-${String(now0.getMonth()+1).padStart(2,'0')}`;
+  }
+  avAplicarLayout();
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const [y,m] = avMesActual.split('-').map(Number);
+  document.getElementById('avMesLabel').textContent = `${monthNames[m-1]} ${y}`;
+  document.getElementById('avDiasHabilesInput').value = avDiasHabilesActuales();
+
+  const liKey = state.sectorFinLinea || '8-LI';
+  const fechas = avFechasDelMes();
+  document.getElementById('avNoDataNote').style.display = fechas.length ? 'none' : 'block';
+  document.getElementById('avDashboardBody').style.display = fechas.length ? 'flex' : 'none';
+  if(!fechas.length){ avFitStage(); return; }
+
+  const li = avSectorStats(liKey);
+  const liObj = avSectorObjetivosMensual(liKey);
+  const dt = avDiasTranscurridos();
+  const dh = avDiasHabilesActuales();
+  const teoricoMinHoy = dt>0 ? (liObj.min/dh)*dt : 0;
+  const teoricoOptHoy = dt>0 ? (liObj.opt/dh)*dt : 0;
+
+  let status='bad', statusLabel='Por debajo del mínimo';
+  if(li.sum >= teoricoOptHoy){ status='good'; statusLabel='En ritmo óptimo'; }
+  else if(li.sum >= teoricoMinHoy){ status='warn'; statusLabel='Entre mínimo y óptimo'; }
+  const pctOpt = liObj.opt>0 ? (li.sum/liObj.opt*100) : 0;
+
+  document.getElementById('avHeroBlock').innerHTML = `
+    <div class="headline">
+      <div class="eyebrow">${AV_SECTOR_SHORT[liKey]||'Fin de Línea'} · acumulado real</div>
+      <div class="big">${avFmt(li.sum,0)}<span class="unit">m²</span></div>
+      <div style="margin-top:10px;"><span class="status-chip ${status}"><span class="dot"></span>${statusLabel}</span></div>
+    </div>
+    <div class="hero-stats">
+      <div class="hero-stat"><div class="lbl">Promedio diario</div><div class="val">${avFmt(li.prom,1)}</div></div>
+      <div class="hero-stat"><div class="lbl">Estimación cierre de mes</div><div class="val">${avFmt(li.estimacion,0)}</div></div>
+      <div class="hero-stat"><div class="lbl">Objetivo mín. / óptimo</div><div class="val" style="font-size:20px;">${avFmt(liObj.min,0)} / ${avFmt(liObj.opt,0)}</div></div>
+      <div class="hero-stat"><div class="lbl">% del óptimo alcanzado</div><div class="val ${status}">${avFmt(pctOpt,1)}%</div></div>
+      <div class="hero-stat"><div class="lbl">Días restantes</div><div class="val">${Math.max(dh-dt,0)}</div></div>
+    </div>
+  `;
+
+  document.getElementById('avLineChartTitle').textContent = `${AV_SECTOR_SHORT[liKey]||'Fin de Línea'} · ritmo diario acumulado en el mes`;
+
+  const pipeline = document.getElementById('avPipeline');
+  pipeline.innerHTML = AV_SECTOR_ORDER.map(key=>{
+    const st = avSectorStats(key);
+    const scaleMax = Math.max(st.estimacion, st.sum, 1) * 1.12;
+    const fillPct = Math.min(st.sum/scaleMax*100, 100);
+    const hoy = st.lastVal;
+    const trendUp = hoy!==null && hoy >= st.prom;
+    const trendArrow = hoy===null ? '' : (trendUp ? '<span class="trend up">▲</span>' : '<span class="trend down">▼</span>');
+    const isLI = key===liKey;
+    return `
+      <div class="sector-card ${isLI ? 'hero-sector' : ''}">
+        <div class="sector-name">${AV_SECTOR_SHORT[key]}${isLI ? '<span class="li-tag">KPI</span>' : ''}</div>
+        <div class="gauge-track"><div class="gauge-fill" style="width:${fillPct}%;"></div></div>
+        <div class="sector-figs">
+          <div class="row"><span class="k">Hoy</span><span class="v">${avFmt(hoy,1)}${trendArrow}</span></div>
+          <div class="row"><span class="k">Prom./día</span><span class="v">${avFmt(st.prom,1)}</span></div>
+          <div class="row"><span class="k">Acumulado</span><span class="v">${avFmt(st.sum,0)}</span></div>
+          <div class="row"><span class="k">Estimación</span><span class="v">${avFmt(st.estimacion,0)}</span></div>
+        </div>
+        <svg class="flow-arrow" viewBox="0 0 16 16"><path d="M2 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>`;
+  }).join('');
+
+  avDrawBarChart();
+  avDrawChart();
+  avRenderRanking();
+  avFitStage();
+}
+
+function avSectorObjetivosMensual(key){
+  const o = avSectorObjetivos(key);
+  const dh = avDiasHabilesActuales();
+  return { min: o.min*dh, opt: o.opt*dh };
+}
+function avSectorUmbralPulmon(key){
+  const def = (state.sectores||[]).find(s=>s.nombre===key);
+  return (def && typeof def.umbralPulmonBajo==='number') ? def.umbralPulmonBajo : (state.umbralPulmonBajoDefault||50);
+}
+function avCalcularRanking(fechas){
+  return AV_SECTOR_ORDER.map(key=>{
+    let cerrado=0;
+    fechas.forEach(f=>{
+      const s = state.dias[f] && state.dias[f].sectores ? state.dias[f].sectores[key] : null;
+      if(s && typeof s.cerrado==='number'){ cerrado += s.cerrado; }
+    });
+    const obj = avSectorObjetivos(key);
+    const objetivoPeriodo = obj.min * fechas.length;
+    const cumplimiento = objetivoPeriodo>0 ? Math.min((cerrado/objetivoPeriodo)*100, 130) : 0;
+
+    const umbral = avSectorUmbralPulmon(key);
+    let diasConPulmon=0, diasSobreUmbral=0;
+    fechas.forEach(f=>{
+      const v = state.pulmones[f] ? state.pulmones[f][key] : undefined;
+      if(v!==undefined){ diasConPulmon++; if(v>=umbral) diasSobreUmbral++; }
+    });
+    const disciplina = diasConPulmon>0 ? (diasSobreUmbral/diasConPulmon*100) : 0;
+
+    const score = Math.round((Math.min(cumplimiento,100) + disciplina)/2);
+    return { key, cumplimiento: Math.round(cumplimiento), disciplina: Math.round(disciplina), score };
+  }).sort((a,b)=>b.score-a.score);
+}
+function avRenderRankingLista(elId, ranking){
+  const cont = document.getElementById(elId);
+  const clases = ['top1','top2','top3'];
+  cont.innerHTML = ranking.map((r,i)=>`
+    <div class="rank-row ${clases[i]||''}" title="Cumplimiento ${r.cumplimiento}% · Disciplina de pulmón ${r.disciplina}%">
+      <div class="rank-pos">${i+1}</div>
+      <div style="flex:1;">
+        <div style="display:flex; justify-content:space-between; align-items:baseline;">
+          <span class="rank-name">${AV_SECTOR_SHORT[r.key]}</span>
+          <span class="rank-score">${r.score}</span>
+        </div>
+        <div class="rank-bar"><div style="width:${Math.min(r.score,100)}%;"></div></div>
+      </div>
+    </div>
+  `).join('');
+}
+function avRenderRanking(){
+  const hoy = new Date().toISOString().slice(0,10);
+  avRenderRankingLista('avRankingHoy', avCalcularRanking([hoy]));
+
+  const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const [y,m] = avMesActual.split('-').map(Number);
+  document.getElementById('avRankingMesTitulo').textContent = `Este mes (${monthNames[m-1]})`;
+  const fechasMes = avFechasDelMes().length ? avFechasDelMes() : [hoy];
+  avRenderRankingLista('avRankingMes', avCalcularRanking(fechasMes));
+}
+
+function avDrawBarChart(){
+  const svg = document.getElementById('avBarChartSvg');
+  const W=1200, H=240, padL=70, padR=20, padT=28, padB=34;
+  const n = AV_SECTOR_ORDER.length;
+  const gap = 16;
+  const barW = (W-padL-padR-gap*(n-1))/n;
+
+  const stats = AV_SECTOR_ORDER.map(k=>avSectorStats(k));
+  const objs = AV_SECTOR_ORDER.map(k=>avSectorObjetivosMensual(k));
+  const maxY = Math.max(...stats.map(s=>s.estimacion), ...objs.map(o=>o.opt), 1) * 1.12;
+  const y = v => H-padB - (H-padT-padB) * (v/maxY);
+  const barH = v => (H-padT-padB) * (v/maxY);
+
+  let svgContent = '';
+  const gridSteps = 4;
+  for(let g=0; g<=gridSteps; g++){
+    const val = maxY/gridSteps*g;
+    svgContent += `<line x1="${padL}" y1="${y(val)}" x2="${W-padR}" y2="${y(val)}" stroke="#2A3441" stroke-width="1"/>`;
+    svgContent += `<text x="${padL-10}" y="${y(val)+4}" text-anchor="end" font-size="11" fill="#8792A2" font-family="Inter, sans-serif">${avFmt(val,0)}</text>`;
+  }
+
+  const liKey = state.sectorFinLinea || '8-LI';
+  AV_SECTOR_ORDER.forEach((key, i)=>{
+    const st = stats[i];
+    const obj = objs[i];
+    const bx = padL + i*(barW+gap);
+    const estH = barH(st.estimacion);
+    const accH = barH(st.sum);
+    const isLI = key===liKey;
+    if(obj.min>0) svgContent += `<line x1="${bx-2}" y1="${y(obj.min)}" x2="${bx+barW+2}" y2="${y(obj.min)}" stroke="#E1432E" stroke-width="1.6" stroke-dasharray="4 3"/>`;
+    if(obj.opt>0) svgContent += `<line x1="${bx-2}" y1="${y(obj.opt)}" x2="${bx+barW+2}" y2="${y(obj.opt)}" stroke="#D9A23E" stroke-width="1.6" stroke-dasharray="4 3"/>`;
+    svgContent += `<rect x="${bx}" y="${H-padB-estH}" width="${barW}" height="${estH}" fill="none" stroke="#4A5566" stroke-width="1.3" rx="3"/>`;
+    svgContent += `<rect x="${bx}" y="${H-padB-accH}" width="${barW}" height="${accH}" fill="${isLI?'#E1432E':'#3A7F91'}" rx="3"/>`;
+    svgContent += `<text x="${bx+barW/2}" y="${H-padB-estH-8}" text-anchor="middle" font-size="12" font-weight="600" fill="#EAEEF3" font-family="Inter, sans-serif">${avFmt(st.estimacion,0)}</text>`;
+    const accLabelY = accH>18 ? H-padB-accH+14 : H-padB-accH-6;
+    const accLabelColor = accH>18 ? '#0A1015' : '#8792A2';
+    svgContent += `<text x="${bx+barW/2}" y="${accLabelY}" text-anchor="middle" font-size="10.5" fill="${accLabelColor}" font-family="Inter, sans-serif">${avFmt(st.sum,0)}</text>`;
+    svgContent += `<text x="${bx+barW/2}" y="${H-14}" text-anchor="middle" font-size="11" fill="${isLI?'#E1432E':'#8792A2'}" font-family="Inter, sans-serif" font-weight="${isLI?600:400}">${AV_SECTOR_SHORT[key]}</text>`;
+  });
+
+  svg.innerHTML = svgContent;
+}
+
+function avDrawChart(){
+  const svg = document.getElementById('avChartSvg');
+  const W=1200, H=240, padL=64, padR=24, padT=16, padB=30;
+  const liKey = state.sectorFinLinea || '8-LI';
+  const totalDias = avDiasHabilesActuales();
+  const series = avLiDailySeries();
+  const li = avSectorStats(liKey);
+  const liObj = avSectorObjetivosMensual(liKey);
+
+  const maxY = Math.max(liObj.opt, li.estimacion, series.length ? series[series.length-1].cum : 0, 1) * 1.08;
+  const x = i => padL + (W-padL-padR) * (i/totalDias);
+  const y = v => H-padB - (H-padT-padB) * (v/maxY);
+
+  let svgContent = '';
+  const gridSteps = 4;
+  for(let g=0; g<=gridSteps; g++){
+    const val = maxY/gridSteps*g;
+    svgContent += `<line x1="${padL}" y1="${y(val)}" x2="${W-padR}" y2="${y(val)}" stroke="#2A3441" stroke-width="1"/>`;
+    svgContent += `<text x="${padL-10}" y="${y(val)+4}" text-anchor="end" font-size="11" fill="#8792A2" font-family="Inter, sans-serif">${avFmt(val,0)}</text>`;
+  }
+  const step = Math.max(Math.ceil(totalDias/12),1);
+  for(let d=0; d<=totalDias; d+=step){
+    svgContent += `<text x="${x(d)}" y="${H-10}" text-anchor="middle" font-size="10.5" fill="#8792A2" font-family="Inter, sans-serif">${d}</text>`;
+  }
+
+  const minPts=[[0,0],[totalDias, liObj.min]], optPts=[[0,0],[totalDias, liObj.opt]];
+  const toPath = pts => pts.map((p,i)=>`${i===0?'M':'L'} ${x(p[0])} ${y(p[1])}`).join(' ');
+  svgContent += `<path d="${toPath(minPts)}" stroke="#E1432E" stroke-width="2" stroke-dasharray="6 5" fill="none"/>`;
+  svgContent += `<path d="${toPath(optPts)}" stroke="#D9A23E" stroke-width="2" stroke-dasharray="6 5" fill="none"/>`;
+
+  if(series.length){
+    const realPts = series.map((s,i)=>[i+1, s.cum]);
+    svgContent += `<path d="${toPath(realPts)}" stroke="#E1432E" stroke-width="3" fill="none"/>`;
+    const last = realPts[realPts.length-1];
+    const projPts = [last, [totalDias, li.estimacion]];
+    svgContent += `<path d="${toPath(projPts)}" stroke="#E1432E" stroke-width="2" stroke-dasharray="4 5" fill="none" opacity="0.65"/>`;
+    svgContent += `<circle cx="${x(last[0])}" cy="${y(last[1])}" r="5" fill="#E1432E"/>`;
+    svgContent += `<text x="${x(last[0])+8}" y="${y(last[1])-8}" font-size="11" fill="#E1432E" font-family="Inter, sans-serif">${avFmt(last[1],0)}</text>`;
+    const projEnd=[totalDias, li.estimacion];
+    svgContent += `<circle cx="${x(projEnd[0])}" cy="${y(projEnd[1])}" r="4" fill="none" stroke="#E1432E" stroke-width="1.6"/>`;
+    svgContent += `<text x="${x(projEnd[0])-8}" y="${y(projEnd[1])-8}" text-anchor="end" font-size="11" fill="#E1432E" font-family="Inter, sans-serif">${avFmt(projEnd[1],0)} est.</text>`;
+  }
+  svg.innerHTML = svgContent;
+}
+
+function avShiftMonth(delta){
+  let [y,m] = avMesActual.split('-').map(Number);
+  m += delta;
+  if(m<1){m=12;y--;} if(m>12){m=1;y++;}
+  avMesActual = `${y}-${String(m).padStart(2,'0')}`;
+  avDiasHabilesOverride = null;
+  renderAvance();
+}
+document.getElementById('avMesPrev').addEventListener('click', ()=>avShiftMonth(-1));
+document.getElementById('avMesNext').addEventListener('click', ()=>avShiftMonth(1));
+document.getElementById('avDiasHabilesInput').addEventListener('change', e=>{
+  avDiasHabilesOverride = Number(e.target.value)||0; renderAvance();
+});
+document.getElementById('avResSelect').addEventListener('change', e=>{
+  const val = e.target.value;
+  if(val==='auto'){ avTargetRes = null; }
+  else{
+    const [w,h] = val.split('x').map(Number);
+    avTargetRes = {w,h};
+  }
+  avFitStage();
+});
+document.getElementById('avCfgToggle').addEventListener('click', ()=>{
+  document.getElementById('avConfigDrawer').classList.toggle('open');
+  setTimeout(avFitStage, 50);
+});
+document.getElementById('avTvToggle').addEventListener('click', ()=>{
+  document.getElementById('view-avance').classList.toggle('tv-mode');
+  setTimeout(avFitStage, 50);
+});
+
+function avTickClock(){
+  const now = new Date();
+  const hh=String(now.getHours()).padStart(2,'0'), mm=String(now.getMinutes()).padStart(2,'0');
+  const dd=String(now.getDate()).padStart(2,'0'), mo=String(now.getMonth()+1).padStart(2,'0');
+  document.getElementById('avClock').innerHTML = `<span class="d">${hh}:${mm}</span>${dd}/${mo}/${now.getFullYear()}`;
+}
+setInterval(avTickClock, 1000*30); avTickClock();
+
+
 function irASeccion(nav, sub){
   document.querySelectorAll('.sidebar-nav-btn').forEach(b=>b.classList.toggle('active', b.dataset.nav===nav));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
@@ -2013,6 +3197,8 @@ function irASeccion(nav, sub){
     renderHistorial();
   }
   if(nav==='config') renderConfig();
+  if(nav==='detalle') renderDetalle();
+  if(nav==='avance') renderAvance();
 }
 
 document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
@@ -3031,6 +4217,7 @@ let filtroHistorialDesde = null;
 let filtroHistorialHasta = null;
 
 function renderHistorial(){
+  avLimpiarHistoricoPromediado();
   const cont = document.getElementById('historialList');
   document.getElementById('inputFiltroGraficosDesde').value = filtroGraficosDesde || '';
   document.getElementById('inputFiltroGraficosHasta').value = filtroGraficosHasta || '';
@@ -3828,6 +5015,7 @@ function renderConfig(){
   document.getElementById('cfgUmbralPulmon').value = state.umbralPulmonBajoDefault;
   renderDiasObligatorios();
   renderChecksCausaMasivaCatalogo();
+  renderConfigDetalle();
 
   const selFinLinea = document.getElementById('cfgSectorFinLinea');
   selFinLinea.innerHTML = state.sectores.map(s=>`<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
