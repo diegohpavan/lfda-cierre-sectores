@@ -441,6 +441,7 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
 #view-avance #avEditToggle.active{background:var(--av-brand); border-color:var(--av-brand); color:#fff;}
 #view-avance #avCustomGrid{position:relative; width:100%;}
 #view-avance .av-widget{position:absolute; background:var(--av-panel); border:1px solid var(--av-line); border-radius:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; min-width:220px; min-height:120px;}
+#view-avance .av-widget[data-widget="header"]{overflow:visible; z-index:20;}
 #view-avance .av-widget-handle{padding:7px 12px; font-size:11px; font-weight:600; color:var(--av-muted); border-bottom:1px solid var(--av-line); user-select:none; flex-shrink:0; letter-spacing:.02em;}
 #view-avance .av-widget-body{flex:1; min-height:0; padding:10px 12px; overflow:auto;}
 #view-avance.av-editing .av-widget{resize:both; overflow:auto; border:1.5px dashed var(--av-brand);}
@@ -759,65 +760,70 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
   <div class="view" id="view-avance">
 <div id="stageWrap"><div id="stage">
 
-<header>
-  <div class="title-block">
-    <div class="eyebrow">LFDA · Producción</div>
-    <h1>Avance por Sector</h1>
-    <div class="sub">
-      <span class="sync-dot on" id="avSyncDot"></span>
-      <span id="avSyncLabel">En vivo</span>
-      <div class="month-nav">
-        <button id="avMesPrev">‹</button>
-        <span class="lbl" id="avMesLabel">—</span>
-        <button id="avMesNext">›</button>
-      </div>
-    </div>
-  </div>
-  <div class="right">
-    <div id="avClock"><span class="d">--:--</span>--/--/----</div>
-    <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
-    <button class="btn" id="avOpenTabBtn">🔗 Abrir en pestaña nueva</button>
-    <button class="btn" id="avTvToggle">▭ Modo TV</button>
-  </div>
-</header>
-
-<div id="avConfigDrawer">
-  <div class="cfg-grid">
-    <div class="cfg-field">
-      <label>Días hábiles de este mes</label>
-      <input type="number" id="avDiasHabilesInput">
-    </div>
-    <div class="cfg-field">
-      <label>Resolución de la pantalla</label>
-      <select id="avResSelect">
-        <option value="auto">Automático (ajustar a la ventana)</option>
-        <option value="1920x1080" selected>1920 × 1080 (Full HD)</option>
-        <option value="1366x768">1366 × 768</option>
-        <option value="3840x2160">3840 × 2160 (4K)</option>
-        <option value="1280x720">1280 × 720</option>
-      </select>
-    </div>
-  </div>
-
-  <div class="help-txt">
-    Los objetivos mín./óptimo por sector y el histórico completo vienen directo de esta misma app — no hay que cargar nada acá.
-    Los días hábiles se calculan solos (lunes a viernes, según tu configuración de días obligatorios), pero podés ajustarlos si hubo un feriado.
-    Elegí la resolución real de la pantalla/TV donde se va a mostrar para que encaje exacto y no haga falta scrollear.
-    Para mover o cambiar el tamaño de cada bloque, usá el botón "🔧 Editar diseño" abajo del todo.
-  </div>
-</div>
-
 <div id="avNoDataNote" class="empty-note" style="display:none;">
   Todavía no hay días confirmados para este mes.
 </div>
 
-<div id="avDashboardBody" style="display:none;">
-  <div id="avEditBar">
-    <button class="btn" id="avEditToggle">🔧 Editar diseño</button>
-    <span class="hint" id="avEditHint" style="display:none;">Arrastrá el título de un bloque para moverlo. Arrastrá la esquina inferior derecha para cambiar su tamaño.</span>
-  </div>
-
+<div id="avDashboardBody">
   <div id="avCustomGrid">
+    <div class="av-widget" data-widget="header">
+      <div class="av-widget-handle">⠿ Encabezado</div>
+      <div class="av-widget-body" style="overflow:visible;">
+        <header>
+          <div class="title-block">
+            <div class="eyebrow">LFDA · Producción</div>
+            <h1>Avance por Sector</h1>
+            <div class="sub">
+              <span class="sync-dot on" id="avSyncDot"></span>
+              <span id="avSyncLabel">En vivo</span>
+              <div class="month-nav">
+                <button id="avMesPrev">‹</button>
+                <span class="lbl" id="avMesLabel">—</span>
+                <button id="avMesNext">›</button>
+              </div>
+            </div>
+          </div>
+          <div class="right">
+            <div id="avClock"><span class="d">--:--</span>--/--/----</div>
+            <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
+            <button class="btn" id="avOpenTabBtn">🔗 Abrir en pestaña nueva</button>
+            <button class="btn" id="avTvToggle">▭ Modo TV</button>
+          </div>
+        </header>
+
+        <div id="avConfigDrawer">
+          <div class="cfg-grid">
+            <div class="cfg-field">
+              <label>Días hábiles de este mes</label>
+              <input type="number" id="avDiasHabilesInput">
+            </div>
+            <div class="cfg-field">
+              <label>Resolución de la pantalla</label>
+              <select id="avResSelect">
+                <option value="auto">Automático (ajustar a la ventana)</option>
+                <option value="1920x1080" selected>1920 × 1080 (Full HD)</option>
+                <option value="1366x768">1366 × 768</option>
+                <option value="3840x2160">3840 × 2160 (4K)</option>
+                <option value="1280x720">1280 × 720</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="help-txt">
+            Los objetivos mín./óptimo por sector y el histórico completo vienen directo de esta misma app — no hay que cargar nada acá.
+            Los días hábiles se calculan solos (lunes a viernes, según tu configuración de días obligatorios), pero podés ajustarlos si hubo un feriado.
+            Elegí la resolución real de la pantalla/TV donde se va a mostrar para que encaje exacto y no haga falta scrollear.
+            Para mover o cambiar el tamaño de cada bloque (incluido este encabezado), usá el botón "🔧 Editar diseño".
+          </div>
+        </div>
+
+        <div id="avEditBar">
+          <button class="btn" id="avEditToggle">🔧 Editar diseño</button>
+          <span class="hint" id="avEditHint" style="display:none;">Arrastrá el título de un bloque para moverlo. Arrastrá la esquina inferior derecha para cambiar su tamaño.</span>
+        </div>
+      </div>
+    </div>
+
     <div class="av-widget" data-widget="hero">
       <div class="av-widget-handle">⠿ Fin de línea · acumulado real</div>
       <div class="av-widget-body"><div class="hero" id="avHeroBlock"></div></div>
@@ -3086,11 +3092,12 @@ function avLiDailySeries(){
 const AV_WIDGET_IDS = ['hero','pipeline','barChart','lineChart','ranking'];
 // posiciones/tamaños por defecto (coordenadas en el espacio de diseño de 1600px de ancho)
 const AV_WIDGET_DEFAULTS = {
-  hero:      {x:0,    y:0,   w:1600, h:130},
-  pipeline:  {x:0,    y:144, w:1600, h:160},
-  barChart:  {x:0,    y:318, w:1150, h:260},
-  lineChart: {x:0,    y:592, w:1150, h:260},
-  ranking:   {x:1164, y:318, w:436,  h:534}
+  header:    {x:0,    y:0,   w:1600, h:110},
+  hero:      {x:0,    y:120, w:1600, h:130},
+  pipeline:  {x:0,    y:264, w:1600, h:160},
+  barChart:  {x:0,    y:438, w:1150, h:260},
+  lineChart: {x:0,    y:712, w:1150, h:260},
+  ranking:   {x:1164, y:438, w:436,  h:534}
 };
 let avResizeObserver = null;
 let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
@@ -3262,8 +3269,7 @@ function renderAvance(){
   const liKey = state.sectorFinLinea || '8-LI';
   const fechas = avFechasDelMes();
   document.getElementById('avNoDataNote').style.display = fechas.length ? 'none' : 'block';
-  document.getElementById('avDashboardBody').style.display = fechas.length ? 'flex' : 'none';
-  if(!fechas.length){ avFitStage(); return; }
+  if(!fechas.length){ avFitStage(); }
 
   const li = avSectorStats(liKey);
   const liObj = avSectorObjetivosMensual(liKey);
