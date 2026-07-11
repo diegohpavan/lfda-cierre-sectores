@@ -3151,8 +3151,7 @@ function avConectarResizeObserver(){
     if(huboCambioReal){
       avRecalcularAltoGrid();
       avFitStage();
-      clearTimeout(window._avResizeSaveTimer);
-      window._avResizeSaveTimer = setTimeout(()=>{ saveState(); }, 700);
+      saveState();
     }
   });
   grid.querySelectorAll('.av-widget').forEach(el=> avResizeObserver.observe(el));
@@ -3175,6 +3174,14 @@ function avActualizarModoEdicion(activo){
   view.classList.toggle('av-editing', activo);
   document.getElementById('avEditHint').style.display = activo ? '' : 'none';
   document.getElementById('avEditToggle').classList.toggle('active', activo);
+  if(!activo){
+    // al salir del modo edición es el momento natural de "ya terminé de acomodar todo" —
+    // forzamos el guardado ya, sin esperar el debounce de 600ms, para no perder nada
+    // si recargás la página enseguida.
+    saveState();
+    document.getElementById('avEditToggle').textContent = '💾 Guardando diseño…';
+    setTimeout(()=>{ document.getElementById('avEditToggle').textContent = '🔧 Editar diseño'; }, 900);
+  }
 }
 
 // arrastre libre: mousedown en la manija, mueve el widget en x/y siguiendo el mouse,
@@ -3245,14 +3252,33 @@ function avFitStage(){
   const scale = Math.min(refW / 1600, refH / naturalH, wrap.clientWidth / 1600, wrap.clientHeight / naturalH);
   stage.style.height = naturalH + 'px';
   stage.style.transform = `scale(${scale})`;
-
-  // siempre arranca pegado arriba a la izquierda — si sobra espacio, queda del
-  // lado derecho/abajo, nunca como margen muerto a la izquierda
-  stage.style.transform = `scale(${scale})`;
 }
 window.addEventListener('resize', ()=>{
   if(document.getElementById('view-avance').classList.contains('active')) avFitStage();
 });
+// robusto ante pestañas nuevas: el navegador puede tardar en "asentar" el tamaño real
+// de una pestaña recién abierta (sobre todo si no queda enfocada de entrada). En vez
+// de adivinar con tiempos de espera fijos, reaccionamos apenas el tamaño real cambia
+// o la pestaña pasa a estar visible.
+(function(){
+  const wrap = document.getElementById('stageWrap');
+  if(wrap && window.ResizeObserver){
+    let ultimoAncho = 0;
+    const ro = new ResizeObserver(()=>{
+      if(wrap.clientWidth!==ultimoAncho){
+        ultimoAncho = wrap.clientWidth;
+        if(document.getElementById('view-avance').classList.contains('active')) avFitStage();
+      }
+    });
+    ro.observe(wrap);
+  }
+  document.addEventListener('visibilitychange', ()=>{
+    if(!document.hidden && document.getElementById('view-avance').classList.contains('active')) avFitStage();
+  });
+  window.addEventListener('beforeunload', ()=>{
+    if(document.getElementById('view-avance').classList.contains('av-editing')) saveState();
+  });
+})();
 
 function renderAvance(){
   avLimpiarHistoricoPromediado();
