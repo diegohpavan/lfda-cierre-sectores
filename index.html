@@ -784,6 +784,15 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       <div id="detalleGraficoChartWrap" style="height:300px;"><canvas id="chartDetalleEvolucion"></canvas></div>
       <div id="detalleGraficoResumen" style="margin-top:14px;"></div>
     </div>
+
+    <div class="panel" id="detalleComplejidadPanel">
+      <div class="panel-head">
+        <h2>Comparar por complejidad (Normal / Jumbo / Evolution)</h2>
+        <span class="hint">Total del período filtrado arriba, por persona/máquina elegida.</span>
+      </div>
+      <div id="detalleComplejidadEmpty" class="empty-state" style="display:none;"><div class="big">—</div>Este sector no distingue complejidad, o no hay ningún actor elegido.</div>
+      <div id="detalleComplejidadChartWrap" style="height:300px;"><canvas id="chartDetalleComplejidad"></canvas></div>
+    </div>
     </div>
   </div>
 
@@ -2689,6 +2698,80 @@ function renderDetalleGrafico(){
       <div class="hint">${valores.length} día(s) con carga · promedio ${fmt(prom,1)} · total ${fmt(total)}</div>
     </div>`;
   }).join('')}</div>`;
+
+  renderDetalleComplejidad(fechas, seleccionados, cfg);
+}
+
+let chartDetalleComplejidadInstance = null;
+const NIVEL_COLOR = {normal:'#8d9199', jumbo:'#e8a33d', evolution:'#5b8def'};
+const NIVEL_LABEL = {normal:'Normal', jumbo:'Jumbo', evolution:'Evolution'};
+
+function nivelesActorEnFecha(sectorKey, actor, fecha, unidadIdx){
+  const cfg = state.produccionDetalle.config[sectorKey];
+  const reg = (state.produccionDetalle.registros[sectorKey] && state.produccionDetalle.registros[sectorKey][actor] && state.produccionDetalle.registros[sectorKey][actor][fecha]) || null;
+  if(!reg || !cfg.complejidad) return null;
+  const uKey = cfg.unidades[unidadIdx||0].key;
+  const out = {normal:0, jumbo:0, evolution:0};
+  if(cfg.tipo==='multi'){
+    (reg||[]).forEach(fila=>{
+      DETALLE_NIVELES.forEach(n=>{ out[n] += (fila[n]&&fila[n][uKey])||0; });
+    });
+  }else{
+    DETALLE_NIVELES.forEach(n=>{ out[n] += (reg[n]&&reg[n][uKey])||0; });
+  }
+  return out;
+}
+
+// gráfico independiente: barras apiladas por Normal/Jumbo/Evolution, una barra por
+// actor con el TOTAL del período ya filtrado arriba (mismo sector/unidad/fechas/actores).
+function renderDetalleComplejidad(fechas, seleccionados, cfg){
+  const emptyDiv = document.getElementById('detalleComplejidadEmpty');
+  const wrap = document.getElementById('detalleComplejidadChartWrap');
+
+  if(!cfg.complejidad || !seleccionados.length){
+    emptyDiv.style.display='';
+    wrap.style.display='none';
+    if(chartDetalleComplejidadInstance){ chartDetalleComplejidadInstance.destroy(); chartDetalleComplejidadInstance=null; }
+    return;
+  }
+  emptyDiv.style.display='none';
+  wrap.style.display='';
+
+  const totalesPorActor = seleccionados.map(actor=>{
+    const tot = {normal:0, jumbo:0, evolution:0};
+    fechas.forEach(f=>{
+      const niveles = nivelesActorEnFecha(detalleGraficoSectorActual, actor, f, detalleGraficoUnidadIdx);
+      if(niveles) DETALLE_NIVELES.forEach(n=> tot[n]+=niveles[n]);
+    });
+    return tot;
+  });
+
+  const canvas = document.getElementById('chartDetalleComplejidad');
+  if(chartDetalleComplejidadInstance) chartDetalleComplejidadInstance.destroy();
+  chartDetalleComplejidadInstance = new Chart(canvas.getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: seleccionados,
+      datasets: DETALLE_NIVELES.map(n=>({
+        label: NIVEL_LABEL[n],
+        data: totalesPorActor.map(t=>Math.round(t[n]*10)/10),
+        backgroundColor: NIVEL_COLOR[n],
+        stack: 'total'
+      }))
+    },
+    options: {
+      responsive:true,
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{ labels:{color:'#e8e9ea', font:{size:11}, boxWidth:12} },
+        tooltip:{ callbacks:{ label: (ctx)=> `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } }
+      },
+      scales:{
+        x:{ stacked:true, ticks:{color:'#8d9199', font:{size:10.5}}, grid:{color:'#2c3038'} },
+        y:{ stacked:true, ticks:{color:'#8d9199'}, grid:{color:'#2c3038'}, beginAtZero:true }
+      }
+    }
+  });
 }
 
 function renderDetalle(){
