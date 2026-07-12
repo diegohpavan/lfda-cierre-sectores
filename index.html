@@ -3597,14 +3597,19 @@ document.getElementById('btnGproProcesar').addEventListener('click', ()=>{
   let lineasIgnoradas = 0;
   lineas.forEach(linea=>{
     const celdas = linea.split('\t').map(c=>c.trim());
-    const fecha = gproParsearFecha(celdas[0]||'');
+    // la fecha puede no estar en la primera celda (ej. si copiaste desde Excel con una
+    // columna A vacía antes de "FECHA") — buscamos la primera celda que sea una fecha válida.
+    let fechaIdx = -1, fecha = null;
+    for(let k=0; k<celdas.length; k++){
+      const f = gproParsearFecha(celdas[k]);
+      if(f){ fecha = f; fechaIdx = k; break; }
+    }
     if(!fecha){ lineasIgnoradas++; return; }
-    // G-PRO a veces exporta con una columna vacía intercalada entre cada dato
-    // (por las columnas UDS ocultas) — si la fila tiene muchas celdas, es ese formato
-    // espaciado (fecha, "", valor, "", valor, "", ...) en vez del formato compacto.
-    const conEspaciador = celdas.length > 12;
+    // G-PRO a veces exporta con una columna vacía intercalada entre cada dato (por las
+    // columnas UDS ocultas): fecha, "", valor, "", valor... en vez de fecha, valor, valor...
+    const conEspaciador = celdas[fechaIdx+1]==='' && celdas.length > fechaIdx+4;
     GPRO_SYNC_SECTOR_MAP.forEach((sectorKey, i)=>{
-      const idx = conEspaciador ? (2 + i*2) : (1 + i);
+      const idx = conEspaciador ? (fechaIdx+2 + i*2) : (fechaIdx+1 + i);
       const valor = gproParsearNumero(celdas[idx]);
       if(valor===null) return; // vacío en el pegado: no se toca ese día/sector
       const diaExistente = state.dias[fecha];
