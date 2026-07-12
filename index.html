@@ -1485,9 +1485,10 @@ function subirEstadoAFirestore(){
     // de la PWA) — en ese caso NO subimos, para no borrar accidentalmente historial real.
     firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).get().then(snap=>{
       let bloquear = false;
+      let dataRemota = null;
       if(snap.exists){
         try{
-          const dataRemota = snap.data();
+          dataRemota = snap.data();
           // soporta tanto el documento viejo (string en "json") como el nuevo (campos directos)
           const diasRemoto = dataRemota.json
             ? Object.keys((JSON.parse(dataRemota.json).dias)||{}).length
@@ -1495,13 +1496,21 @@ function subirEstadoAFirestore(){
           const diasLocal = Object.keys(state.dias||{}).length;
           if(diasRemoto > diasLocal){
             bloquear = true;
-            console.warn(`Subida bloqueada: la nube tiene ${diasRemoto} días confirmados y la copia local solo ${diasLocal}. Recargá la página antes de seguir cargando, para traer la versión más reciente.`);
-            actualizarIndicadorSync('local');
-            toast('⚠ Se detectó que tu copia local tiene menos historial que la nube — recargá la página antes de seguir', true);
+            console.warn(`Subida bloqueada: la nube tiene ${diasRemoto} días confirmados y la copia local solo ${diasLocal}. Autocorrigiendo con la versión de la nube.`);
+            actualizarIndicadorSync('online');
+            toast('⚠ Tu copia estaba desactualizada (menos historial que la nube) — se corrigió sola con la versión más reciente', true);
           }
         }catch(e){ /* si no se puede parsear lo remoto, seguimos con la subida normal */ }
       }
-      if(bloquear){ window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0); return; }
+      if(bloquear){
+        // en vez de solo avisar y dejarte seguir trabajando con datos viejos, traemos
+        // ya mismo la versión real de la nube — así cualquier guardado posterior
+        // parte de la base correcta, sin arriesgar pisar historial ajeno (ej. otra PC
+        // o un líder que cargó algo mientras tanto).
+        window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0);
+        if(dataRemota && !dataRemota.json) aplicarEstadoRemoto(dataRemota);
+        return;
+      }
 
       firestoreUltimoGuardadoLocal = Date.now();
       firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set({
