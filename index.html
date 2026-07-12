@@ -1486,6 +1486,8 @@ function subirEstadoAFirestore(){
     firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).get().then(snap=>{
       let bloquear = false;
       let dataRemota = null;
+      const omitirEsteChequeo = !!window.avOmitirChequeoDias;
+      window.avOmitirChequeoDias = false;
       if(snap.exists){
         try{
           dataRemota = snap.data();
@@ -1494,7 +1496,7 @@ function subirEstadoAFirestore(){
             ? Object.keys((JSON.parse(dataRemota.json).dias)||{}).length
             : Object.keys(dataRemota.dias||{}).length;
           const diasLocal = Object.keys(state.dias||{}).length;
-          if(diasRemoto > diasLocal){
+          if(diasRemoto > diasLocal && !omitirEsteChequeo){
             bloquear = true;
             console.warn(`Subida bloqueada: la nube tiene ${diasRemoto} días confirmados y la copia local solo ${diasLocal}. Autocorrigiendo con la versión de la nube.`);
             actualizarIndicadorSync('online');
@@ -2423,7 +2425,10 @@ function avLimpiarHistoricoPromediado(){
       cambios = true;
     }
   });
-  if(cambios) saveState();
+  if(cambios){
+    window.avOmitirChequeoDias = true; // esta reducción de días es intencional (limpieza), no hay que bloquearla
+    saveState();
+  }
 }
 
 function ensureProduccionDetalle(){
@@ -2459,6 +2464,13 @@ function ensureProduccionDetalle(){
     sembrado = true;
   }
   if(sembrado) saveState();
+}
+
+// fecha de "hoy" en huso horario LOCAL (no UTC) — toISOString() usa UTC, y en Argentina
+// (UTC-3) eso hace que a partir de las ~21hs ya devuelva la fecha del día siguiente.
+function fechaHoyLocal(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function detalleLunesDeEstaSemana(){
@@ -2720,7 +2732,7 @@ function construirGridDetalle(){
   const cfg = state.produccionDetalle.config[detalleSectorActual];
   const soloLectura = !puedeEditarDetalle(detalleSectorActual);
   const lunes = document.getElementById('semanaDetalleInput').value || detalleLunesDeEstaSemana();
-  const hoyStr = new Date().toISOString().slice(0,10);
+  const hoyStr = fechaHoyLocal();
   const esAdministrador = esAdmin();
   // un líder puede cargar/editar solo el día de hoy; los días anteriores quedan
   // bloqueados para que no se puedan adulterar cargas viejas. El admin no tiene este límite.
@@ -3142,11 +3154,11 @@ const AV_WIDGET_IDS = ['hero','pipeline','barChart','lineChart','ranking'];
 // posiciones/tamaños por defecto (coordenadas en el espacio de diseño de 1600px de ancho)
 const AV_WIDGET_DEFAULTS = {
   header:    {x:0,    y:0,   w:1600, h:130},
-  hero:      {x:0,    y:140, w:1170, h:155},
-  pipeline:  {x:0,    y:305, w:1170, h:210},
-  lineChart: {x:0,    y:525, w:565,  h:280},
-  barChart:  {x:575,  y:525, w:595,  h:280},
-  ranking:   {x:1180, y:140, w:420,  h:730}
+  hero:      {x:0,    y:140, w:1170, h:185},
+  pipeline:  {x:0,    y:335, w:1170, h:210},
+  lineChart: {x:0,    y:555, w:565,  h:260},
+  barChart:  {x:575,  y:555, w:595,  h:260},
+  ranking:   {x:1180, y:140, w:420,  h:675}
 };
 let avResizeObserver = null;
 let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
@@ -3329,7 +3341,7 @@ function avRenderRankingLista(elId, ranking){
   `).join('');
 }
 function avRenderRanking(){
-  const hoy = new Date().toISOString().slice(0,10);
+  const hoy = fechaHoyLocal();
   avRenderRankingLista('avRankingHoy', avCalcularRanking([hoy]));
 
   const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
