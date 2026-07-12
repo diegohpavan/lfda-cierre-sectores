@@ -3599,8 +3599,13 @@ document.getElementById('btnGproProcesar').addEventListener('click', ()=>{
     const celdas = linea.split('\t').map(c=>c.trim());
     const fecha = gproParsearFecha(celdas[0]||'');
     if(!fecha){ lineasIgnoradas++; return; }
+    // G-PRO a veces exporta con una columna vacía intercalada entre cada dato
+    // (por las columnas UDS ocultas) — si la fila tiene muchas celdas, es ese formato
+    // espaciado (fecha, "", valor, "", valor, "", ...) en vez del formato compacto.
+    const conEspaciador = celdas.length > 12;
     GPRO_SYNC_SECTOR_MAP.forEach((sectorKey, i)=>{
-      const valor = gproParsearNumero(celdas[1+i]);
+      const idx = conEspaciador ? (2 + i*2) : (1 + i);
+      const valor = gproParsearNumero(celdas[idx]);
       if(valor===null) return; // vacío en el pegado: no se toca ese día/sector
       const diaExistente = state.dias[fecha];
       const actual = diaExistente && diaExistente.sectores && diaExistente.sectores[sectorKey] ? diaExistente.sectores[sectorKey].cerrado : undefined;
