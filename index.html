@@ -1476,6 +1476,7 @@ function subirEstadoAFirestore(){
     firestoreSubidaPendiente = true;
     return;
   }
+  window.avGuardadosPendientes = (window.avGuardadosPendientes||0) + 1;
   clearTimeout(firestoreGuardadoTimer);
   firestoreGuardadoTimer = setTimeout(()=>{
     // salvaguarda: antes de pisar el documento entero, comparamos contra lo que ya
@@ -1500,7 +1501,7 @@ function subirEstadoAFirestore(){
           }
         }catch(e){ /* si no se puede parsear lo remoto, seguimos con la subida normal */ }
       }
-      if(bloquear) return;
+      if(bloquear){ window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0); return; }
 
       firestoreUltimoGuardadoLocal = Date.now();
       firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set({
@@ -1520,15 +1521,25 @@ function subirEstadoAFirestore(){
         _ts: firebase.firestore.FieldValue.serverTimestamp()
       }).then(()=>{
         actualizarIndicadorSync('online');
+        window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0);
       }).catch(e=>{
         console.error('Error subiendo a Firestore', e);
         actualizarIndicadorSync('local');
+        window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0);
       });
     }).catch(e=>{
       console.error('Error verificando estado remoto antes de subir', e);
+      window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0);
     });
-  }, 600);
+  }, 120);
 }
+window.addEventListener('beforeunload', (e)=>{
+  if(window.avGuardadosPendientes>0){
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
 
 function actualizarIndicadorSync(estado){
   const el = document.getElementById('syncIndicator');
