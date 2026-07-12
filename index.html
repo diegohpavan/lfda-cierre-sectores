@@ -604,6 +604,28 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
           <button class="btn btn-primary" id="btnGuardarFin">Calcular cierre del día</button>
         </div>
       </div>
+
+      <div class="panel" id="panelGproSync" style="display:none;">
+        <div class="panel-head">
+          <h2>🔄 Sincronizar histórico con G-PRO</h2>
+        </div>
+        <div class="hint" style="margin-bottom:16px;">
+          Pegá acá la tabla que copiás de la solapa "Producción Días" de G-PRO (Fecha + los 9 sectores) para corregir días ya confirmados. Esto solo pisa los <strong>m² finalizados</strong> de cada día/sector — nunca toca pulmón, causas declaradas ni objetivos. Los días/sectores que dejes vacíos en el pegado no se tocan.
+        </div>
+        <textarea id="gproPasteBox" placeholder="Pegá acá la tabla de G-PRO (con FECHA y las 9 columnas SUP FIN...)" style="width:100%;min-height:140px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:12px;border-radius:6px;padding:10px;resize:vertical;"></textarea>
+        <div class="row" style="gap:10px;margin-top:10px;align-items:center;">
+          <button class="btn btn-primary" id="btnGproProcesar">Procesar y comparar</button>
+          <span class="hint" id="gproMsg"></span>
+        </div>
+        <div id="gproPreviewWrap" style="margin-top:18px;display:none;">
+          <h3 style="font-size:14px;margin-bottom:10px;">Cambios detectados</h3>
+          <div id="gproPreviewList"></div>
+          <div class="row" style="gap:10px;margin-top:14px;">
+            <button class="btn btn-primary" id="btnGproAplicar">✔ Aplicar estos cambios</button>
+            <button class="btn btn-ghost" id="btnGproCancelar">Cancelar</button>
+          </div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -3541,6 +3563,117 @@ document.querySelectorAll('.sidebar-subnav-btn[data-nav-sub]').forEach(btn=>{
 /* ============================================================
    VISTA HOY
    ============================================================ */
+// orden de columnas del export de G-PRO tal como lo pega Diego (Fecha + 9 sectores);
+// la 9na columna real de G-PRO es "SUP FIN ENT" (Logística) y se ignora, no existe ese sector acá.
+const GPRO_SYNC_SECTOR_MAP = ['1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
+let gproCambiosPendientes = null;
+
+function gproParsearFecha(str){
+  str = str.trim();
+  let m = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if(m){
+    let [_, d, mo, y] = m;
+    if(y.length===2) y = '20'+y;
+    return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+  }
+  return null;
+}
+function gproParsearNumero(str){
+  if(str===undefined) return null;
+  str = str.trim();
+  if(str==='') return null;
+  const hasComma = str.includes(','), hasDot = str.includes('.');
+  if(hasComma && hasDot) str = str.replace(/\./g,'').replace(',','.');
+  else if(hasComma) str = str.replace(',','.');
+  const n = parseFloat(str);
+  return isNaN(n) ? null : n;
+}
+
+document.getElementById('btnGproProcesar').addEventListener('click', ()=>{
+  const texto = document.getElementById('gproPasteBox').value;
+  if(!texto.trim()){ document.getElementById('gproMsg').textContent='Pegá datos primero.'; return; }
+  const lineas = texto.split(/\r?\n/).filter(l=>l.trim()!=='');
+  const cambios = [];
+  let lineasIgnoradas = 0;
+  lineas.forEach(linea=>{
+    const celdas = linea.split('\t').map(c=>c.trim());
+    const fecha = gproParsearFecha(celdas[0]||'');
+    if(!fecha){ lineasIgnoradas++; return; }
+    GPRO_SYNC_SECTOR_MAP.forEach((sectorKey, i)=>{
+      const valor = gproParsearNumero(celdas[1+i]);
+      if(valor===null) return; // vacío en el pegado: no se toca ese día/sector
+      const diaExistente = state.dias[fecha];
+      const actual = diaExistente && diaExistente.sectores && diaExistente.sectores[sectorKey] ? diaExistente.sectores[sectorKey].cerrado : undefined;
+      const actualNum = (typeof actual==='number') ? Math.round(actual*100)/100 : null;
+      const nuevoNum = Math.round(valor*100)/100;
+      if(actualNum===nuevoNum) return; // sin cambios
+      cambios.push({fecha, sectorKey, actual: actualNum, nuevo: nuevoNum, existeDia: !!diaExistente});
+    });
+  });
+
+  gproCambiosPendientes = cambios;
+  const cont = document.getElementById('gproPreviewList');
+  const wrap = document.getElementById('gproPreviewWrap');
+  if(!cambios.length){
+    document.getElementById('gproMsg').textContent = `Nada para cambiar (revisadas ${lineas.length-lineasIgnoradas} fecha(s) válidas).`;
+    wrap.style.display = 'none';
+    return;
+  }
+  document.getElementById('gproMsg').textContent = `${cambios.length} cambio(s) detectado(s) — revisá antes de aplicar.`;
+  cont.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:12.5px;">
+    <thead><tr>
+      <th style="text-align:left;padding:6px 8px;color:var(--ink-faint);border-bottom:1px solid var(--line2);">Fecha</th>
+      <th style="text-align:left;padding:6px 8px;color:var(--ink-faint);border-bottom:1px solid var(--line2);">Sector</th>
+      <th style="text-align:right;padding:6px 8px;color:var(--ink-faint);border-bottom:1px solid var(--line2);">Antes</th>
+      <th style="text-align:right;padding:6px 8px;color:var(--ink-faint);border-bottom:1px solid var(--line2);">Nuevo</th>
+    </tr></thead>
+    <tbody>
+      ${cambios.map(c=>`<tr>
+        <td style="padding:6px 8px;border-bottom:1px solid var(--line);">${c.fecha}${c.existeDia?'':' <span class="hint">(día nuevo)</span>'}</td>
+        <td style="padding:6px 8px;border-bottom:1px solid var(--line);">${esc(c.sectorKey)}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);font-family:var(--mono);">${c.actual===null?'—':c.actual}</td>
+        <td style="padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);font-family:var(--mono);font-weight:700;color:var(--amber);">${c.nuevo}</td>
+      </tr>`).join('')}
+    </tbody>
+  </table>`;
+  wrap.style.display = '';
+});
+
+document.getElementById('btnGproCancelar').addEventListener('click', ()=>{
+  gproCambiosPendientes = null;
+  document.getElementById('gproPreviewWrap').style.display = 'none';
+  document.getElementById('gproMsg').textContent = '';
+});
+
+document.getElementById('btnGproAplicar').addEventListener('click', ()=>{
+  if(!gproCambiosPendientes || !gproCambiosPendientes.length) return;
+  if(!confirm(`¿Aplicar ${gproCambiosPendientes.length} cambio(s)? Esto pisa el m² finalizado de esos días/sectores (no toca pulmón ni causas).`)) return;
+
+  gproCambiosPendientes.forEach(c=>{
+    if(!state.dias[c.fecha]) state.dias[c.fecha] = {sectores:{}};
+    if(!state.dias[c.fecha].sectores[c.sectorKey]){
+      const cfgSector = (state.sectores||[]).find(s=>s.nombre===c.sectorKey);
+      state.dias[c.fecha].sectores[c.sectorKey] = {
+        cerrado: c.nuevo,
+        objetivoMin: cfgSector ? cfgSector.objetivoMin : 120,
+        objetivoOptimo: cfgSector ? cfgSector.objetivoOptimo : 160,
+        pulmon: null,
+        motivoCausa: []
+      };
+    } else {
+      state.dias[c.fecha].sectores[c.sectorKey].cerrado = c.nuevo;
+    }
+  });
+
+  saveState();
+  document.getElementById('gproMsg').textContent = `✔ ${gproCambiosPendientes.length} cambio(s) aplicados y guardados.`;
+  document.getElementById('gproPreviewWrap').style.display = 'none';
+  document.getElementById('gproPasteBox').value = '';
+  gproCambiosPendientes = null;
+  if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
+  if(document.getElementById('view-avance').classList.contains('active')) renderAvance();
+});
+
 function ensureActualDia(){
   const hoy = todayISO();
   // si no hay una fecha "fijada" manualmente (carga de día anterior en curso),
@@ -3601,6 +3734,8 @@ function renderHoy(){
   }
   ensureActualDia();
   document.getElementById('todayLabel').textContent = capitalize(todayLabel());
+
+  document.getElementById('panelGproSync').style.display = esAdmin() ? '' : 'none';
 
   renderAvisoFecha();
 
