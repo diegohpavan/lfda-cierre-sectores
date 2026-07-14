@@ -821,6 +821,11 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
                 <span class="lbl" id="avMesLabel">—</span>
                 <button id="avMesNext">›</button>
               </div>
+              <div class="month-nav" id="avDiaNavWrap">
+                <button id="avDiaPrev">‹</button>
+                <span class="lbl" id="avDiaLabel">—</span>
+                <button id="avDiaNext">›</button>
+              </div>
             </div>
           </div>
           <div class="right">
@@ -908,10 +913,10 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
     </div>
 
     <div class="av-widget" data-widget="ranking">
-      <div class="av-widget-handle">⠿ Ranking de sectores</div>
+      <div class="av-widget-handle">⠿ 🏆 Ranking de sectores</div>
       <div class="av-widget-body" style="display:flex; flex-direction:column; gap:10px;">
         <div class="chart-panel" style="flex:1; min-height:0; overflow:hidden;">
-          <div class="chart-head"><h3>Hoy</h3></div>
+          <div class="chart-head"><h3 id="avRankingHoyTitulo">Hoy</h3></div>
           <div id="avRankingHoy"></div>
         </div>
         <div class="chart-panel" style="flex:1; min-height:0; overflow:hidden;">
@@ -1472,6 +1477,7 @@ function aplicarEstadoRemoto(data){
       armadoDetalle: data.armadoDetalle || null,
       produccionDetalle: data.produccionDetalle || null,
       avanceLayout: data.avanceLayout || {widgets:{}},
+      avanceDiasHabiles: data.avanceDiasHabiles || {},
       actual: data.actual || null
     };
     // conservamos lo que está en curso de tipeo en los textareas, pero actualizamos el resto del estado
@@ -1557,6 +1563,7 @@ function subirEstadoAFirestore(){
         pulmones: state.pulmones || {},
         produccionDetalle: state.produccionDetalle || {config:null, registros:{}},
         avanceLayout: state.avanceLayout || {widgets:{}},
+        avanceDiasHabiles: state.avanceDiasHabiles || {},
         actual: state.actual || null,
         _formatoCampos: true,
         _instanceId: INSTANCE_ID,
@@ -1670,6 +1677,7 @@ function defaultState(){
     avanceLayout: {   // posición (x,y) y tamaño (w,h) de cada bloque del dashboard TV "Avance por Sector" — se edita arrastrando ahí mismo ("🔧 Editar diseño")
       widgets: {}   // { hero:{x,y,w,h}, pipeline:{...}, barChart:{...}, lineChart:{...}, ranking:{...} } — se completa solo al mover/redimensionar
     },
+    avanceDiasHabiles: {},  // { '2026-07': 22, ... } — corrección manual de días hábiles por mes (ej. por feriados), se recuerda entre sesiones
     actual: {           // carga en progreso del día de hoy, no confirmada
       fecha: null,
       inicio: null,     // { sector: {udsPul, supPul, supFin} }
@@ -3189,6 +3197,7 @@ document.getElementById('btnGuardarDetalle').addEventListener('click', ()=>{
 let avTargetRes = {w:1920, h:1080};
 let avMesActual = null;
 let avDiasHabilesOverride = null;
+let avDiaSeleccionado = null; // 'YYYY-MM-DD' — día que se está mostrando en héroe/flujo/ranking (por defecto, hoy)
 
 const AV_SECTOR_ORDER = ['1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
 const AV_SECTOR_SHORT = {
@@ -3218,13 +3227,14 @@ function avFechasDelMes(){
   return Object.keys(state.dias||{}).filter(f=>f.startsWith(avMesActual)).sort();
 }
 function avSectorStats(key){
-  const fechas = avFechasDelMes();
-  let sum=0, count=0, lastVal=null, lastDate=null;
+  const fechas = avFechasDelMes().filter(f=>f<=avDiaSeleccionado);
+  let sum=0, count=0, lastVal=null, lastDate=null, valorSeleccionado=null;
   for(const f of fechas){
     const dia = state.dias[f];
     const s = dia && dia.sectores ? dia.sectores[key] : null;
     if(s && typeof s.cerrado === 'number'){
       sum += s.cerrado; count++; lastVal = s.cerrado; lastDate = f;
+      if(f===avDiaSeleccionado) valorSeleccionado = s.cerrado;
     }
   }
   const prom = count>0 ? sum/count : 0;
@@ -3232,19 +3242,20 @@ function avSectorStats(key){
   const dt = avDiasTranscurridos();
   const dr = Math.max(dh-dt, 0);
   const estimacion = count>0 ? sum + prom*dr : sum;
-  return {sum, prom, count, lastVal, lastDate, estimacion};
+  return {sum, prom, count, lastVal, lastDate, valorSeleccionado, estimacion};
 }
 function avDiasHabilesActuales(){
   if(avDiasHabilesOverride!==null) return avDiasHabilesOverride;
+  if(state.avanceDiasHabiles && typeof state.avanceDiasHabiles[avMesActual]==='number') return state.avanceDiasHabiles[avMesActual];
   return avHabilCount(avMesActual, avDaysInMonth(avMesActual), state.diasObligatorios||[1,2,3,4,5]);
 }
 function avDiasTranscurridos(){
-  const now = new Date();
-  const ymNow = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
   const dObl = state.diasObligatorios||[1,2,3,4,5];
-  if(avMesActual < ymNow) return avDiasHabilesActuales();
-  if(avMesActual > ymNow) return 0;
-  return avHabilCount(avMesActual, now.getDate(), dObl);
+  const mesSeleccionado = avDiaSeleccionado ? avDiaSeleccionado.slice(0,7) : avMesActual;
+  if(avMesActual < mesSeleccionado) return avDiasHabilesActuales();
+  if(avMesActual > mesSeleccionado) return 0;
+  const dia = avDiaSeleccionado ? Number(avDiaSeleccionado.split('-')[2]) : avDaysInMonth(avMesActual);
+  return avHabilCount(avMesActual, dia, dObl);
 }
 function avLiDailySeries(){
   const key = state.sectorFinLinea || '8-LI';
@@ -3343,11 +3354,19 @@ function renderAvance(){
     const now0 = new Date();
     avMesActual = `${now0.getFullYear()}-${String(now0.getMonth()+1).padStart(2,'0')}`;
   }
+  if(!avDiaSeleccionado) avDiaSeleccionado = fechaHoyLocal();
   avAplicarLayout();
   const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const [y,m] = avMesActual.split('-').map(Number);
   document.getElementById('avMesLabel').textContent = `${monthNames[m-1]} ${y}`;
   document.getElementById('avDiasHabilesInput').value = avDiasHabilesActuales();
+
+  const hoyReal = fechaHoyLocal();
+  const esHoy = avDiaSeleccionado === hoyReal;
+  const [dy,dm,dd] = avDiaSeleccionado.split('-');
+  document.getElementById('avDiaLabel').textContent = esHoy ? 'Hoy' : `${dd}/${dm}/${dy}`;
+  document.getElementById('avDiaNext').disabled = esHoy;
+  document.getElementById('avDiaNext').style.opacity = esHoy ? .4 : 1;
 
   const liKey = state.sectorFinLinea || '8-LI';
   const fechas = avFechasDelMes();
@@ -3368,7 +3387,7 @@ function renderAvance(){
 
   document.getElementById('avHeroBlock').innerHTML = `
     <div class="headline">
-      <div class="eyebrow">${AV_SECTOR_SHORT[liKey]||'Fin de Línea'} · acumulado real</div>
+      <div class="eyebrow">${AV_SECTOR_SHORT[liKey]||'Fin de Línea'} · acumulado real${esHoy?'':` al ${dd}/${dm}`}</div>
       <div class="big">${avFmt(li.sum,0)}<span class="unit">m²</span></div>
       <div style="margin-top:10px;"><span class="status-chip ${status}"><span class="dot"></span>${statusLabel}</span></div>
     </div>
@@ -3388,7 +3407,7 @@ function renderAvance(){
     const st = avSectorStats(key);
     const scaleMax = Math.max(st.estimacion, st.sum, 1) * 1.12;
     const fillPct = Math.min(st.sum/scaleMax*100, 100);
-    const hoy = st.lastVal;
+    const hoy = st.valorSeleccionado;
     const trendUp = hoy!==null && hoy >= st.prom;
     const trendArrow = hoy===null ? '' : (trendUp ? '<span class="trend up">▲</span>' : '<span class="trend down">▼</span>');
     const isLI = key===liKey;
@@ -3397,7 +3416,7 @@ function renderAvance(){
         <div class="sector-name">${AV_SECTOR_SHORT[key]}${isLI ? '<span class="li-tag">KPI</span>' : ''}</div>
         <div class="gauge-track"><div class="gauge-fill" style="width:${fillPct}%;"></div></div>
         <div class="sector-figs">
-          <div class="row"><span class="k">Hoy</span><span class="v">${avFmt(hoy,1)}${trendArrow}</span></div>
+          <div class="row"><span class="k">${esHoy?'Hoy':dd+'/'+dm}</span><span class="v">${avFmt(hoy,1)}${trendArrow}</span></div>
           <div class="row"><span class="k">Prom./día</span><span class="v">${avFmt(st.prom,1)}</span></div>
           <div class="row"><span class="k">Acumulado</span><span class="v">${avFmt(st.sum,0)}</span></div>
           <div class="row"><span class="k">Estimación</span><span class="v">${avFmt(st.estimacion,0)}</span></div>
@@ -3449,14 +3468,17 @@ function avRenderRankingLista(elId, ranking){
   `).join('');
 }
 function avRenderRanking(){
-  const hoy = fechaHoyLocal();
-  avRenderRankingLista('avRankingHoy', avCalcularRanking([hoy]));
+  const hoyReal = fechaHoyLocal();
+  const esHoy = avDiaSeleccionado === hoyReal;
+  const [dd,dm] = [avDiaSeleccionado.split('-')[2], avDiaSeleccionado.split('-')[1]];
+  document.getElementById('avRankingHoyTitulo').textContent = esHoy ? 'Hoy' : `${dd}/${dm}`;
+  avRenderRankingLista('avRankingHoy', avCalcularRanking([avDiaSeleccionado]));
 
   const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
   const [y,m] = avMesActual.split('-').map(Number);
   document.getElementById('avRankingMesTitulo').textContent = `Este mes (${monthNames[m-1]})`;
-  const fechasMes = avFechasDelMes().length ? avFechasDelMes() : [hoy];
-  avRenderRankingLista('avRankingMes', avCalcularRanking(fechasMes));
+  const fechasMes = avFechasDelMes().filter(f=>f<=avDiaSeleccionado);
+  avRenderRankingLista('avRankingMes', avCalcularRanking(fechasMes.length ? fechasMes : [avDiaSeleccionado]));
 }
 
 function avDrawBarChart(){
@@ -3552,13 +3574,43 @@ function avShiftMonth(delta){
   m += delta;
   if(m<1){m=12;y--;} if(m>12){m=1;y++;}
   avMesActual = `${y}-${String(m).padStart(2,'0')}`;
-  avDiasHabilesOverride = null;
+  avDiasHabilesOverride = null; // se recalcula leyendo lo guardado (o el automático) para el nuevo mes
+  const hoy = fechaHoyLocal();
+  if(avMesActual === hoy.slice(0,7)){
+    avDiaSeleccionado = hoy;
+  }else{
+    const diaAnterior = avDiaSeleccionado ? Number(avDiaSeleccionado.split('-')[2]) : 1;
+    const maxDia = avDaysInMonth(avMesActual);
+    avDiaSeleccionado = `${avMesActual}-${String(Math.min(diaAnterior,maxDia)).padStart(2,'0')}`;
+  }
+  renderAvance();
+}
+function avShiftDia(delta){
+  const [y,m,d] = avDiaSeleccionado.split('-').map(Number);
+  const fechaObj = new Date(y, m-1, d);
+  fechaObj.setDate(fechaObj.getDate()+delta);
+  const hoy = fechaHoyLocal();
+  const nuevaFecha = `${fechaObj.getFullYear()}-${String(fechaObj.getMonth()+1).padStart(2,'0')}-${String(fechaObj.getDate()).padStart(2,'0')}`;
+  if(nuevaFecha > hoy) return; // no se puede ir al futuro
+  avDiaSeleccionado = nuevaFecha;
+  const nuevoMes = nuevaFecha.slice(0,7);
+  if(nuevoMes !== avMesActual){
+    avMesActual = nuevoMes;
+    avDiasHabilesOverride = null;
+  }
   renderAvance();
 }
 document.getElementById('avMesPrev').addEventListener('click', ()=>avShiftMonth(-1));
 document.getElementById('avMesNext').addEventListener('click', ()=>avShiftMonth(1));
+document.getElementById('avDiaPrev').addEventListener('click', ()=>avShiftDia(-1));
+document.getElementById('avDiaNext').addEventListener('click', ()=>avShiftDia(1));
 document.getElementById('avDiasHabilesInput').addEventListener('change', e=>{
-  avDiasHabilesOverride = Number(e.target.value)||0; renderAvance();
+  const val = Number(e.target.value)||0;
+  avDiasHabilesOverride = val;
+  if(!state.avanceDiasHabiles) state.avanceDiasHabiles = {};
+  state.avanceDiasHabiles[avMesActual] = val;
+  saveState();
+  renderAvance();
 });
 document.getElementById('avResSelect').addEventListener('change', e=>{
   const val = e.target.value;
