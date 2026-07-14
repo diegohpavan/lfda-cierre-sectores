@@ -3627,7 +3627,7 @@ document.getElementById('avCfgToggle').addEventListener('click', ()=>{
 });
 document.getElementById('avOpenTabBtn').addEventListener('click', ()=>{
   const url = location.pathname + '?tv=1';
-  window.open(url, '_blank');
+  window.open(url, 'lfda_avance_tv', 'toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,width=1600,height=900');
 });
 document.getElementById('avTvToggle').addEventListener('click', ()=>{
   document.getElementById('view-avance').classList.toggle('tv-mode');
@@ -3672,6 +3672,11 @@ function irASeccion(nav, sub){
 
 document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
+    if(btn.dataset.nav==='avance'){
+      // se abre siempre en pestaña/ventana nueva, para no taparte Cierre Diario
+      window.open(location.pathname + '?tv=1', 'lfda_avance_tv', 'toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,width=1600,height=900');
+      return;
+    }
     if(btn.dataset.nav==='historial'){
       // si ya estaba en historial, conserva la subsección activa; si no, arranca en causas
       const subActual = document.querySelector('.sidebar-subnav-btn.active');
