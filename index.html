@@ -936,6 +936,7 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       <div class="cfg-sidebar" id="cfgSidebar">
         <button class="cfg-sidebar-btn active" data-cfg-tab="general"><span class="ico">⚙️</span> General</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="sectores"><span class="ico">🏭</span> Sectores y causas</button>
+        <button class="cfg-sidebar-btn" data-cfg-tab="feriados"><span class="ico">📅</span> Feriados</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="detalle"><span class="ico">🔩</span> Producción x operario</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="usuarios"><span class="ico">👥</span> Usuarios y permisos</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="respaldo"><span class="ico">💾</span> Respaldo y datos</button>
@@ -1028,6 +1029,25 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
       </div>
       <div class="hint" style="margin-bottom:12px;">El nombre del sector debe coincidir EXACTAMENTE con el texto que aparece en la tabla de G_PRO (ej: "1-ALM"). Mínimo: piso aceptable, dispara declaración de causa si no se llega. Óptimo: a partir de este valor el día se marca como rendimiento óptimo.</div>
       <div id="sectorConfigList"></div>
+    </div>
+      </div>
+
+      <div class="cfg-tabpage" id="cfgTab-feriados">
+    <div class="panel">
+      <h2>Feriados</h2>
+      <div class="hint" style="margin-bottom:16px;">Estos días se descuentan de los "días hábiles" del mes y de los "días transcurridos" en Avance por Sector — así el promedio y la estimación no se distorsionan por un feriado. Vienen precargados con el calendario oficial 2026 (Res. 164/2025); podés agregar o sacar alguno si el gobierno lo mueve.</div>
+      <div class="row" style="gap:10px;margin-bottom:16px;align-items:flex-end;">
+        <div class="field" style="margin-bottom:0;">
+          <label>Nueva fecha</label>
+          <input type="date" id="feriadoNuevaFecha">
+        </div>
+        <div class="field" style="flex:1;min-width:200px;margin-bottom:0;">
+          <label>Motivo (opcional)</label>
+          <input type="text" id="feriadoNuevoMotivo" placeholder="Ej: Día de la Independencia">
+        </div>
+        <button class="btn btn-primary" id="btnAgregarFeriado">+ Agregar feriado</button>
+      </div>
+      <div id="feriadosList"></div>
     </div>
       </div>
 
@@ -1478,6 +1498,17 @@ function aplicarEstadoRemoto(data){
       produccionDetalle: data.produccionDetalle || null,
       avanceLayout: data.avanceLayout || {widgets:{}},
       avanceDiasHabiles: data.avanceDiasHabiles || {},
+      avanceFeriados: data.avanceFeriados || [
+        {fecha:'2026-01-01', motivo:'Año Nuevo'}, {fecha:'2026-02-16', motivo:'Carnaval'}, {fecha:'2026-02-17', motivo:'Carnaval'},
+        {fecha:'2026-03-23', motivo:'No laborable turístico'}, {fecha:'2026-03-24', motivo:'Día de la Memoria'},
+        {fecha:'2026-04-02', motivo:'Día del Veterano (Malvinas)'}, {fecha:'2026-04-03', motivo:'Viernes Santo'},
+        {fecha:'2026-05-01', motivo:'Día del Trabajador'}, {fecha:'2026-05-25', motivo:'Revolución de Mayo'},
+        {fecha:'2026-06-15', motivo:'Güemes (trasladado)'}, {fecha:'2026-06-20', motivo:'Belgrano'},
+        {fecha:'2026-07-09', motivo:'Día de la Independencia'}, {fecha:'2026-07-10', motivo:'No laborable turístico'},
+        {fecha:'2026-08-17', motivo:'San Martín'}, {fecha:'2026-10-12', motivo:'Diversidad Cultural'},
+        {fecha:'2026-11-23', motivo:'Soberanía Nacional (trasladado)'}, {fecha:'2026-12-07', motivo:'No laborable turístico'},
+        {fecha:'2026-12-08', motivo:'Inmaculada Concepción'}, {fecha:'2026-12-25', motivo:'Navidad'}
+      ],
       actual: data.actual || null
     };
     // conservamos lo que está en curso de tipeo en los textareas, pero actualizamos el resto del estado
@@ -1564,6 +1595,7 @@ function subirEstadoAFirestore(){
         produccionDetalle: state.produccionDetalle || {config:null, registros:{}},
         avanceLayout: state.avanceLayout || {widgets:{}},
         avanceDiasHabiles: state.avanceDiasHabiles || {},
+        avanceFeriados: state.avanceFeriados || [],
         actual: state.actual || null,
         _formatoCampos: true,
         _instanceId: INSTANCE_ID,
@@ -1678,6 +1710,27 @@ function defaultState(){
       widgets: {}   // { hero:{x,y,w,h}, pipeline:{...}, barChart:{...}, lineChart:{...}, ranking:{...} } — se completa solo al mover/redimensionar
     },
     avanceDiasHabiles: {},  // { '2026-07': 22, ... } — corrección manual de días hábiles por mes (ej. por feriados), se recuerda entre sesiones
+    avanceFeriados: [   // se descuentan de "días hábiles" y "días transcurridos" en Avance por Sector — calendario oficial 2026 (Ley 27.399 + Resolución 164/2025), Diego puede agregar/sacar fechas en Configuración
+      {fecha:'2026-01-01', motivo:'Año Nuevo'},
+      {fecha:'2026-02-16', motivo:'Carnaval'},
+      {fecha:'2026-02-17', motivo:'Carnaval'},
+      {fecha:'2026-03-23', motivo:'No laborable turístico'},
+      {fecha:'2026-03-24', motivo:'Día de la Memoria'},
+      {fecha:'2026-04-02', motivo:'Día del Veterano (Malvinas)'},
+      {fecha:'2026-04-03', motivo:'Viernes Santo'},
+      {fecha:'2026-05-01', motivo:'Día del Trabajador'},
+      {fecha:'2026-05-25', motivo:'Revolución de Mayo'},
+      {fecha:'2026-06-15', motivo:'Güemes (trasladado)'},
+      {fecha:'2026-06-20', motivo:'Belgrano'},
+      {fecha:'2026-07-09', motivo:'Día de la Independencia'},
+      {fecha:'2026-07-10', motivo:'No laborable turístico'},
+      {fecha:'2026-08-17', motivo:'San Martín'},
+      {fecha:'2026-10-12', motivo:'Diversidad Cultural'},
+      {fecha:'2026-11-23', motivo:'Soberanía Nacional (trasladado)'},
+      {fecha:'2026-12-07', motivo:'No laborable turístico'},
+      {fecha:'2026-12-08', motivo:'Inmaculada Concepción'},
+      {fecha:'2026-12-25', motivo:'Navidad'}
+    ],
     actual: {           // carga en progreso del día de hoy, no confirmada
       fecha: null,
       inicio: null,     // { sector: {udsPul, supPul, supFin} }
@@ -3212,10 +3265,12 @@ function avFmt(n, dec){
 function avDaysInMonth(ym){ const [y,m]=ym.split('-').map(Number); return new Date(y,m,0).getDate(); }
 function avHabilCount(ym, uptoDay, diasObligatorios){
   const [y,m] = ym.split('-').map(Number);
+  const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
   let c=0;
   for(let d=1; d<=uptoDay; d++){
     const wd = new Date(y,m-1,d).getDay();
-    if(diasObligatorios.includes(wd)) c++;
+    const fechaStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    if(diasObligatorios.includes(wd) && !feriados.has(fechaStr)) c++;
   }
   return c;
 }
@@ -5627,6 +5682,7 @@ function renderConfig(){
   renderDiasObligatorios();
   renderChecksCausaMasivaCatalogo();
   renderConfigDetalle();
+  renderFeriadosConfig();
 
   const selFinLinea = document.getElementById('cfgSectorFinLinea');
   selFinLinea.innerHTML = state.sectores.map(s=>`<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
@@ -5824,6 +5880,45 @@ function renderConfig(){
   renderUsuariosConfig();
   renderListaRespaldosLocales();
 }
+
+function renderFeriadosConfig(){
+  const cont = document.getElementById('feriadosList');
+  if(!cont) return;
+  const lista = [...(state.avanceFeriados||[])].sort((a,b)=>a.fecha<b.fecha?-1:1);
+  if(!lista.length){
+    cont.innerHTML = '<div class="hint">Todavía no hay ningún feriado cargado.</div>';
+    return;
+  }
+  cont.innerHTML = lista.map((f,i)=>{
+    const [y,m,d] = f.fecha.split('-');
+    return `<div class="row" style="justify-content:space-between;align-items:center;padding:8px 4px;border-bottom:1px solid var(--line2);">
+      <div><strong style="font-family:var(--mono);">${d}/${m}/${y}</strong>${f.motivo ? ` — ${esc(f.motivo)}` : ''}</div>
+      <button class="btn btn-ghost btn-sm" data-feriado-borrar="${esc(f.fecha)}">Quitar</button>
+    </div>`;
+  }).join('');
+  cont.querySelectorAll('[data-feriado-borrar]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const fecha = btn.dataset.feriadoBorrar;
+      state.avanceFeriados = (state.avanceFeriados||[]).filter(f=>f.fecha!==fecha);
+      saveState();
+      renderFeriadosConfig();
+      toast('Feriado quitado');
+    });
+  });
+}
+document.getElementById('btnAgregarFeriado').addEventListener('click', ()=>{
+  const fecha = document.getElementById('feriadoNuevaFecha').value;
+  const motivo = document.getElementById('feriadoNuevoMotivo').value.trim();
+  if(!fecha){ toast('Elegí una fecha', true); return; }
+  if(!state.avanceFeriados) state.avanceFeriados = [];
+  if(state.avanceFeriados.some(f=>f.fecha===fecha)){ toast('Esa fecha ya está cargada', true); return; }
+  state.avanceFeriados.push({fecha, motivo});
+  saveState();
+  document.getElementById('feriadoNuevaFecha').value = '';
+  document.getElementById('feriadoNuevoMotivo').value = '';
+  renderFeriadosConfig();
+  toast('Feriado agregado');
+});
 
 function renderListaRespaldosLocales(){
   const cont = document.getElementById('listaRespaldosLocales');
