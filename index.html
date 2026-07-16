@@ -632,6 +632,29 @@ body.tema-claro #view-avance{
           </div>
         </div>
       </div>
+
+      <div class="panel" id="panelColaProductiva" style="display:none;">
+        <div class="panel-head">
+          <h2>📦 Cola productiva — disponibilidad de cupo</h2>
+        </div>
+        <div class="hint" style="margin-bottom:16px;">
+          Pegá acá la fila diaria de G-PRO con la cola de aberturas (Fecha + Uds/Sup Abe Pacto y Prod, tal como se copia de la hoja de planificación). Proyecta cuántas semanas de trabajo comprometido queda en cola, comparado contra la capacidad real de Fin de Línea.
+        </div>
+        <textarea id="colaPasteBox" placeholder="Pegá acá la tabla diaria de cola de G-PRO..." style="width:100%;min-height:140px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:12px;border-radius:6px;padding:10px;resize:vertical;"></textarea>
+        <div class="row" style="gap:10px;margin-top:10px;align-items:center;">
+          <button class="btn btn-primary" id="btnColaProcesar">Procesar y guardar cola</button>
+          <span class="hint" id="colaMsg"></span>
+        </div>
+
+        <div id="colaResultadoWrap" style="margin-top:20px;display:none;">
+          <div class="row" style="gap:8px;margin-bottom:14px;">
+            <button class="btn btn-primary" id="btnColaTogglePacto">Fecha Pacto</button>
+            <button class="btn btn-ghost" id="btnColaToggleProd">Fecha Productiva</button>
+          </div>
+          <div style="height:280px;"><canvas id="chartColaProductiva"></canvas></div>
+          <div id="colaResumen" style="margin-top:14px;"></div>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -839,6 +862,7 @@ body.tema-claro #view-avance{
             <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
             <button class="btn" id="avOpenTabBtn">🔗 Abrir en pestaña nueva</button>
             <button class="btn" id="avTvToggle">▭ Modo TV</button>
+            <button class="btn" id="avDirectorioBtn" style="display:none;">📊 Cola Productiva</button>
             <button class="btn icon" id="btnToggleTemaAvance" title="Cambiar tema claro/oscuro">🌙</button>
           </div>
         </header>
@@ -929,6 +953,23 @@ body.tema-claro #view-avance{
         <div class="chart-panel" style="flex:1; min-height:0; overflow:hidden;">
           <div class="chart-head"><h3 id="avRankingMesTitulo">Este mes</h3></div>
           <div id="avRankingMes"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="av-widget" data-widget="colaProductiva">
+      <div class="av-widget-handle">⠿ 📦 Cola productiva — disponibilidad de cupo</div>
+      <div class="av-widget-body" style="display:flex; flex-direction:column; gap:8px;">
+        <div id="avColaEmpty" class="empty-note" style="display:none; margin-bottom:0;">Todavía no se cargó la cola de G-PRO (se hace desde Cierre Diario → Hoy).</div>
+        <div id="avColaWrap" style="display:flex; flex-direction:column; gap:14px; flex:1; min-height:0;">
+          <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px;">
+            <div style="font-size:12px; color:var(--av-muted); text-transform:uppercase; letter-spacing:.04em;">Fecha Pacto</div>
+            <div style="flex:1; min-height:0;"><canvas id="avChartColaPacto"></canvas></div>
+          </div>
+          <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px;">
+            <div style="font-size:12px; color:var(--av-muted); text-transform:uppercase; letter-spacing:.04em;">Fecha Productiva</div>
+            <div style="flex:1; min-height:0;"><canvas id="avChartColaProd"></canvas></div>
+          </div>
         </div>
       </div>
     </div>
@@ -1516,6 +1557,7 @@ function aplicarEstadoRemoto(data){
         {fecha:'2026-11-23', motivo:'Soberanía Nacional (trasladado)'}, {fecha:'2026-12-07', motivo:'No laborable turístico'},
         {fecha:'2026-12-08', motivo:'Inmaculada Concepción'}, {fecha:'2026-12-25', motivo:'Navidad'}
       ],
+      colaProductiva: data.colaProductiva || { dias: {} },
       actual: data.actual || null
     };
     // conservamos lo que está en curso de tipeo en los textareas, pero actualizamos el resto del estado
@@ -1603,6 +1645,7 @@ function subirEstadoAFirestore(){
         avanceLayout: state.avanceLayout || {widgets:{}},
         avanceDiasHabiles: state.avanceDiasHabiles || {},
         avanceFeriados: state.avanceFeriados || [],
+        colaProductiva: state.colaProductiva || { dias: {} },
         actual: state.actual || null,
         _formatoCampos: true,
         _instanceId: INSTANCE_ID,
@@ -1738,6 +1781,7 @@ function defaultState(){
       {fecha:'2026-12-08', motivo:'Inmaculada Concepción'},
       {fecha:'2026-12-25', motivo:'Navidad'}
     ],
+    colaProductiva: { dias: {} },  // { dias: { 'YYYY-MM-DD': {supAbePenPacto, supAbePenProd} } } — cola de aberturas pendientes pegada desde G-PRO, para proyectar disponibilidad de cupo
     actual: {           // carga en progreso del día de hoy, no confirmada
       fecha: null,
       inicio: null,     // { sector: {udsPul, supPul, supFin} }
@@ -2571,6 +2615,11 @@ function fechaHoyLocal(){
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
+// convierte 'YYYY-MM-DD' a 'DD/MM' o 'DD/MM/YYYY' — formato único de fecha en todo el programa
+function fechaDMY(fechaStr, conAnio){
+  const [y,m,d] = fechaStr.split('-');
+  return conAnio ? `${d}/${m}/${y}` : `${d}/${m}`;
+}
 
 function detalleLunesDeEstaSemana(){
   const d = new Date();
@@ -3258,6 +3307,7 @@ let avTargetRes = {w:1920, h:1080};
 let avMesActual = null;
 let avDiasHabilesOverride = null;
 let avDiaSeleccionado = null; // 'YYYY-MM-DD' — día que se está mostrando en héroe/flujo/ranking (por defecto, hoy)
+let avModoDirectorio = false; // true solo en el Dashboard Directorio (?tv=directorio) — agrega la cola productiva, exclusivo de gerencia
 
 const AV_SECTOR_ORDER = ['1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
 const AV_SECTOR_SHORT = {
@@ -3347,7 +3397,8 @@ const AV_WIDGET_DEFAULTS = {
   pipeline:  {x:0,    y:335, w:1170, h:230},
   lineChart: {x:0,    y:575, w:565,  h:260},
   barChart:  {x:575,  y:575, w:595,  h:260},
-  ranking:   {x:1180, y:140, w:420,  h:695}
+  ranking:   {x:1180, y:140, w:420,  h:695},
+  colaProductiva: {x:0, y:845, w:1600, h:300}
 };
 let avResizeObserver = null;
 let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
@@ -3361,6 +3412,21 @@ function avAplicarLayout(){
   let maxBottom = 0;
   grid.querySelectorAll('.av-widget').forEach(el=>{
     const id = el.dataset.widget;
+    if(id==='colaProductiva'){
+      // este bloque es exclusivo del modo "Cola Productiva" — en el dashboard normal
+      // (el que ven los líderes) no se muestra ni ocupa espacio en el layout.
+      el.style.display = avModoDirectorio ? '' : 'none';
+      if(avModoDirectorio){
+        const pos = {x:0, y:140, w:1600, h:700}; // ocupa toda la pantalla cuando es la única vista activa
+        el.style.left = pos.x+'px'; el.style.top = pos.y+'px'; el.style.width = pos.w+'px'; el.style.height = pos.h+'px';
+        maxBottom = Math.max(maxBottom, pos.y+pos.h);
+      }
+      return;
+    }
+    // en modo directorio, el resto de los bloques (hero, flujo, ranking, gráficos)
+    // se ocultan — pero el encabezado NUNCA se oculta, ahí vive el botón "Volver".
+    if(avModoDirectorio && id!=='header'){ el.style.display = 'none'; return; }
+    el.style.display = '';
     const pos = AV_WIDGET_DEFAULTS[id];
     if(!pos) return;
     el.style.left = pos.x+'px';
@@ -3430,6 +3496,8 @@ function renderAvance(){
   const [y,m] = avMesActual.split('-').map(Number);
   document.getElementById('avMesLabel').textContent = `${monthNames[m-1]} ${y}`;
   document.getElementById('avDiasHabilesInput').value = avDiasHabilesActuales();
+  document.getElementById('avDirectorioBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
+  document.getElementById('avDirectorioBtn').textContent = avModoDirectorio ? '← Volver al dashboard' : '📊 Cola Productiva';
 
   const hoyReal = fechaHoyLocal();
   const esHoy = avDiaSeleccionado === hoyReal;
@@ -3500,6 +3568,7 @@ function renderAvance(){
   avDrawBarChart();
   avDrawChart();
   avRenderRanking();
+  avRenderColaProductiva();
   avFitStage();
 }
 
@@ -3539,6 +3608,66 @@ function avRenderRankingLista(elId, ranking){
     </div>
   `).join('');
 }
+let avChartColaPactoInstance = null;
+let avChartColaProdInstance = null;
+// plugin manual de etiquetas — dibuja el valor arriba/abajo de cada barra directo sobre
+// el canvas (no depende del plugin externo, que no estaba enganchando bien)
+const colaEtiquetasPlugin = {
+  id: 'colaEtiquetas',
+  afterDatasetsDraw(chart){
+    const {ctx} = chart;
+    const meta = chart.getDatasetMeta(0);
+    const datos = chart.data.datasets[0].data;
+    ctx.save();
+    ctx.font = '700 12px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    meta.data.forEach((bar, i)=>{
+      const val = datos[i];
+      ctx.fillStyle = val>=0 ? '#E1432E' : '#4FAE7C';
+      const y = val>=0 ? bar.y - 8 : bar.y + 16;
+      ctx.fillText(fmt(val), bar.x, y);
+    });
+    ctx.restore();
+  }
+};
+
+function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
+  const proy = colaComputarProyeccion(tipo);
+  const labels = proy.semanas.map(s=>fechaDMY(s.semana));
+  const valores = proy.semanas.map(s=>Math.round(s.balance*10)/10);
+  const colores = valores.map(v=> v>=0 ? '#E1432E' : '#4FAE7C');
+
+  const canvas = document.getElementById(canvasId);
+  if(instanciaPrevia) instanciaPrevia.destroy();
+  return new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data:{ labels, datasets:[{ data: valores, backgroundColor: colores, borderRadius:5, borderSkipped:false }] },
+    plugins:[colaEtiquetasPlugin],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{top:18, bottom:18} },
+      plugins:{
+        legend:{display:false},
+        datalabels:{display:false}
+      },
+      scales:{
+        x:{ ticks:{color:'#8d9199', font:{size:9.5}}, grid:{color:'#2c3038'} },
+        y:{ ticks:{color:'#8d9199'}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1} }
+      }
+    }
+  });
+}
+function avRenderColaProductiva(){
+  if(!avModoDirectorio) return;
+  const hayDatos = state.colaProductiva && state.colaProductiva.dias && Object.keys(state.colaProductiva.dias).length>0;
+  document.getElementById('avColaEmpty').style.display = hayDatos ? 'none' : '';
+  document.getElementById('avColaWrap').style.display = hayDatos ? 'flex' : 'none';
+  if(!hayDatos) return;
+
+  avChartColaPactoInstance = avDibujarChartCola('pacto', 'avChartColaPacto', avChartColaPactoInstance);
+  avChartColaProdInstance = avDibujarChartCola('prod', 'avChartColaProd', avChartColaProdInstance);
+}
+
 function avRenderRanking(){
   const hoyReal = fechaHoyLocal();
   const esHoy = avDiaSeleccionado === hoyReal;
@@ -3707,6 +3836,13 @@ document.getElementById('avCfgToggle').addEventListener('click', ()=>{
 document.getElementById('avOpenTabBtn').addEventListener('click', ()=>{
   const url = location.pathname + '?tv=1';
   window.open(url, 'lfda_avance_tv', 'toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,width=1600,height=900');
+});
+document.getElementById('avDirectorioBtn').addEventListener('click', ()=>{
+  avModoDirectorio = !avModoDirectorio;
+  document.getElementById('avDirectorioBtn').textContent = avModoDirectorio ? '← Volver al dashboard' : '📊 Cola Productiva';
+  avAplicarLayout();
+  avRenderColaProductiva();
+  avFitStage();
 });
 document.getElementById('avTvToggle').addEventListener('click', ()=>{
   document.getElementById('view-avance').classList.toggle('tv-mode');
@@ -3906,6 +4042,194 @@ document.getElementById('btnGproAplicar').addEventListener('click', ()=>{
   if(document.getElementById('view-avance').classList.contains('active')) renderAvance();
 });
 
+// ===================== COLA PRODUCTIVA — DISPONIBILIDAD DE CUPO =====================
+// Parsea la fila diaria de cola de G-PRO (Uds/Sup Abe Pacto y Prod) y proyecta, semana
+// a semana, si el trabajo ya comprometido alcanza para mantener ocupada la línea, usando
+// el promedio real de Fin de Línea como capacidad diaria (no un número fijo del Excel).
+let colaVistaActual = 'pacto'; // 'pacto' o 'prod'
+let chartColaInstance = null;
+
+function colaParsearNumero(str){
+  if(str===undefined) return null;
+  str = str.trim();
+  if(str==='') return null;
+  const hasComma = str.includes(','), hasDot = str.includes('.');
+  if(hasComma && hasDot) str = str.replace(/\./g,'').replace(',','.');
+  else if(hasComma) str = str.replace(',','.');
+  const n = parseFloat(str);
+  return isNaN(n) ? null : n;
+}
+
+document.getElementById('btnColaProcesar').addEventListener('click', ()=>{
+  const texto = document.getElementById('colaPasteBox').value;
+  if(!texto.trim()){ document.getElementById('colaMsg').textContent='Pegá datos primero.'; return; }
+  const lineas = texto.split(/\r?\n/).filter(l=>l.trim()!=='');
+  if(!state.colaProductiva) state.colaProductiva = { dias:{} };
+  if(!state.colaProductiva.dias) state.colaProductiva.dias = {};
+
+  let cargados = 0, ignoradas = 0;
+  lineas.forEach(linea=>{
+    const celdas = linea.split('\t').map(c=>c.trim());
+    let fechaIdx = -1, fecha = null;
+    for(let k=0; k<celdas.length; k++){
+      const f = gproParsearFecha(celdas[k]);
+      if(f){ fecha = f; fechaIdx = k; break; }
+    }
+    if(!fecha){ ignoradas++; return; }
+    // columnas relativas a la fecha (formato G-PRO tal cual se pega): Uds Abe Pacto,
+    // Uds Abe Fin Pacto, Sup Abe Pacto, [Sup Abe Pen Pacto], ... luego el mismo bloque para Prod
+    const supAbePenPacto = colaParsearNumero(celdas[fechaIdx+5]);
+    const supAbePenProd = colaParsearNumero(celdas[fechaIdx+14]);
+    if(supAbePenPacto===null && supAbePenProd===null){ ignoradas++; return; }
+    state.colaProductiva.dias[fecha] = {
+      supAbePenPacto: supAbePenPacto||0,
+      supAbePenProd: supAbePenProd||0
+    };
+    cargados++;
+  });
+
+  if(!cargados){
+    document.getElementById('colaMsg').textContent = `No se reconoció ninguna fila válida (revisadas ${lineas.length}).`;
+    return;
+  }
+  saveState();
+  document.getElementById('colaMsg').textContent = `✔ ${cargados} día(s) cargado(s)/actualizado(s) (${ignoradas} fila(s) ignorada(s)).`;
+  document.getElementById('colaPasteBox').value = '';
+  renderColaProductiva();
+});
+
+function lunesDeSemana(fechaStr){
+  const [y,m,d] = fechaStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const wd = dt.getDay(); // 0=domingo..6=sábado
+  const offset = wd===0 ? -6 : (1-wd); // retrocede hasta el lunes de esa semana
+  dt.setDate(dt.getDate()+offset);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function colaSumarDias(fechaStr, n){
+  const [y,m,d] = fechaStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d+n);
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+
+// capacidad diaria real: promedio de Fin de Línea sobre todos los días confirmados disponibles
+function colaTasaDiariaReal(){
+  const liKey = state.sectorFinLinea || '8-LI';
+  let suma=0, count=0;
+  Object.keys(state.dias||{}).forEach(f=>{
+    const s = state.dias[f].sectores && state.dias[f].sectores[liKey];
+    if(s && typeof s.cerrado==='number'){ suma+=s.cerrado; count++; }
+  });
+  return count>0 ? suma/count : 0;
+}
+
+function colaComputarProyeccion(tipo){
+  const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
+  const campo = tipo==='pacto' ? 'supAbePenPacto' : 'supAbePenProd';
+  const hoy = fechaHoyLocal();
+  const tasaDiaria = colaTasaDiariaReal();
+  const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
+  const dObl = state.diasObligatorios || [1,2,3,4,5];
+
+  const fechas = Object.keys(dias).sort();
+  // vencidos: siempre se calcula con el criterio de Pacto (compromiso real con el cliente),
+  // igual que en el Excel — es un solo número de "cuánto está vencido hoy", no cambia
+  // según qué vista estés mirando (con Prod casi no hay "vencido" propio porque G-PRO ya
+  // reprograma esas fechas para adelante, pero el atraso real sigue siendo el mismo).
+  let vencidos = 0;
+  fechas.forEach(f=>{ if(f<hoy) vencidos += (dias[f].supAbePenPacto||0); });
+
+  // agrupar lo pendiente de hoy en adelante por semana (lunes de esa semana)
+  const semanas = {};
+  fechas.filter(f=>f>=hoy).forEach(f=>{
+    const lunes = lunesDeSemana(f);
+    if(!semanas[lunes]) semanas[lunes] = 0;
+    semanas[lunes] += (dias[f][campo]||0);
+  });
+
+  const semanasOrdenadas = Object.keys(semanas).sort();
+  let balance = vencidos; // vencidos = trabajo comprometido y no producido todavía → suma al atraso, no lo resta
+  const resultado = semanasOrdenadas.map(lunes=>{
+    let diasHabiles = 0;
+    for(let i=0;i<7;i++){
+      const d = colaSumarDias(lunes, i);
+      const wd = new Date(...d.split('-').map(Number).map((v,idx)=>idx===1?v-1:v)).getDay();
+      if(dObl.includes(wd) && !feriados.has(d)) diasHabiles++;
+    }
+    const capacidad = tasaDiaria * diasHabiles;
+    const pendiente = semanas[lunes];
+    balance += pendiente - capacidad;
+    return { semana: lunes, pendiente, capacidad, balance };
+  });
+
+  // "se queda sin cola" = la semana donde empieza la racha negativa que YA NO SE RECUPERA
+  // (no un bache aislado como puede pasar en semanas sueltas más cortas)
+  let semanaSinCupo = null;
+  for(let i=resultado.length-1; i>=0; i--){
+    if(resultado[i].balance>=0) break;
+    semanaSinCupo = resultado[i].semana;
+  }
+
+  return { tasaDiaria, vencidos, semanas: resultado, semanaSinCupo };
+}
+
+function renderColaProductiva(){
+  const hayDatos = state.colaProductiva && state.colaProductiva.dias && Object.keys(state.colaProductiva.dias).length>0;
+  document.getElementById('colaResultadoWrap').style.display = hayDatos ? '' : 'none';
+  if(!hayDatos) return;
+
+  const proy = colaComputarProyeccion(colaVistaActual);
+  document.getElementById('btnColaTogglePacto').className = colaVistaActual==='pacto' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('btnColaToggleProd').className = colaVistaActual==='prod' ? 'btn btn-primary' : 'btn btn-ghost';
+
+  const labels = proy.semanas.map(s=>fechaDMY(s.semana));
+  const valores = proy.semanas.map(s=>Math.round(s.balance*10)/10);
+  const colores = valores.map(v=> v>=0 ? '#E1432E' : '#4FAE7C');
+
+  const canvas = document.getElementById('chartColaProductiva');
+  if(chartColaInstance) chartColaInstance.destroy();
+  chartColaInstance = new Chart(canvas.getContext('2d'), {
+    type:'bar',
+    data:{ labels, datasets:[{ label: colaVistaActual==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, backgroundColor: colores, borderRadius:5, borderSkipped:false }] },
+    plugins:[colaEtiquetasPlugin],
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{top:18, bottom:18} },
+      plugins:{
+        legend:{display:false},
+        tooltip:{ callbacks:{ label:(ctx)=> `${fmt(ctx.parsed.y)} m²` } },
+        datalabels:{display:false}
+      },
+      scales:{
+        x:{ ticks:{color:'#8d9199', font:{size:10.5}}, grid:{color:'#2c3038'} },
+        y:{ ticks:{color:'#8d9199'}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1}, title:{display:true, text:'(-) con cupo disponible · (+) atrasado (cola pendiente)', color:'#8d9199'} }
+      }
+    }
+  });
+
+  const resumen = document.getElementById('colaResumen');
+  const tituloVista = colaVistaActual==='pacto' ? 'fecha pacto (compromiso fijo)' : 'fecha productiva (se recalcula a tu ritmo real)';
+  resumen.innerHTML = `
+    <div class="row" style="flex-wrap:wrap;gap:12px;">
+      <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
+        <div class="hint">Capacidad diaria usada (promedio real Fin de Línea)</div>
+        <div style="font-weight:700;font-size:16px;">${fmt(proy.tasaDiaria,1)} m²/día</div>
+      </div>
+      <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
+        <div class="hint">m² ya vencidos (pendientes de fechas anteriores a hoy)</div>
+        <div style="font-weight:700;font-size:16px;color:${proy.vencidos>0?'var(--red)':'inherit'};">${fmt(proy.vencidos,1)} m²</div>
+      </div>
+      <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
+        <div class="hint">Se queda sin cola (${tituloVista})</div>
+        <div style="font-weight:700;font-size:16px;color:${proy.semanaSinCupo?'var(--red)':'var(--green)'};">${proy.semanaSinCupo ? 'semana del '+fechaDMY(proy.semanaSinCupo) : 'no se agota en el horizonte cargado'}</div>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:10px;">Cálculo aproximado: agrupa por semana lo pendiente pegado de G-PRO y lo compara contra tu capacidad real de Fin de Línea. Puede diferir un poco del Excel original, que usa un criterio de semana ligeramente distinto — la tendencia (cuándo se vuelve negativo) es el dato confiable.</div>
+  `;
+}
+document.getElementById('btnColaTogglePacto').addEventListener('click', ()=>{ colaVistaActual='pacto'; renderColaProductiva(); });
+document.getElementById('btnColaToggleProd').addEventListener('click', ()=>{ colaVistaActual='prod'; renderColaProductiva(); });
+
 function ensureActualDia(){
   const hoy = todayISO();
   // si no hay una fecha "fijada" manualmente (carga de día anterior en curso),
@@ -3953,7 +4277,9 @@ let avAutoAbiertoDesdeUrl = false;
 function renderHoy(){
   if(!avAutoAbiertoDesdeUrl){
     avAutoAbiertoDesdeUrl = true;
-    if(new URLSearchParams(location.search).get('tv')==='1'){
+    const tvParam = new URLSearchParams(location.search).get('tv');
+    if(tvParam==='1' || tvParam==='directorio'){
+      avModoDirectorio = (tvParam==='directorio');
       irASeccion('avance');
       document.getElementById('view-avance').classList.add('tv-mode');
       document.getElementById('avConfigDrawer').classList.remove('open');
@@ -3968,6 +4294,8 @@ function renderHoy(){
   document.getElementById('todayLabel').textContent = capitalize(todayLabel());
 
   document.getElementById('panelGproSync').style.display = esAdmin() ? '' : 'none';
+  document.getElementById('panelColaProductiva').style.display = esAdmin() ? '' : 'none';
+  if(esAdmin()) renderColaProductiva();
 
   renderAvisoFecha();
 
