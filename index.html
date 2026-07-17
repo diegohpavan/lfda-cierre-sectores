@@ -3527,13 +3527,12 @@ let colaHorizonteSemanas = 14;
 // el alto real del encabezado desde el principio. Por eso 60 y después 75 seguían
 // quedando cortos y la caja del encabezado (con z-index más alto) tapaba la fila de
 // arriba de Cola Productiva. Volvemos al valor original y seguro (140).
-// alto real del encabezado en modo Cola Productiva -- en vez de adivinar un número fijo
-// (ya nos equivocamos dos veces: 60 y 75 quedaban cortos porque el lado derecho del
-// encabezado -reloj + botones- no se achica), lo medimos directo del DOM cada vez que
-// se aplica el layout. Arranca en 140 (mismo valor que el dashboard normal) hasta la
-// primera medición real.
-let colaHeaderYActual = 140;
-const COLA_HEADER_Y_MARGEN = 15; // colchón de seguridad sobre la medición real
+// alto real del encabezado en modo Cola Productiva -- se probó reducirlo (60, 75) y
+// también medirlo en vivo desde el DOM, pero ambos intentos terminaron tapando la fila
+// de controles de Cola Productiva por motivos que no pude confirmar sin ver el navegador
+// en vivo. Se deja fijo en 140 (el valor original, ya probado y estable) para priorizar
+// que todo se vea siempre por sobre ganar unos px extra de alto.
+const colaHeaderYActual = 140;
 function avColaAlturaDiseno(){
   const refW = window.innerWidth || 1600;
   const refH = window.innerHeight || 900;
@@ -3564,15 +3563,6 @@ function avAplicarLayout(){
   if(colaHandle) colaHandle.style.display = avModoDirectorio ? 'none' : '';
   const headerHandle = document.getElementById('avHeaderWidgetHandle');
   if(headerHandle) headerHandle.style.display = avModoDirectorio ? 'none' : '';
-  // medimos el alto real del <header> (no el de su .av-widget contenedor, que tiene una
-  // altura fija que nosotros mismos pisamos) justo después de haber aplicado el título
-  // que corresponde, así la medición ya refleja el contenido correcto de este modo.
-  if(avModoDirectorio){
-    const headerInner = document.getElementById('avHeaderInner');
-    if(headerInner) colaHeaderYActual = headerInner.offsetHeight + COLA_HEADER_Y_MARGEN;
-  } else {
-    colaHeaderYActual = 140;
-  }
 
   const grid2 = grid;
   let maxBottom = 0;
