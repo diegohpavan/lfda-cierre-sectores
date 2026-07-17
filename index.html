@@ -3521,11 +3521,13 @@ const ANCHO_CONTENIDO_STAGE = 1556;
 // sobre TODO el horizonte cargado, esto solo acorta lo que se dibuja en el gráfico para
 // que no se vaya varios meses hacia adelante. Graduable con el selector "Horizonte".
 let colaHorizonteSemanas = 14;
-// alto real del encabezado en modo Cola Productiva -- desde que ese modo muestra solo el
-// título "Cola Productiva" (sin eyebrow ni nav de mes/día), el encabezado quedó mucho más
-// bajo que el del dashboard normal (140px). Si seguíamos reservando 140px acá, quedaba una
-// franja vacía entre el título chico y el gráfico, restándole alto real a las barras.
-const COLA_HEADER_Y = 75;
+// alto real del encabezado en modo Cola Productiva -- el título de la izquierda se
+// simplificó (solo "Cola Productiva"), PERO el lado derecho del encabezado (reloj +
+// botones Ajustes/Volver al dashboard/tema) NO se achicó, y es ese lado el que definía
+// el alto real del encabezado desde el principio. Por eso 60 y después 75 seguían
+// quedando cortos y la caja del encabezado (con z-index más alto) tapaba la fila de
+// arriba de Cola Productiva. Volvemos al valor original y seguro (140).
+const COLA_HEADER_Y = 140;
 function avColaAlturaDiseno(){
   const refW = window.innerWidth || 1600;
   const refH = window.innerHeight || 900;
