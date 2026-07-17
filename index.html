@@ -3431,21 +3431,29 @@ let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
 // "Cola Productiva" para que, sumado al encabezado, la proporción del stage completo
 // coincida con la proporción real del viewport -- así avFitStage() siempre termina
 // ajustando por ANCHO (pantalla completa, sin franjas vacías) en vez de terminar
-// ajustando por ALTO: como este bloque es más "cuadrado" que el dashboard normal, el
-// ajuste por alto le ganaba al de ancho y quedaba una franja negra a la derecha.
+// ajustando por ALTO.
 //
 // Usamos window.innerWidth/innerHeight (el viewport real del navegador) y no
 // wrap.clientWidth/Height: #stageWrap tiene overflow:auto, así que su clientWidth/Height
 // depende de si tiene o no scrollbar propio -- que es justo lo que estamos calculando acá.
-// Medir contra esa referencia auto-referenciada es lo que causaba que, según el zoom,
-// quedara una franja vacía de un lado o un scrollbar/recorte del otro. window.innerWidth/
-// innerHeight no se ven afectados por el scrollbar de un descendiente, así que cortan ese
-// círculo.
+//
+// Restamos un margen chico de seguridad (MARGEN_SEGURIDAD_PX) y redondeamos siempre
+// para abajo: preferimos que sobren 3-4px sin usar (invisible) a que falten y aparezca
+// un scrollbar por culpa del redondeo de Chart.js/flexbox al repartir píxeles fraccionarios
+// entre los dos gráficos apilados.
+const MARGEN_SEGURIDAD_PX = 4;
+// ancho de CONTENIDO real disponible dentro de #avCustomGrid: #stage tiene 22px de
+// padding a cada lado (ver su CSS), asi que de los 1600px de diseno solo 1600-22-22=1556
+// quedan libres para los widgets que se supone ocupan "todo el ancho". Usar 1600 a secas
+// hacia que esos widgets se salieran unos 22px de diseno (~26px reales ya escalado) por
+// fuera del borde derecho de #stage -- invisible antes porque sobraba espacio de la franja
+// negra, pero quedó expuesto (recortado) apenas se corrigió esa franja.
+const ANCHO_CONTENIDO_STAGE = 1556;
 function avColaAlturaDiseno(){
   const refW = window.innerWidth || 1600;
   const refH = window.innerHeight || 900;
   const headerY = 140, margenInferior = 10, paddingVerticalStage = 30; // 14px arriba + 16px abajo (ver CSS de #stage)
-  const altoTotalObjetivo = Math.round(1600 * (refH/refW)) - paddingVerticalStage;
+  const altoTotalObjetivo = Math.floor(1600 * (refH/refW)) - paddingVerticalStage - MARGEN_SEGURIDAD_PX;
   return Math.max(400, altoTotalObjetivo - headerY - margenInferior);
 }
 
@@ -3455,8 +3463,16 @@ function avAplicarLayout(){
   const grid = document.getElementById('avCustomGrid');
   if(!grid) return;
 
+  // en Cola Productiva ya nos encargamos nosotros de que el contenido entre justo, así
+  // que apagamos el scroll del contenedor -- si por algún redondeo sobra 1-2px, que
+  // quede invisible (recortado) en vez de mostrar un scrollbar. En el dashboard normal
+  // dejamos el overflow:auto de siempre, como red de seguridad.
+  const stageWrapEl = document.getElementById('stageWrap');
+  if(stageWrapEl) stageWrapEl.style.overflow = avModoDirectorio ? 'hidden' : '';
+
+  const grid2 = grid;
   let maxBottom = 0;
-  grid.querySelectorAll('.av-widget').forEach(el=>{
+  grid2.querySelectorAll('.av-widget').forEach(el=>{
     const id = el.dataset.widget;
     if(id==='colaProductiva'){
       // este bloque es exclusivo del modo "Cola Productiva" — en el dashboard normal
@@ -3467,7 +3483,7 @@ function avAplicarLayout(){
         // ranking, todos ocultos acá) — en Cola Productiva no aplica, y si queda
         // visible sólo suma alto de más al cálculo de avFitStage().
         document.getElementById('avNoDataNote').style.display = 'none';
-        const pos = {x:0, y:140, w:1600, h:avColaAlturaDiseno()}; // ocupa toda la pantalla cuando es la única vista activa
+        const pos = {x:0, y:140, w:ANCHO_CONTENIDO_STAGE, h:avColaAlturaDiseno()}; // ocupa toda la pantalla cuando es la única vista activa
         el.style.left = pos.x+'px'; el.style.top = pos.y+'px'; el.style.width = pos.w+'px'; el.style.height = pos.h+'px';
         maxBottom = Math.max(maxBottom, pos.y+pos.h);
       }
@@ -3481,7 +3497,11 @@ function avAplicarLayout(){
     if(!pos) return;
     el.style.left = pos.x+'px';
     el.style.top = pos.y+'px';
-    el.style.width = pos.w+'px';
+    // el encabezado es el único otro bloque visible en modo Cola Productiva -- ahí queda
+    // "solo" igual que ese bloque, así que le aplica el mismo ajuste de ancho (ver arriba).
+    // En el dashboard normal (avModoDirectorio false) esto no se toca, sigue como siempre.
+    const anchoWidget = (avModoDirectorio && id==='header') ? ANCHO_CONTENIDO_STAGE : pos.w;
+    el.style.width = anchoWidget+'px';
     el.style.height = pos.h+'px';
     maxBottom = Math.max(maxBottom, pos.y+pos.h);
   });
