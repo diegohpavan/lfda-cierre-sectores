@@ -867,7 +867,7 @@ body.tema-claro #view-avance{
     <div class="av-widget" data-widget="header">
       <div class="av-widget-handle" id="avHeaderWidgetHandle">⠿ Encabezado</div>
       <div class="av-widget-body" style="overflow:visible;">
-        <header>
+        <header id="avHeaderInner">
           <div class="title-block" id="avTitleBlockNormal">
             <div class="eyebrow">LFDA · Producción</div>
             <h1>Avance por Sector</h1>
@@ -3527,11 +3527,17 @@ let colaHorizonteSemanas = 14;
 // el alto real del encabezado desde el principio. Por eso 60 y después 75 seguían
 // quedando cortos y la caja del encabezado (con z-index más alto) tapaba la fila de
 // arriba de Cola Productiva. Volvemos al valor original y seguro (140).
-const COLA_HEADER_Y = 140;
+// alto real del encabezado en modo Cola Productiva -- en vez de adivinar un número fijo
+// (ya nos equivocamos dos veces: 60 y 75 quedaban cortos porque el lado derecho del
+// encabezado -reloj + botones- no se achica), lo medimos directo del DOM cada vez que
+// se aplica el layout. Arranca en 140 (mismo valor que el dashboard normal) hasta la
+// primera medición real.
+let colaHeaderYActual = 140;
+const COLA_HEADER_Y_MARGEN = 15; // colchón de seguridad sobre la medición real
 function avColaAlturaDiseno(){
   const refW = window.innerWidth || 1600;
   const refH = window.innerHeight || 900;
-  const headerY = COLA_HEADER_Y, margenInferior = 10, paddingVerticalStage = 30; // 14px arriba + 16px abajo (ver CSS de #stage)
+  const headerY = colaHeaderYActual, margenInferior = 10, paddingVerticalStage = 30; // 14px arriba + 16px abajo (ver CSS de #stage)
   const altoTotalObjetivo = Math.floor(1600 * (refH/refW)) - paddingVerticalStage - MARGEN_SEGURIDAD_PX;
   return Math.max(400, altoTotalObjetivo - headerY - margenInferior);
 }
@@ -3558,6 +3564,15 @@ function avAplicarLayout(){
   if(colaHandle) colaHandle.style.display = avModoDirectorio ? 'none' : '';
   const headerHandle = document.getElementById('avHeaderWidgetHandle');
   if(headerHandle) headerHandle.style.display = avModoDirectorio ? 'none' : '';
+  // medimos el alto real del <header> (no el de su .av-widget contenedor, que tiene una
+  // altura fija que nosotros mismos pisamos) justo después de haber aplicado el título
+  // que corresponde, así la medición ya refleja el contenido correcto de este modo.
+  if(avModoDirectorio){
+    const headerInner = document.getElementById('avHeaderInner');
+    if(headerInner) colaHeaderYActual = headerInner.offsetHeight + COLA_HEADER_Y_MARGEN;
+  } else {
+    colaHeaderYActual = 140;
+  }
 
   const grid2 = grid;
   let maxBottom = 0;
@@ -3572,7 +3587,7 @@ function avAplicarLayout(){
         // ranking, todos ocultos acá) — en Cola Productiva no aplica, y si queda
         // visible sólo suma alto de más al cálculo de avFitStage().
         document.getElementById('avNoDataNote').style.display = 'none';
-        const pos = {x:0, y:COLA_HEADER_Y, w:ANCHO_CONTENIDO_STAGE, h:avColaAlturaDiseno()}; // ocupa toda la pantalla cuando es la única vista activa
+        const pos = {x:0, y:colaHeaderYActual, w:ANCHO_CONTENIDO_STAGE, h:avColaAlturaDiseno()}; // ocupa toda la pantalla cuando es la única vista activa
         el.style.left = pos.x+'px'; el.style.top = pos.y+'px'; el.style.width = pos.w+'px'; el.style.height = pos.h+'px';
         maxBottom = Math.max(maxBottom, pos.y+pos.h);
       }
@@ -3595,7 +3610,7 @@ function avAplicarLayout(){
     // usa avColaAlturaDiseno()/el "y" de colaProductiva más abajo) -- si no, la caja vieja
     // de 130px le seguía tapando la parte de arriba a Cola Productiva, aunque el contenido
     // visual del encabezado ya fuera chico (el encabezado tiene z-index más alto).
-    const altoWidget = (avModoDirectorio && id==='header') ? COLA_HEADER_Y : pos.h;
+    const altoWidget = (avModoDirectorio && id==='header') ? colaHeaderYActual : pos.h;
     el.style.height = altoWidget+'px';
     maxBottom = Math.max(maxBottom, pos.y+altoWidget);
   });
@@ -3616,7 +3631,7 @@ function avFitStage(){
     if(colaEl){
       const h = avColaAlturaDiseno();
       colaEl.style.height = h+'px';
-      grid.style.height = (COLA_HEADER_Y + h + 10) + 'px';
+      grid.style.height = (colaHeaderYActual + h + 10) + 'px';
     }
   }
 
