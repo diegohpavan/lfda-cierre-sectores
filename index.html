@@ -651,7 +651,7 @@ body.tema-claro #view-avance{
             <button class="btn btn-primary" id="btnColaTogglePacto">Fecha Pacto</button>
             <button class="btn btn-ghost" id="btnColaToggleProd">Fecha Productiva</button>
           </div>
-          <div style="height:280px;"><canvas id="chartColaProductiva"></canvas></div>
+          <div style="height:480px;"><canvas id="chartColaProductiva"></canvas></div>
           <div id="colaResumen" style="margin-top:14px;"></div>
         </div>
       </div>
@@ -747,7 +747,7 @@ body.tema-claro #view-avance{
 
     <div class="cfg-tabpage active" id="detalleTab-carga">
     <div class="panel">
-      <div class="field-row" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+      <div class="field-row" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line2);">
         <div class="field">
           <label style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Sector</label>
           <select id="detalleSectorSelect" style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:8px 10px;border-radius:6px;min-width:170px;"></select>
@@ -781,7 +781,7 @@ body.tema-claro #view-avance{
 
     <div class="cfg-tabpage" id="detalleTab-graficas">
     <div class="panel">
-      <div class="field-row" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+      <div class="field-row" style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;position:sticky;top:0;z-index:20;background:var(--bg);padding:10px 0;border-bottom:1px solid var(--line2);">
         <div class="field">
           <label style="display:block;font-size:11px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Sector</label>
           <div id="detalleGraficoSectorBtns" class="row" style="gap:6px;"></div>
@@ -860,8 +860,6 @@ body.tema-claro #view-avance{
           <div class="right">
             <div id="avClock"><span class="d">--:--</span>--/--/----</div>
             <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
-            <button class="btn" id="avOpenTabBtn">🔗 Abrir en pestaña nueva</button>
-            <button class="btn" id="avTvToggle">▭ Modo TV</button>
             <button class="btn" id="avDirectorioBtn" style="display:none;">📊 Cola Productiva</button>
             <button class="btn icon" id="btnToggleTemaAvance" title="Cambiar tema claro/oscuro">🌙</button>
           </div>
@@ -869,10 +867,6 @@ body.tema-claro #view-avance{
 
         <div id="avConfigDrawer">
           <div class="cfg-grid">
-            <div class="cfg-field">
-              <label>Días hábiles de este mes</label>
-              <input type="number" id="avDiasHabilesInput">
-            </div>
             <div class="cfg-field">
               <label>Resolución de la pantalla</label>
               <select id="avResSelect">
@@ -886,10 +880,8 @@ body.tema-claro #view-avance{
           </div>
 
           <div class="help-txt">
-            Los objetivos mín./óptimo por sector y el histórico completo vienen directo de esta misma app — no hay que cargar nada acá.
-            Los días hábiles se calculan solos (lunes a viernes, según tu configuración de días obligatorios), pero podés ajustarlos si hubo un feriado.
             Elegí la resolución real de la pantalla/TV donde se va a mostrar para que encaje exacto y no haga falta scrollear.
-            Para mover o cambiar el tamaño de cada bloque (incluido este encabezado), usá el botón "🔧 Editar diseño".
+            Los objetivos, el histórico y los días hábiles (con feriados incluidos) se calculan solos desde Cierre Diario — no hay nada más que cargar acá.
           </div>
         </div>
 
@@ -962,6 +954,14 @@ body.tema-claro #view-avance{
       <div class="av-widget-body" style="display:flex; flex-direction:column; gap:8px;">
         <div id="avColaEmpty" class="empty-note" style="display:none; margin-bottom:0;">Todavía no se cargó la cola de G-PRO (se hace desde Cierre Diario → Hoy).</div>
         <div id="avColaWrap" style="display:flex; flex-direction:column; gap:14px; flex:1; min-height:0;">
+          <div class="row" style="gap:10px; align-items:center;">
+            <span style="font-size:12px; color:var(--av-muted);">Simular ritmo diario:</span>
+            <button class="btn icon" id="avColaTasaMenos">−</button>
+            <span id="avColaTasaLabel" style="font-weight:700; font-size:15px; min-width:110px; text-align:center;">— m²/día</span>
+            <button class="btn icon" id="avColaTasaMas">+</button>
+            <button class="btn" id="avColaTasaReset" style="display:none;">📍 M² real x día</button>
+          </div>
+          <div id="avColaResumen"></div>
           <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px;">
             <div style="font-size:12px; color:var(--av-muted); text-transform:uppercase; letter-spacing:.04em;">Fecha Pacto</div>
             <div style="flex:1; min-height:0;"><canvas id="avChartColaPacto"></canvas></div>
@@ -985,6 +985,7 @@ body.tema-claro #view-avance{
         <button class="cfg-sidebar-btn active" data-cfg-tab="general"><span class="ico">⚙️</span> General</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="sectores"><span class="ico">🏭</span> Sectores y causas</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="feriados"><span class="ico">📅</span> Feriados</button>
+        <button class="cfg-sidebar-btn" data-cfg-tab="personal"><span class="ico">👥</span> Personal por sector</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="detalle"><span class="ico">🔩</span> Producción x operario</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="usuarios"><span class="ico">👥</span> Usuarios y permisos</button>
         <button class="cfg-sidebar-btn" data-cfg-tab="respaldo"><span class="ico">💾</span> Respaldo y datos</button>
@@ -1096,6 +1097,14 @@ body.tema-claro #view-avance{
         <button class="btn btn-primary" id="btnAgregarFeriado">+ Agregar feriado</button>
       </div>
       <div id="feriadosList"></div>
+    </div>
+      </div>
+
+      <div class="cfg-tabpage" id="cfgTab-personal">
+    <div class="panel">
+      <h2>Personal por sector</h2>
+      <div class="hint" style="margin-bottom:16px;">Cantidad de personas activas hoy en cada sector. Se usa para calcular cuántas personas harían falta (o sobrarían) si se cambia el ritmo diario en la calculadora de Cola Productiva.</div>
+      <div id="personalPorSectorList" class="cfg-grid"></div>
     </div>
       </div>
 
@@ -1558,6 +1567,7 @@ function aplicarEstadoRemoto(data){
         {fecha:'2026-12-08', motivo:'Inmaculada Concepción'}, {fecha:'2026-12-25', motivo:'Navidad'}
       ],
       colaProductiva: data.colaProductiva || { dias: {} },
+      personalPorSector: data.personalPorSector || {'1-ALM':8, '2-MEC':5, '3-SOL':5, '4-VID':9, '5-DVH':7, '6-ARM':11, '7-ACR':7, '8-LI':3},
       actual: data.actual || null
     };
     // conservamos lo que está en curso de tipeo en los textareas, pero actualizamos el resto del estado
@@ -1646,6 +1656,7 @@ function subirEstadoAFirestore(){
         avanceDiasHabiles: state.avanceDiasHabiles || {},
         avanceFeriados: state.avanceFeriados || [],
         colaProductiva: state.colaProductiva || { dias: {} },
+        personalPorSector: state.personalPorSector || {},
         actual: state.actual || null,
         _formatoCampos: true,
         _instanceId: INSTANCE_ID,
@@ -1782,6 +1793,7 @@ function defaultState(){
       {fecha:'2026-12-25', motivo:'Navidad'}
     ],
     colaProductiva: { dias: {} },  // { dias: { 'YYYY-MM-DD': {supAbePenPacto, supAbePenProd} } } — cola de aberturas pendientes pegada desde G-PRO, para proyectar disponibilidad de cupo
+    personalPorSector: {'1-ALM':8, '2-MEC':5, '3-SOL':5, '4-VID':9, '5-DVH':7, '6-ARM':11, '7-ACR':7, '8-LI':3},  // cantidad de personas activas hoy en cada sector — editable en Configuración, usado para la calculadora de personal en Cola Productiva
     actual: {           // carga en progreso del día de hoy, no confirmada
       fecha: null,
       inicio: null,     // { sector: {udsPul, supPul, supFin} }
@@ -2445,9 +2457,9 @@ function detalleConfigDefault(){
         'Vecino, Matías Alberto','Venialgo Prieto, Willian Daniel','Vera, Gastón Alberto'
       ],
       unidades:[{key:'cuadros',label:'Cuadros'},{key:'aberturas',label:'Aberturas'}], complejidad:true},
-    '2-MEC': {activo:true, tipo:'multi', label:'CM', actorLabel:'Máquina', actores:['CM1','CM2','CM3'],
+    '2-MEC': {activo:true, tipo:'multi', label:'CM', actorLabel:'Máquina', actores:['CM1','CM2','CM3','Refuerzos'],
       operarios:['García, Pablo Ariel','Benitez, Alexis German','Celiz, Cristian Eduardo','Gimenez, Nicolás','Roldán, Nicolás Ezequiel'],
-      unidades:[{key:'barras',label:'Barras'}], complejidad:true},
+      unidades:[{key:'m2',label:'M²'},{key:'barras',label:'Barras'}], complejidad:true},
     '3-SOL': {activo:true, tipo:'multi', label:'Soldado', actorLabel:'Máquina', actores:['Soldadora 1','Soldadora 2','Soldadora Manual'],
       operarios:['Amarillo, Ricardo Ariel','Amarillo, Cristian Daniel','Garnica, Juan José','Quiroga, González Yonatan','Rufino, Boris Gabriel'],
       unidades:[{key:'cuadros',label:'Cuadros'}], complejidad:true},
@@ -2605,6 +2617,18 @@ function ensureProduccionDetalle(){
   if(cfg['3-SOL'] && (!cfg['3-SOL'].operarios || cfg['3-SOL'].operarios.length===0)){
     cfg['3-SOL'].operarios = def['3-SOL'].operarios;
     sembrado = true;
+  }
+  // CM: agregar la máquina "Refuerzos" y la unidad M² (como principal, junto a Barras
+  // que se conserva para no perder el historial ya cargado)
+  if(cfg['2-MEC']){
+    if(!cfg['2-MEC'].actores.includes('Refuerzos')){
+      cfg['2-MEC'].actores.push('Refuerzos');
+      sembrado = true;
+    }
+    if(!cfg['2-MEC'].unidades.some(u=>u.key==='m2')){
+      cfg['2-MEC'].unidades.unshift({key:'m2', label:'M²'});
+      sembrado = true;
+    }
   }
   if(sembrado) saveState();
 }
@@ -3028,7 +3052,7 @@ function construirGridDetalle(){
         <select data-op-select style="background:var(--bg2);border:1px solid var(--line2);color:var(--ink);padding:6px 8px;border-radius:5px;font-size:12.5px;min-width:150px;" ${bloqueado?'disabled':''}>
           <option value="">— operario —</option>${opts}
         </select>
-        ${DETALLE_NIVELES.map(niv=>`<input type="number" min="0" ${bloqueado?'disabled':''} data-op-niv="${niv}" value="${(valoresNiv[niv]&&valoresNiv[niv][cfg.unidades[0].key])||''}" placeholder="${niv[0].toUpperCase()}" title="${niv}" style="width:52px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 4px;border-radius:5px;text-align:center;">`).join('')}
+        ${DETALLE_NIVELES.map(niv=>cfg.unidades.map(u=>`<input type="number" min="0" ${bloqueado?'disabled':''} data-op-niv="${niv}" data-op-unidad="${u.key}" value="${(valoresNiv[niv]&&valoresNiv[niv][u.key])||''}" placeholder="${niv[0].toUpperCase()}" title="${niv} · ${u.label}" style="width:52px;background:var(--bg2);border:1px solid var(--line2);color:var(--ink);font-family:var(--mono);font-size:13px;padding:6px 4px;border-radius:5px;text-align:center;">`).join('')).join('')}
         ${bloqueado ? '' : `<button type="button" class="btn btn-ghost btn-sm" data-op-quitar style="padding:4px 9px;font-size:11px;">Quitar</button>`}
       </div>`;
     }).join('');
@@ -3041,7 +3065,7 @@ function construirGridDetalle(){
   }).join('');
 
   wrap.innerHTML = `
-    <div class="hint" style="margin-bottom:10px;">Columnas de la derecha: N=Normal, J=Jumbo, E=Evolution (${esc(cfg.unidades[0].label.toLowerCase())}).</div>
+    <div class="hint" style="margin-bottom:10px;">Cada columna es Normal/Jumbo/Evolution${cfg.unidades.length>1 ? `, repetido por cada unidad (pasá el mouse encima de cada casillero para ver cuál es): ${cfg.unidades.map(u=>esc(u.label)).join(' · ')}` : ` (${esc(cfg.unidades[0].label.toLowerCase())})`}.</div>
     ${bloquesDias}`;
 
   wrap.querySelectorAll('[data-borrar-dia-multi]').forEach(btn=>{
@@ -3286,7 +3310,7 @@ document.getElementById('btnGuardarDetalle').addEventListener('click', ()=>{
         const fila = {operario, normal:{}, jumbo:{}, evolution:{}};
         row.querySelectorAll('[data-op-niv]').forEach(inp=>{
           const val = inp.value==='' ? 0 : Number(inp.value);
-          fila[inp.dataset.opNiv][cfg.unidades[0].key] = val;
+          fila[inp.dataset.opNiv][inp.dataset.opUnidad] = val;
         });
         if(operario) filas.push(fila);
       });
@@ -3398,10 +3422,32 @@ const AV_WIDGET_DEFAULTS = {
   lineChart: {x:0,    y:575, w:565,  h:260},
   barChart:  {x:575,  y:575, w:595,  h:260},
   ranking:   {x:1180, y:140, w:420,  h:695},
-  colaProductiva: {x:0, y:845, w:1600, h:300}
+  colaProductiva: {x:0, y:845, w:1600, h:750}
 };
 let avResizeObserver = null;
 let avDragInfo = null; // {widget, startX, startY, startLeft, startTop}
+
+// alto (en el espacio de diseño de 1600px de ancho) que le corresponde al bloque
+// "Cola Productiva" para que, sumado al encabezado, la proporción del stage completo
+// coincida con la proporción real del viewport -- así avFitStage() siempre termina
+// ajustando por ANCHO (pantalla completa, sin franjas vacías) en vez de terminar
+// ajustando por ALTO: como este bloque es más "cuadrado" que el dashboard normal, el
+// ajuste por alto le ganaba al de ancho y quedaba una franja negra a la derecha.
+//
+// Usamos window.innerWidth/innerHeight (el viewport real del navegador) y no
+// wrap.clientWidth/Height: #stageWrap tiene overflow:auto, así que su clientWidth/Height
+// depende de si tiene o no scrollbar propio -- que es justo lo que estamos calculando acá.
+// Medir contra esa referencia auto-referenciada es lo que causaba que, según el zoom,
+// quedara una franja vacía de un lado o un scrollbar/recorte del otro. window.innerWidth/
+// innerHeight no se ven afectados por el scrollbar de un descendiente, así que cortan ese
+// círculo.
+function avColaAlturaDiseno(){
+  const refW = window.innerWidth || 1600;
+  const refH = window.innerHeight || 900;
+  const headerY = 140, margenInferior = 10, paddingVerticalStage = 30; // 14px arriba + 16px abajo (ver CSS de #stage)
+  const altoTotalObjetivo = Math.round(1600 * (refH/refW)) - paddingVerticalStage;
+  return Math.max(400, altoTotalObjetivo - headerY - margenInferior);
+}
 
 function avAplicarLayout(){
   // distribución fija (sin edición ni guardado — si hace falta ajustarla, se cambia
@@ -3417,7 +3463,11 @@ function avAplicarLayout(){
       // (el que ven los líderes) no se muestra ni ocupa espacio en el layout.
       el.style.display = avModoDirectorio ? '' : 'none';
       if(avModoDirectorio){
-        const pos = {x:0, y:140, w:1600, h:700}; // ocupa toda la pantalla cuando es la única vista activa
+        // el aviso "no hay días confirmados" es del dashboard normal (hero/flujo/
+        // ranking, todos ocultos acá) — en Cola Productiva no aplica, y si queda
+        // visible sólo suma alto de más al cálculo de avFitStage().
+        document.getElementById('avNoDataNote').style.display = 'none';
+        const pos = {x:0, y:140, w:1600, h:avColaAlturaDiseno()}; // ocupa toda la pantalla cuando es la única vista activa
         el.style.left = pos.x+'px'; el.style.top = pos.y+'px'; el.style.width = pos.w+'px'; el.style.height = pos.h+'px';
         maxBottom = Math.max(maxBottom, pos.y+pos.h);
       }
@@ -3442,18 +3492,37 @@ function avFitStage(){
   const stage = document.getElementById('stage');
   const wrap = document.getElementById('stageWrap');
   if(!stage || !wrap) return;
+
+  // en Cola Productiva recalculamos el alto de diseño del bloque en cada ajuste (no
+  // sólo al entrar) — así se sigue viendo perfecto si la ventana/TV cambia de tamaño,
+  // de zoom o de proporción después de haber entrado a esa pantalla.
+  if(avModoDirectorio){
+    const grid = document.getElementById('avCustomGrid');
+    const colaEl = grid && grid.querySelector('.av-widget[data-widget="colaProductiva"]');
+    if(colaEl){
+      const h = avColaAlturaDiseno();
+      colaEl.style.height = h+'px';
+      grid.style.height = (140 + h + 10) + 'px';
+    }
+  }
+
   stage.style.height = 'auto';
   stage.style.transform = 'scale(1)';
   const naturalH = stage.scrollHeight;
 
-  // referencia: el tamaño de pantalla elegido (si hay uno fijo) o la ventana real (automático)
-  const refW = avTargetRes ? avTargetRes.w : wrap.clientWidth;
-  const refH = avTargetRes ? avTargetRes.h : wrap.clientHeight;
+  // referencia: el tamaño de pantalla elegido (si hay uno fijo) o la ventana real (automático).
+  // En Cola Productiva usamos el viewport real (window.inner*) en vez de wrap.clientWidth/Height
+  // por la misma razón que en avColaAlturaDiseno(): wrap tiene overflow:auto y su clientWidth/
+  // Height cambian según si termina apareciendo scrollbar, que es lo que este cálculo decide.
+  const anchoReal = avModoDirectorio ? (window.innerWidth || wrap.clientWidth) : wrap.clientWidth;
+  const altoReal = avModoDirectorio ? (window.innerHeight || wrap.clientHeight) : wrap.clientHeight;
+  const refW = avTargetRes ? avTargetRes.w : anchoReal;
+  const refH = avTargetRes ? avTargetRes.h : altoReal;
 
   // calza por ancho Y por alto contra la referencia elegida, PERO nunca más grande
   // de lo que realmente entra en la ventana actual — así nunca hace falta scrollear,
   // sea cual sea la resolución elegida y sea cual sea el tamaño real de la ventana.
-  const scale = Math.min(refW / 1600, refH / naturalH, wrap.clientWidth / 1600, wrap.clientHeight / naturalH);
+  const scale = Math.min(refW / 1600, refH / naturalH, anchoReal / 1600, altoReal / naturalH);
   stage.style.height = naturalH + 'px';
   stage.style.transform = `scale(${scale})`;
 }
@@ -3495,7 +3564,6 @@ function renderAvance(){
   const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const [y,m] = avMesActual.split('-').map(Number);
   document.getElementById('avMesLabel').textContent = `${monthNames[m-1]} ${y}`;
-  document.getElementById('avDiasHabilesInput').value = avDiasHabilesActuales();
   document.getElementById('avDirectorioBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
   document.getElementById('avDirectorioBtn').textContent = avModoDirectorio ? '← Volver al dashboard' : '📊 Cola Productiva';
 
@@ -3617,7 +3685,9 @@ const colaEtiquetasPlugin = {
   afterDatasetsDraw(chart){
     const {ctx} = chart;
     const meta = chart.getDatasetMeta(0);
-    const datos = chart.data.datasets[0].data;
+    const ds = chart.data.datasets[0];
+    const datos = ds.data;
+    const pendientes = ds.pendientes || [];
     ctx.save();
     ctx.font = '700 12px Inter, sans-serif';
     ctx.textAlign = 'center';
@@ -3627,35 +3697,111 @@ const colaEtiquetasPlugin = {
       const y = val>=0 ? bar.y - 8 : bar.y + 16;
       ctx.fillText(fmt(val), bar.x, y);
     });
+    // m² pactados/pendientes esa semana puntual — para que se entienda que "cupo
+    // disponible" no significa "cero trabajo", sino que hay menos que la capacidad.
+    if(pendientes.length){
+      ctx.font = '700 12px Inter, sans-serif';
+      ctx.fillStyle = '#b8bcc2';
+      const yBase = chart.chartArea.bottom + 42;
+      ctx.textAlign = 'left';
+      ctx.fillText('Pactados:', 4, yBase);
+      ctx.textAlign = 'center';
+      meta.data.forEach((bar,i)=>{
+        if(pendientes[i]!==null && pendientes[i]!==undefined) ctx.fillText(fmt(pendientes[i]), bar.x, yBase);
+      });
+    }
     ctx.restore();
   }
 };
 
+function colaHexToRgb(hex){
+  const n = parseInt(hex.slice(1),16);
+  return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+}
+function colaInterpolarColor(c1, c2, t){
+  const a = colaHexToRgb(c1), b = colaHexToRgb(c2);
+  const r = Math.round(a.r + (b.r-a.r)*t);
+  const g = Math.round(a.g + (b.g-a.g)*t);
+  const bl = Math.round(a.b + (b.b-a.b)*t);
+  return `rgb(${r},${g},${bl})`;
+}
+// verde = equilibrado (ni atrasado ni sin cola), amarillo = alerta hacia cualquiera de los
+// dos lados, rojo = el peor de los casos en cualquier dirección (mucho atraso, o mucho
+// tiempo sin nada para producir)
+function colaColorPorBalance(balance, capacidadSemanal){
+  const cap = capacidadSemanal>0 ? capacidadSemanal : 1;
+  const zonaVerde = cap * 0.15;
+  if(balance >= -zonaVerde && balance <= zonaVerde) return '#4FAE7C';
+  if(balance > zonaVerde){
+    // atrasado: de amarillo a rojo cuanto más grande sea el atraso
+    const t = Math.min((balance - zonaVerde) / (cap * 3), 1);
+    return colaInterpolarColor('#D9A23E', '#E1432E', t);
+  }
+  // sin cola disponible: de amarillo a rojo cuanto más tiempo lleve así
+  const t = Math.min((Math.abs(balance) - zonaVerde) / (cap * 6), 1);
+  return colaInterpolarColor('#D9A23E', '#E1432E', t);
+}
+
 function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
   const proy = colaComputarProyeccion(tipo);
-  const labels = proy.semanas.map(s=>fechaDMY(s.semana));
-  const valores = proy.semanas.map(s=>Math.round(s.balance*10)/10);
-  const colores = valores.map(v=> v>=0 ? '#E1432E' : '#4FAE7C');
+  const capacidadProm = proy.semanas.length ? proy.semanas.reduce((a,s)=>a+s.capacidad,0)/proy.semanas.length : 1;
+  const labels = ['Atraso', ...proy.semanas.map(s=>fechaDMY(s.semana))];
+  const valores = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.balance*10)/10)];
+  const pendientes = [null, ...proy.semanas.map(s=>Math.round(s.pendiente*10)/10)];
+  const colores = ['#E1432E', ...proy.semanas.map(s=>colaColorPorBalance(s.balance, capacidadProm))];
+  const atrasoLineaCruda = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.atrasoRestanteSemana*10)/10)];
+  let atrasoYaLlegoACero = false;
+  const atrasoLinea = atrasoLineaCruda.map(v=>{
+    if(atrasoYaLlegoACero) return null; // corta la línea acá — no tiene sentido seguir marcando "0" semana tras semana
+    if(v<=0) atrasoYaLlegoACero = true;
+    return v;
+  });
 
   const canvas = document.getElementById(canvasId);
-  if(instanciaPrevia) instanciaPrevia.destroy();
-  return new Chart(canvas.getContext('2d'), {
+  if(instanciaPrevia){
+    // el ResizeObserver que se enganchó cuando se creó ESTA instancia sigue vivo y
+    // observando el contenedor aunque destruyamos el chart -- si no lo desconectamos aca,
+    // se acumula un observer nuevo en cada redibujado y los viejos quedan disparando
+    // chart.resize() sobre instancias ya destruidas.
+    if(instanciaPrevia._roAncho) instanciaPrevia._roAncho.disconnect();
+    instanciaPrevia.destroy();
+  }
+  // forzamos el tamaño visual del canvas por CSS al 100% del contenedor real — así no
+  // depende de que Chart.js haya medido bien el ancho la primera vez
+  canvas.removeAttribute('style');
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.display = 'block';
+  const chart = new Chart(canvas.getContext('2d'), {
     type:'bar',
-    data:{ labels, datasets:[{ data: valores, backgroundColor: colores, borderRadius:5, borderSkipped:false }] },
+    data:{ labels, datasets:[
+      { type:'bar', data: valores, pendientes, backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2 },
+      { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1 }
+    ] },
     plugins:[colaEtiquetasPlugin],
     options:{
       responsive:true, maintainAspectRatio:false,
-      layout:{ padding:{top:18, bottom:18} },
+      layout:{ padding:{top:18, bottom:58, left:56} },
       plugins:{
-        legend:{display:false},
+        legend:{display:true, labels:{color:'#e8e9ea', font:{size:10}, boxWidth:10}},
         datalabels:{display:false}
       },
       scales:{
-        x:{ ticks:{color:'#8d9199', font:{size:9.5}}, grid:{color:'#2c3038'} },
-        y:{ ticks:{color:'#8d9199'}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1} }
+        x:{ ticks:{color:'#8d9199', font:{size:11.5}}, grid:{color:'#2c3038'} },
+        y:{ ticks:{color:'#8d9199', stepSize:1000}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1} }
       }
     }
   });
+  // el contenedor puede estar recién haciéndose visible (display:none -> visible) cuando
+  // se crea el gráfico, y en ese instante Chart.js todavía no puede medir el ancho real —
+  // en vez de adivinar tiempos, escuchamos el tamaño real del contenedor y forzamos el
+  // resize apenas cambie (misma técnica robusta que ya usamos para el escenario general).
+  if(window.ResizeObserver){
+    const ro = new ResizeObserver(()=>{ chart.resize(); });
+    ro.observe(canvas.parentElement);
+    chart._roAncho = ro; // por si hace falta desconectarlo más adelante
+  }
+  return chart;
 }
 function avRenderColaProductiva(){
   if(!avModoDirectorio) return;
@@ -3664,9 +3810,51 @@ function avRenderColaProductiva(){
   document.getElementById('avColaWrap').style.display = hayDatos ? 'flex' : 'none';
   if(!hayDatos) return;
 
+  const tasaReal = colaTasaDiariaReal();
+  const tasaActual = colaTasaOverride!==null ? colaTasaOverride : tasaReal;
+  document.getElementById('avColaTasaLabel').textContent = `${fmt(tasaActual,1)} m²/día`;
+  document.getElementById('avColaTasaLabel').style.color = colaTasaOverride!==null ? 'var(--av-brand)' : '';
+  document.getElementById('avColaTasaReset').style.display = colaTasaOverride!==null ? '' : 'none';
+
   avChartColaPactoInstance = avDibujarChartCola('pacto', 'avChartColaPacto', avChartColaPactoInstance);
   avChartColaProdInstance = avDibujarChartCola('prod', 'avChartColaProd', avChartColaProdInstance);
+
+  const proyPacto = colaComputarProyeccion('pacto');
+  const proyProd = colaComputarProyeccion('prod');
+  document.getElementById('avColaResumen').innerHTML = `
+    <div class="row" style="flex-wrap:wrap;gap:10px;">
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
+        <div style="font-size:11px;color:var(--av-muted);">Capacidad diaria usada (promedio real Fin de Línea)</div>
+        <div style="font-weight:700;font-size:15px;">${fmt(proyPacto.tasaDiaria,1)} m²/día</div>
+      </div>
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
+        <div style="font-size:11px;color:var(--av-muted);">m² vencidos HOY (dato real, no cambia con el simulador)</div>
+        <div style="font-weight:700;font-size:15px;color:${proyPacto.vencidos>0?'var(--av-bad)':'var(--av-good)'};">${fmt(proyPacto.vencidos,1)} m²</div>
+        <div style="font-size:10px;color:var(--av-muted);margin-top:2px;">De eso, quedarían <strong>${fmt(proyPacto.atrasoRestante,1)} m²</strong> sin pagar si se mantiene el ritmo simulado (${fmt(proyPacto.tasaDiaria,1)} m²/día)</div>
+      </div>
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
+        <div style="font-size:11px;color:var(--av-muted);">Se queda sin cola (fecha pacto)</div>
+        <div style="font-weight:700;font-size:15px;color:${proyPacto.semanaSinCupo?'var(--av-bad)':'var(--av-good)'};">${proyPacto.semanaSinCupo ? 'semana del '+fechaDMY(proyPacto.semanaSinCupo) : 'no se agota en el horizonte cargado'}</div>
+      </div>
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
+        <div style="font-size:11px;color:var(--av-muted);">Se queda sin cola (fecha productiva)</div>
+        <div style="font-weight:700;font-size:15px;color:${proyProd.semanaSinCupo?'var(--av-bad)':'var(--av-good)'};">${proyProd.semanaSinCupo ? 'semana del '+fechaDMY(proyProd.semanaSinCupo) : 'no se agota en el horizonte cargado'}</div>
+      </div>
+    </div>`;
 }
+
+document.getElementById('avColaTasaMenos').addEventListener('click', ()=>{
+  colaTasaOverride = Math.max((colaTasaOverride!==null ? colaTasaOverride : colaTasaDiariaReal()) - 5, 0);
+  avRenderColaProductiva();
+});
+document.getElementById('avColaTasaMas').addEventListener('click', ()=>{
+  colaTasaOverride = (colaTasaOverride!==null ? colaTasaOverride : colaTasaDiariaReal()) + 5;
+  avRenderColaProductiva();
+});
+document.getElementById('avColaTasaReset').addEventListener('click', ()=>{
+  colaTasaOverride = null;
+  avRenderColaProductiva();
+});
 
 function avRenderRanking(){
   const hoyReal = fechaHoyLocal();
@@ -3805,21 +3993,6 @@ document.getElementById('avMesPrev').addEventListener('click', ()=>avShiftMonth(
 document.getElementById('avMesNext').addEventListener('click', ()=>avShiftMonth(1));
 document.getElementById('avDiaPrev').addEventListener('click', ()=>avShiftDia(-1));
 document.getElementById('avDiaNext').addEventListener('click', ()=>avShiftDia(1));
-document.getElementById('avDiasHabilesInput').addEventListener('change', e=>{
-  const raw = e.target.value.trim();
-  if(!state.avanceDiasHabiles) state.avanceDiasHabiles = {};
-  if(raw===''){
-    // campo vacío = sin corrección manual, vuelve a calcularse solo (hábiles - feriados)
-    avDiasHabilesOverride = null;
-    delete state.avanceDiasHabiles[avMesActual];
-  }else{
-    const val = Number(raw)||0;
-    avDiasHabilesOverride = val;
-    state.avanceDiasHabiles[avMesActual] = val;
-  }
-  saveState();
-  renderAvance();
-});
 document.getElementById('avResSelect').addEventListener('change', e=>{
   const val = e.target.value;
   if(val==='auto'){ avTargetRes = null; }
@@ -3833,20 +4006,19 @@ document.getElementById('avCfgToggle').addEventListener('click', ()=>{
   document.getElementById('avConfigDrawer').classList.toggle('open');
   setTimeout(avFitStage, 50);
 });
-document.getElementById('avOpenTabBtn').addEventListener('click', ()=>{
-  const url = location.pathname + '?tv=1';
-  window.open(url, 'lfda_avance_tv', 'toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,width=1600,height=900');
-});
 document.getElementById('avDirectorioBtn').addEventListener('click', ()=>{
   avModoDirectorio = !avModoDirectorio;
   document.getElementById('avDirectorioBtn').textContent = avModoDirectorio ? '← Volver al dashboard' : '📊 Cola Productiva';
   avAplicarLayout();
-  avRenderColaProductiva();
   avFitStage();
-});
-document.getElementById('avTvToggle').addEventListener('click', ()=>{
-  document.getElementById('view-avance').classList.toggle('tv-mode');
-  setTimeout(avFitStage, 50);
+  // dejamos que el navegador termine de acomodar el tamaño real del bloque (recién
+  // visible) antes de crear los gráficos — si no, Chart.js los mide angostos
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      avRenderColaProductiva();
+      avFitStage();
+    });
+  });
 });
 
 function avTickClock(){
@@ -3889,7 +4061,7 @@ document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     if(btn.dataset.nav==='avance'){
       // se abre siempre en pestaña/ventana nueva, para no taparte Cierre Diario
-      window.open(location.pathname + '?tv=1', 'lfda_avance_tv', 'toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,width=1600,height=900');
+      window.open(location.pathname + '?tv=1', 'lfda_avance_tv', `toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes,left=0,top=0,width=${screen.availWidth},height=${screen.availHeight}`);
       return;
     }
     if(btn.dataset.nav==='historial'){
@@ -4115,19 +4287,24 @@ function colaSumarDias(fechaStr, n){
 // capacidad diaria real: promedio de Fin de Línea sobre todos los días confirmados disponibles
 function colaTasaDiariaReal(){
   const liKey = state.sectorFinLinea || '8-LI';
+  return colaPromedioSectorReal(liKey);
+}
+function colaPromedioSectorReal(key){
   let suma=0, count=0;
   Object.keys(state.dias||{}).forEach(f=>{
-    const s = state.dias[f].sectores && state.dias[f].sectores[liKey];
+    const s = state.dias[f].sectores && state.dias[f].sectores[key];
     if(s && typeof s.cerrado==='number'){ suma+=s.cerrado; count++; }
   });
   return count>0 ? suma/count : 0;
 }
 
+let colaTasaOverride = null; // simulador de "qué pasaría si": null = usar el promedio real
+
 function colaComputarProyeccion(tipo){
   const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
   const campo = tipo==='pacto' ? 'supAbePenPacto' : 'supAbePenProd';
   const hoy = fechaHoyLocal();
-  const tasaDiaria = colaTasaDiariaReal();
+  const tasaDiaria = colaTasaOverride!==null ? colaTasaOverride : colaTasaDiariaReal();
   const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
   const dObl = state.diasObligatorios || [1,2,3,4,5];
 
@@ -4149,17 +4326,24 @@ function colaComputarProyeccion(tipo){
 
   const semanasOrdenadas = Object.keys(semanas).sort();
   let balance = vencidos; // vencidos = trabajo comprometido y no producido todavía → suma al atraso, no lo resta
-  const resultado = semanasOrdenadas.map(lunes=>{
+  let atrasoAcumulado = vencidos;
+  const resultado = semanasOrdenadas.map((lunes, idx)=>{
     let diasHabiles = 0;
+    let pendienteMostrar = 0; // para la etiqueta: semana completa (lunes a domingo), no solo desde hoy
     for(let i=0;i<7;i++){
       const d = colaSumarDias(lunes, i);
-      const wd = new Date(...d.split('-').map(Number).map((v,idx)=>idx===1?v-1:v)).getDay();
+      const wd = new Date(...d.split('-').map(Number).map((v,idx2)=>idx2===1?v-1:v)).getDay();
       if(dObl.includes(wd) && !feriados.has(d)) diasHabiles++;
+      pendienteMostrar += (dias[d] && dias[d][campo]) || 0;
     }
     const capacidad = tasaDiaria * diasHabiles;
-    const pendiente = semanas[lunes];
+    const pendiente = semanas[lunes]; // este sigue siendo solo "desde hoy" — el que alimenta el balance, sin duplicar lo que ya está en "vencidos"
     balance += pendiente - capacidad;
-    return { semana: lunes, pendiente, capacidad, balance };
+    // atraso restante progresivo: cada semana que sobra capacidad (por encima de lo
+    // pactado de esa semana), esa diferencia se descuenta del atraso viejo, hasta llegar a 0
+    const excedenteSemana = Math.max(0, capacidad - pendiente);
+    atrasoAcumulado = Math.max(0, atrasoAcumulado - excedenteSemana);
+    return { semana: lunes, pendiente: idx===0 ? pendienteMostrar : pendiente, capacidad, balance, atrasoRestanteSemana: atrasoAcumulado };
   });
 
   // "se queda sin cola" = la semana donde empieza la racha negativa que YA NO SE RECUPERA
@@ -4170,7 +4354,11 @@ function colaComputarProyeccion(tipo){
     semanaSinCupo = resultado[i].semana;
   }
 
-  return { tasaDiaria, vencidos, semanas: resultado, semanaSinCupo };
+  // atraso restante al final del horizonte cargado: es simplemente el último valor de la
+  // trayectoria progresiva que ya se calculó semana a semana arriba.
+  const atrasoRestante = resultado.length ? resultado[resultado.length-1].atrasoRestanteSemana : vencidos;
+
+  return { tasaDiaria, vencidos, atrasoRestante, semanas: resultado, semanaSinCupo };
 }
 
 function renderColaProductiva(){
@@ -4182,30 +4370,50 @@ function renderColaProductiva(){
   document.getElementById('btnColaTogglePacto').className = colaVistaActual==='pacto' ? 'btn btn-primary' : 'btn btn-ghost';
   document.getElementById('btnColaToggleProd').className = colaVistaActual==='prod' ? 'btn btn-primary' : 'btn btn-ghost';
 
-  const labels = proy.semanas.map(s=>fechaDMY(s.semana));
-  const valores = proy.semanas.map(s=>Math.round(s.balance*10)/10);
-  const colores = valores.map(v=> v>=0 ? '#E1432E' : '#4FAE7C');
+  const capacidadProm = proy.semanas.length ? proy.semanas.reduce((a,s)=>a+s.capacidad,0)/proy.semanas.length : 1;
+  const labels = ['Atraso', ...proy.semanas.map(s=>fechaDMY(s.semana))];
+  const valores = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.balance*10)/10)];
+  const pendientes = [null, ...proy.semanas.map(s=>Math.round(s.pendiente*10)/10)];
+  const colores = ['#E1432E', ...proy.semanas.map(s=>colaColorPorBalance(s.balance, capacidadProm))];
+  const atrasoLineaCruda = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.atrasoRestanteSemana*10)/10)];
+  let atrasoYaLlegoACero = false;
+  const atrasoLinea = atrasoLineaCruda.map(v=>{
+    if(atrasoYaLlegoACero) return null; // corta la línea acá — no tiene sentido seguir marcando "0" semana tras semana
+    if(v<=0) atrasoYaLlegoACero = true;
+    return v;
+  });
 
   const canvas = document.getElementById('chartColaProductiva');
   if(chartColaInstance) chartColaInstance.destroy();
+  canvas.removeAttribute('style');
+  canvas.style.width = '100%';
+  canvas.style.height = '100%';
+  canvas.style.display = 'block';
   chartColaInstance = new Chart(canvas.getContext('2d'), {
     type:'bar',
-    data:{ labels, datasets:[{ label: colaVistaActual==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, backgroundColor: colores, borderRadius:5, borderSkipped:false }] },
+    data:{ labels, datasets:[
+      { type:'bar', label: colaVistaActual==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2 },
+      { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1 }
+    ] },
     plugins:[colaEtiquetasPlugin],
     options:{
       responsive:true, maintainAspectRatio:false,
-      layout:{ padding:{top:18, bottom:18} },
+      layout:{ padding:{top:18, bottom:58, left:56} },
       plugins:{
-        legend:{display:false},
+        legend:{display:true, labels:{color:'#e8e9ea', font:{size:10}, boxWidth:10}},
         tooltip:{ callbacks:{ label:(ctx)=> `${fmt(ctx.parsed.y)} m²` } },
         datalabels:{display:false}
       },
       scales:{
-        x:{ ticks:{color:'#8d9199', font:{size:10.5}}, grid:{color:'#2c3038'} },
-        y:{ ticks:{color:'#8d9199'}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1}, title:{display:true, text:'(-) con cupo disponible · (+) atrasado (cola pendiente)', color:'#8d9199'} }
+        x:{ ticks:{color:'#8d9199', font:{size:11.5}}, grid:{color:'#2c3038'} },
+        y:{ ticks:{color:'#8d9199', stepSize:1000}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1}, title:{display:true, text:'(-) con cupo disponible · (+) atrasado (cola pendiente)', color:'#8d9199'} }
       }
     }
   });
+  if(window.ResizeObserver){
+    const ro = new ResizeObserver(()=>{ chartColaInstance.resize(); });
+    ro.observe(canvas.parentElement);
+  }
 
   const resumen = document.getElementById('colaResumen');
   const tituloVista = colaVistaActual==='pacto' ? 'fecha pacto (compromiso fijo)' : 'fecha productiva (se recalcula a tu ritmo real)';
@@ -4216,8 +4424,9 @@ function renderColaProductiva(){
         <div style="font-weight:700;font-size:16px;">${fmt(proy.tasaDiaria,1)} m²/día</div>
       </div>
       <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
-        <div class="hint">m² ya vencidos (pendientes de fechas anteriores a hoy)</div>
-        <div style="font-weight:700;font-size:16px;color:${proy.vencidos>0?'var(--red)':'inherit'};">${fmt(proy.vencidos,1)} m²</div>
+        <div class="hint">m² vencidos HOY (dato real, no cambia con el simulador)</div>
+        <div style="font-weight:700;font-size:16px;color:${proy.vencidos>0?'var(--red)':'var(--green)'};">${fmt(proy.vencidos,1)} m²</div>
+        <div class="hint" style="margin-top:2px;">De eso, quedarían <strong>${fmt(proy.atrasoRestante,1)} m²</strong> sin pagar si se mantiene el ritmo simulado</div>
       </div>
       <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
         <div class="hint">Se queda sin cola (${tituloVista})</div>
@@ -4281,8 +4490,13 @@ function renderHoy(){
     if(tvParam==='1' || tvParam==='directorio'){
       avModoDirectorio = (tvParam==='directorio');
       irASeccion('avance');
-      document.getElementById('view-avance').classList.add('tv-mode');
       document.getElementById('avConfigDrawer').classList.remove('open');
+      // por si el navegador no respetó el tamaño pedido al abrir la ventana, forzamos
+      // que se estire a ocupar toda la pantalla disponible
+      try{
+        window.moveTo(0,0);
+        window.resizeTo(screen.availWidth, screen.availHeight);
+      }catch(e){ /* algunos navegadores bloquean esto si la ventana no es un popup propio — no pasa nada */ }
       // una pestaña nueva tarda más en asentar el layout que un toggle in-place —
       // reintentamos el ajuste varias veces mientras la página termina de cargar
       [50, 300, 800, 1500].forEach(ms=> setTimeout(avFitStage, ms));
@@ -6035,6 +6249,7 @@ function renderConfig(){
   renderChecksCausaMasivaCatalogo();
   renderConfigDetalle();
   renderFeriadosConfig();
+  renderPersonalConfig();
 
   const selFinLinea = document.getElementById('cfgSectorFinLinea');
   selFinLinea.innerHTML = state.sectores.map(s=>`<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
@@ -6271,6 +6486,25 @@ document.getElementById('btnAgregarFeriado').addEventListener('click', ()=>{
   renderFeriadosConfig();
   toast('Feriado agregado');
 });
+
+function renderPersonalConfig(){
+  const cont = document.getElementById('personalPorSectorList');
+  if(!cont) return;
+  if(!state.personalPorSector) state.personalPorSector = {};
+  const orden = ['1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
+  cont.innerHTML = orden.map(key=>`
+    <div class="cfg-field">
+      <label>${esc(AV_SECTOR_SHORT[key]||key)}</label>
+      <input type="number" min="0" data-personal-sector="${key}" value="${state.personalPorSector[key]||0}" style="width:100px;">
+    </div>
+  `).join('');
+  cont.querySelectorAll('[data-personal-sector]').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      state.personalPorSector[inp.dataset.personalSector] = Number(inp.value)||0;
+      saveState();
+    });
+  });
+}
 
 function renderListaRespaldosLocales(){
   const cont = document.getElementById('listaRespaldosLocales');
