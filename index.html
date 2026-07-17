@@ -647,9 +647,10 @@ body.tema-claro #view-avance{
         </div>
 
         <div id="colaResultadoWrap" style="margin-top:20px;display:none;">
-          <div class="row" style="gap:8px;margin-bottom:14px;">
+          <div class="row" style="gap:8px;margin-bottom:14px;align-items:center;">
             <button class="btn btn-primary" id="btnColaTogglePacto">Fecha Pacto</button>
             <button class="btn btn-ghost" id="btnColaToggleProd">Fecha Productiva</button>
+            <span id="colaTotalEnCola" style="margin-left:auto;font-size:16px;font-weight:800;color:var(--red);"></span>
           </div>
           <div style="height:480px;"><canvas id="chartColaProductiva"></canvas></div>
           <div id="colaResumen" style="margin-top:14px;"></div>
@@ -951,23 +952,29 @@ body.tema-claro #view-avance{
 
     <div class="av-widget" data-widget="colaProductiva">
       <div class="av-widget-handle">⠿ 📦 Cola productiva — disponibilidad de cupo</div>
-      <div class="av-widget-body" style="display:flex; flex-direction:column; gap:8px;">
+      <div class="av-widget-body" style="display:flex; flex-direction:column; gap:5px;">
         <div id="avColaEmpty" class="empty-note" style="display:none; margin-bottom:0;">Todavía no se cargó la cola de G-PRO (se hace desde Cierre Diario → Hoy).</div>
-        <div id="avColaWrap" style="display:flex; flex-direction:column; gap:14px; flex:1; min-height:0;">
-          <div class="row" style="gap:10px; align-items:center;">
-            <span style="font-size:12px; color:var(--av-muted);">Simular ritmo diario:</span>
-            <button class="btn icon" id="avColaTasaMenos">−</button>
-            <span id="avColaTasaLabel" style="font-weight:700; font-size:15px; min-width:110px; text-align:center;">— m²/día</span>
-            <button class="btn icon" id="avColaTasaMas">+</button>
-            <button class="btn" id="avColaTasaReset" style="display:none;">📍 M² real x día</button>
+        <div id="avColaWrap" style="display:flex; flex-direction:column; gap:5px; flex:1; min-height:0;">
+          <div class="row" style="gap:8px; align-items:center;">
+            <span style="font-size:11px; color:var(--av-muted);">Simular ritmo diario:</span>
+            <button class="btn icon" id="avColaTasaMenos" style="padding:5px 10px;">−</button>
+            <span id="avColaTasaLabel" style="font-weight:700; font-size:13px; min-width:100px; text-align:center;">— m²/día</span>
+            <button class="btn icon" id="avColaTasaMas" style="padding:5px 10px;">+</button>
+            <button class="btn" id="avColaTasaReset" style="display:none; padding:5px 10px;">📍 M² real x día</button>
           </div>
           <div id="avColaResumen"></div>
-          <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px;">
-            <div style="font-size:12px; color:var(--av-muted); text-transform:uppercase; letter-spacing:.04em;">Fecha Pacto</div>
+          <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:1px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; font-size:9.5px; line-height:1.2; color:var(--av-muted); text-transform:uppercase; letter-spacing:.04em;">
+              <span>Fecha Pacto</span>
+              <span id="avColaTotalPacto" style="text-transform:none; letter-spacing:0; color:var(--av-brand); font-weight:800; font-size:15px;"></span>
+            </div>
             <div style="flex:1; min-height:0;"><canvas id="avChartColaPacto"></canvas></div>
           </div>
-          <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:4px;">
-            <div style="font-size:12px; color:var(--av-muted); text-transform:uppercase; letter-spacing:.04em;">Fecha Productiva</div>
+          <div style="flex:1; min-height:0; display:flex; flex-direction:column; gap:1px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; font-size:9.5px; line-height:1.2; color:var(--av-muted); text-transform:uppercase; letter-spacing:.04em;">
+              <span>Fecha Productiva</span>
+              <span id="avColaTotalProd" style="text-transform:none; letter-spacing:0; color:var(--av-brand); font-weight:800; font-size:15px;"></span>
+            </div>
             <div style="flex:1; min-height:0;"><canvas id="avChartColaProd"></canvas></div>
           </div>
         </div>
@@ -3715,7 +3722,25 @@ const colaEtiquetasPlugin = {
     const ds = chart.data.datasets[0];
     const datos = ds.data;
     const pendientes = ds.pendientes || [];
+    const capacidades = ds.capacidades || [];
     ctx.save();
+    // alerta visual en la primera semana donde definitivamente no alcanza (la misma
+    // semana que usan las tarjetas de resumen "Sobra cupo"/"Se queda sin cola") -- un
+    // marco punteado bien visible alrededor de esa columna, para verla de un vistazo
+    // sin tener que leer los números semana por semana.
+    if(typeof ds.alertaIndex==='number' && ds.alertaIndex>=0 && meta.data[ds.alertaIndex]){
+      const barAlerta = meta.data[ds.alertaIndex];
+      const anchoCol = barAlerta.width ? barAlerta.width*1.6 : 40;
+      ctx.strokeStyle = '#FFD23F';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([6,4]);
+      ctx.strokeRect(barAlerta.x-anchoCol/2, chart.chartArea.top+2, anchoCol, chart.chartArea.bottom-chart.chartArea.top-4);
+      ctx.setLineDash([]);
+      ctx.font = '800 11px Inter, sans-serif';
+      ctx.fillStyle = '#FFD23F';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚠', barAlerta.x, chart.chartArea.top+16);
+    }
     ctx.font = '700 12px Inter, sans-serif';
     ctx.textAlign = 'center';
     meta.data.forEach((bar, i)=>{
@@ -3735,6 +3760,37 @@ const colaEtiquetasPlugin = {
       ctx.textAlign = 'center';
       meta.data.forEach((bar,i)=>{
         if(pendientes[i]!==null && pendientes[i]!==undefined) ctx.fillText(fmt(pendientes[i]), bar.x, yBase);
+      });
+    }
+    // m² que se van a fabricar esa semana al ritmo diario real simulado, ya
+    // descontando los días no hábiles (feriados y días no obligatorios) — mismo
+    // número que usa el cálculo del balance, solo que ahora se lo mostramos.
+    if(capacidades.length){
+      ctx.font = '700 12px Inter, sans-serif';
+      ctx.fillStyle = '#7fa9ff';
+      const yBase2 = chart.chartArea.bottom + 60;
+      ctx.textAlign = 'left';
+      ctx.fillText('A fabricar:', 4, yBase2);
+      ctx.textAlign = 'center';
+      meta.data.forEach((bar,i)=>{
+        if(capacidades[i]!==null && capacidades[i]!==undefined) ctx.fillText(fmt(capacidades[i]), bar.x, yBase2);
+      });
+    }
+    // diferencia de esa semana puntual (a fabricar menos pactado) -- a favor (verde,
+    // sobra capacidad) o en contra (rojo, no alcanza) -- para no obligar a restar a ojo
+    // las dos filas de arriba.
+    if(capacidades.length && pendientes.length){
+      ctx.font = '700 12px Inter, sans-serif';
+      const yBase3 = chart.chartArea.bottom + 78;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#8d9199';
+      ctx.fillText('Diferencia:', 4, yBase3);
+      ctx.textAlign = 'center';
+      meta.data.forEach((bar,i)=>{
+        if(capacidades[i]===null || capacidades[i]===undefined || pendientes[i]===null || pendientes[i]===undefined) return;
+        const diff = Math.round((capacidades[i]-pendientes[i])*10)/10;
+        ctx.fillStyle = diff>=0 ? '#4FAE7C' : '#E1432E';
+        ctx.fillText((diff>=0?'+':'')+fmt(diff), bar.x, yBase3);
       });
     }
     ctx.restore();
@@ -3775,6 +3831,7 @@ function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
   const labels = ['Atraso', ...proy.semanas.map(s=>fechaDMY(s.semana))];
   const valores = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.balance*10)/10)];
   const pendientes = [null, ...proy.semanas.map(s=>Math.round(s.pendiente*10)/10)];
+  const capacidades = [null, ...proy.semanas.map(s=>Math.round(s.capacidad*10)/10)];
   const colores = ['#E1432E', ...proy.semanas.map(s=>colaColorPorBalance(s.balance, capacidadProm))];
   const atrasoLineaCruda = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.atrasoRestanteSemana*10)/10)];
   let atrasoYaLlegoACero = false;
@@ -3783,6 +3840,20 @@ function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
     if(v<=0) atrasoYaLlegoACero = true;
     return v;
   });
+  // índice (dentro de "labels"/"valores") de la semana crítica -- misma que muestran las
+  // tarjetas de resumen "Sobra cupo"/"Se queda sin cola" -- para resaltarla en el gráfico.
+  const semanaCritica = tipo==='pacto' ? proy.semanaSinCupo : colaSemanaFinColaAcumulado(tipo);
+  const alertaIndex = semanaCritica ? 1+proy.semanas.findIndex(s=>s.semana===semanaCritica) : -1;
+  // si hay un ritmo simulado distinto del real, agregamos una segunda línea con el mismo
+  // saldo pero calculado al ritmo REAL promedio -- para comparar de un vistazo "lo que
+  // estoy simulando" contra "cómo venimos en la realidad", sin tener que resetear el
+  // simulador para mirar el otro escenario.
+  let valoresRitmoReal = null;
+  if(colaTasaOverride!==null){
+    const tasaReal = colaTasaDiariaReal();
+    const proyReal = colaComputarProyeccion(tipo, tasaReal);
+    valoresRitmoReal = [Math.round(proyReal.vencidos*10)/10, ...proyReal.semanas.map(s=>Math.round(s.balance*10)/10)];
+  }
 
   const canvas = document.getElementById(canvasId);
   if(instanciaPrevia){
@@ -3802,20 +3873,23 @@ function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
   const chart = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels, datasets:[
-      { type:'bar', data: valores, pendientes, backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2 },
-      { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1 }
+      { type:'bar', label: tipo==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, capacidades, alertaIndex, backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2 },
+      { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1 },
+      { type:'line', label:'Tendencia saldo (ritmo simulado)', data: valores, borderColor:'#5B8DEF', backgroundColor:'#5B8DEF', borderWidth:2, pointRadius:2.5, pointBackgroundColor:'#5B8DEF', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0 },
+      ...(valoresRitmoReal ? [{ type:'line', label:'Saldo a ritmo real', data: valoresRitmoReal, borderColor:'#8d9199', backgroundColor:'#8d9199', borderWidth:2, borderDash:[6,3], pointRadius:2, pointBackgroundColor:'#8d9199', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0 }] : [])
     ] },
     plugins:[colaEtiquetasPlugin],
     options:{
       responsive:true, maintainAspectRatio:false,
-      layout:{ padding:{top:18, bottom:58, left:56} },
+      layout:{ padding:{top:10, bottom:90, left:56} },
       plugins:{
-        legend:{display:true, labels:{color:'#e8e9ea', font:{size:10}, boxWidth:10}},
+        legend:{display:true, labels:{color:'#e8e9ea', font:{size:9.5}, boxWidth:9, padding:6}},
+        tooltip:{ callbacks:{ label:(ctx)=> `${fmt(ctx.parsed.y)} m²` } },
         datalabels:{display:false}
       },
       scales:{
-        x:{ ticks:{color:'#8d9199', font:{size:11.5}}, grid:{color:'#2c3038'} },
-        y:{ ticks:{color:'#8d9199', stepSize:1000}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1} }
+        x:{ ticks:{color:'#8d9199', font:{size:11}}, grid:{color:'#2c3038'} },
+        y:{ ticks:{color:'#8d9199', stepSize:1000, font:{size:10}}, grid:{color:(ctx)=> ctx.tick.value===0 ? '#8d9199' : '#2c3038', lineWidth:(ctx)=> ctx.tick.value===0 ? 2 : 1}, title:{display:true, text:'(-) cupo disponible · (+) atrasado', color:'#8d9199', font:{size:9}} }
       }
     }
   });
@@ -3845,27 +3919,29 @@ function avRenderColaProductiva(){
 
   avChartColaPactoInstance = avDibujarChartCola('pacto', 'avChartColaPacto', avChartColaPactoInstance);
   avChartColaProdInstance = avDibujarChartCola('prod', 'avChartColaProd', avChartColaProdInstance);
+  document.getElementById('avColaTotalPacto').textContent = `Total en cola: ${fmt(colaTotalEnCola('pacto'),1)} m²`;
+  document.getElementById('avColaTotalProd').textContent = `Total en cola: ${fmt(colaTotalEnCola('prod'),1)} m²`;
 
   const proyPacto = colaComputarProyeccion('pacto');
   const proyProd = colaComputarProyeccion('prod');
+  const semanaFinColaProd = colaSemanaFinColaAcumulado('prod');
   document.getElementById('avColaResumen').innerHTML = `
-    <div class="row" style="flex-wrap:wrap;gap:10px;">
-      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
-        <div style="font-size:11px;color:var(--av-muted);">Capacidad diaria usada (promedio real Fin de Línea)</div>
-        <div style="font-weight:700;font-size:15px;">${fmt(proyPacto.tasaDiaria,1)} m²/día</div>
+    <div class="row" style="flex-wrap:wrap;gap:8px;">
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:5px 10px;border-radius:7px;">
+        <div style="font-size:9.5px;color:var(--av-muted);">Capacidad diaria usada (promedio real Fin de Línea)</div>
+        <div style="font-weight:700;font-size:13px;">${fmt(proyPacto.tasaDiaria,1)} m²/día</div>
       </div>
-      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
-        <div style="font-size:11px;color:var(--av-muted);">m² vencidos HOY (dato real, no cambia con el simulador)</div>
-        <div style="font-weight:700;font-size:15px;color:${proyPacto.vencidos>0?'var(--av-bad)':'var(--av-good)'};">${fmt(proyPacto.vencidos,1)} m²</div>
-        <div style="font-size:10px;color:var(--av-muted);margin-top:2px;">De eso, quedarían <strong>${fmt(proyPacto.atrasoRestante,1)} m²</strong> sin pagar si se mantiene el ritmo simulado (${fmt(proyPacto.tasaDiaria,1)} m²/día)</div>
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:5px 10px;border-radius:7px;">
+        <div style="font-size:9.5px;color:var(--av-muted);">m² vencidos HOY (dato real, no cambia con el simulador)</div>
+        <div style="font-weight:700;font-size:13px;color:${proyPacto.vencidos>0?'var(--av-bad)':'var(--av-good)'};">${fmt(proyPacto.vencidos,1)} m² <span style="font-weight:400;font-size:9.5px;color:var(--av-muted);">(quedarían ${fmt(proyPacto.atrasoRestante,1)} m² al ritmo simulado)</span></div>
       </div>
-      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
-        <div style="font-size:11px;color:var(--av-muted);">Se queda sin cola (fecha pacto)</div>
-        <div style="font-weight:700;font-size:15px;color:${proyPacto.semanaSinCupo?'var(--av-bad)':'var(--av-good)'};">${proyPacto.semanaSinCupo ? 'semana del '+fechaDMY(proyPacto.semanaSinCupo) : 'no se agota en el horizonte cargado'}</div>
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:5px 10px;border-radius:7px;">
+        <div style="font-size:9.5px;color:var(--av-muted);">Sobra cupo (fecha pacto)</div>
+        <div style="font-weight:700;font-size:13px;color:${proyPacto.semanaSinCupo?'var(--av-bad)':'var(--av-good)'};">${proyPacto.semanaSinCupo ? 'semana del '+fechaDMY(proyPacto.semanaSinCupo) : 'no se agota en el horizonte cargado'}</div>
       </div>
-      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:8px 12px;border-radius:8px;">
-        <div style="font-size:11px;color:var(--av-muted);">Se queda sin cola (fecha productiva)</div>
-        <div style="font-weight:700;font-size:15px;color:${proyProd.semanaSinCupo?'var(--av-bad)':'var(--av-good)'};">${proyProd.semanaSinCupo ? 'semana del '+fechaDMY(proyProd.semanaSinCupo) : 'no se agota en el horizonte cargado'}</div>
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:5px 10px;border-radius:7px;">
+        <div style="font-size:9.5px;color:var(--av-muted);">Se queda sin cola (fecha productiva)</div>
+        <div style="font-weight:700;font-size:13px;color:${semanaFinColaProd?'var(--av-bad)':'var(--av-good)'};">${semanaFinColaProd ? 'semana del '+fechaDMY(semanaFinColaProd) : 'no se agota en el horizonte cargado'}</div>
       </div>
     </div>`;
 }
@@ -4327,11 +4403,37 @@ function colaPromedioSectorReal(key){
 
 let colaTasaOverride = null; // simulador de "qué pasaría si": null = usar el promedio real
 
-function colaComputarProyeccion(tipo){
+// suma TODO lo que hay cargado en la cola de G-PRO para ese tipo (vencido + futuro),
+// sin importar semana -- es el total real del pulmón de trabajo pendiente, a diferencia
+// del balance semana a semana que solo compara contra lo que "llega" cada semana puntual.
+function colaTotalEnCola(tipo){
+  const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
+  const campo = tipo==='pacto' ? 'supAbePenPacto' : 'supAbePenProd';
+  return Object.keys(dias).reduce((acc,f)=> acc + (dias[f][campo]||0), 0);
+}
+
+// a diferencia de "semanaSinCupo" (que mira semana a semana si lo que entra supera a la
+// capacidad), esto acumula la capacidad producida semana a semana desde hoy y busca cuándo
+// esa acumulación alcanza el TOTAL cargado en la cola -- es decir, cuándo terminarías de
+// producir todo lo que hay pegado de G-PRO al ritmo simulado. Tiene sentido para Fecha
+// Productiva porque ahí G-PRO va poniendo las fechas por acumulación (a medida que hay
+// capacidad disponible), así que "vaciar la cola" es literalmente drenar el total.
+function colaSemanaFinColaAcumulado(tipo, tasaForzada){
+  const proy = colaComputarProyeccion(tipo, tasaForzada);
+  const total = colaTotalEnCola(tipo);
+  let acumulado = 0;
+  for(const s of proy.semanas){
+    acumulado += s.capacidad;
+    if(acumulado >= total) return s.semana;
+  }
+  return null;
+}
+
+function colaComputarProyeccion(tipo, tasaForzada){
   const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
   const campo = tipo==='pacto' ? 'supAbePenPacto' : 'supAbePenProd';
   const hoy = fechaHoyLocal();
-  const tasaDiaria = colaTasaOverride!==null ? colaTasaOverride : colaTasaDiariaReal();
+  const tasaDiaria = (typeof tasaForzada==='number') ? tasaForzada : (colaTasaOverride!==null ? colaTasaOverride : colaTasaDiariaReal());
   const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
   const dObl = state.diasObligatorios || [1,2,3,4,5];
 
@@ -4360,7 +4462,12 @@ function colaComputarProyeccion(tipo){
     for(let i=0;i<7;i++){
       const d = colaSumarDias(lunes, i);
       const wd = new Date(...d.split('-').map(Number).map((v,idx2)=>idx2===1?v-1:v)).getDay();
-      if(dObl.includes(wd) && !feriados.has(d)) diasHabiles++;
+      // la capacidad de producción solo puede contar días que todavía no pasaron -- si la
+      // semana ya empezó (ej. hoy es viernes), los lunes/martes/etc ya transcurridos no se
+      // pueden "recuperar" simulando un ritmo distinto, así que no suman capacidad. Antes se
+      // contaba la semana completa aunque ya estuviera mediada, lo que inflaba la capacidad
+      // de la semana actual y hacía que "se queda sin cola" cayera antes de tiempo.
+      if(dObl.includes(wd) && !feriados.has(d) && d>=hoy) diasHabiles++;
       pendienteMostrar += (dias[d] && dias[d][campo]) || 0;
     }
     const capacidad = tasaDiaria * diasHabiles;
@@ -4396,11 +4503,13 @@ function renderColaProductiva(){
   const proy = colaComputarProyeccion(colaVistaActual);
   document.getElementById('btnColaTogglePacto').className = colaVistaActual==='pacto' ? 'btn btn-primary' : 'btn btn-ghost';
   document.getElementById('btnColaToggleProd').className = colaVistaActual==='prod' ? 'btn btn-primary' : 'btn btn-ghost';
+  document.getElementById('colaTotalEnCola').textContent = `Total en cola (${colaVistaActual==='pacto'?'fecha pacto':'fecha productiva'}): ${fmt(colaTotalEnCola(colaVistaActual),1)} m²`;
 
   const capacidadProm = proy.semanas.length ? proy.semanas.reduce((a,s)=>a+s.capacidad,0)/proy.semanas.length : 1;
   const labels = ['Atraso', ...proy.semanas.map(s=>fechaDMY(s.semana))];
   const valores = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.balance*10)/10)];
   const pendientes = [null, ...proy.semanas.map(s=>Math.round(s.pendiente*10)/10)];
+  const capacidades = [null, ...proy.semanas.map(s=>Math.round(s.capacidad*10)/10)];
   const colores = ['#E1432E', ...proy.semanas.map(s=>colaColorPorBalance(s.balance, capacidadProm))];
   const atrasoLineaCruda = [Math.round(proy.vencidos*10)/10, ...proy.semanas.map(s=>Math.round(s.atrasoRestanteSemana*10)/10)];
   let atrasoYaLlegoACero = false;
@@ -4409,6 +4518,14 @@ function renderColaProductiva(){
     if(v<=0) atrasoYaLlegoACero = true;
     return v;
   });
+  const semanaCritica = colaVistaActual==='pacto' ? proy.semanaSinCupo : colaSemanaFinColaAcumulado(colaVistaActual);
+  const alertaIndex = semanaCritica ? 1+proy.semanas.findIndex(s=>s.semana===semanaCritica) : -1;
+  let valoresRitmoReal = null;
+  if(colaTasaOverride!==null){
+    const tasaReal = colaTasaDiariaReal();
+    const proyReal = colaComputarProyeccion(colaVistaActual, tasaReal);
+    valoresRitmoReal = [Math.round(proyReal.vencidos*10)/10, ...proyReal.semanas.map(s=>Math.round(s.balance*10)/10)];
+  }
 
   const canvas = document.getElementById('chartColaProductiva');
   if(chartColaInstance) chartColaInstance.destroy();
@@ -4419,13 +4536,15 @@ function renderColaProductiva(){
   chartColaInstance = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels, datasets:[
-      { type:'bar', label: colaVistaActual==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2 },
-      { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1 }
+      { type:'bar', label: colaVistaActual==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, capacidades, alertaIndex, backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2 },
+      { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1 },
+      { type:'line', label:'Tendencia saldo (ritmo simulado)', data: valores, borderColor:'#5B8DEF', backgroundColor:'#5B8DEF', borderWidth:2, pointRadius:2.5, pointBackgroundColor:'#5B8DEF', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0 },
+      ...(valoresRitmoReal ? [{ type:'line', label:'Saldo a ritmo real', data: valoresRitmoReal, borderColor:'#8d9199', backgroundColor:'#8d9199', borderWidth:2, borderDash:[6,3], pointRadius:2, pointBackgroundColor:'#8d9199', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0 }] : [])
     ] },
     plugins:[colaEtiquetasPlugin],
     options:{
       responsive:true, maintainAspectRatio:false,
-      layout:{ padding:{top:18, bottom:58, left:56} },
+      layout:{ padding:{top:18, bottom:94, left:56} },
       plugins:{
         legend:{display:true, labels:{color:'#e8e9ea', font:{size:10}, boxWidth:10}},
         tooltip:{ callbacks:{ label:(ctx)=> `${fmt(ctx.parsed.y)} m²` } },
@@ -4443,7 +4562,9 @@ function renderColaProductiva(){
   }
 
   const resumen = document.getElementById('colaResumen');
-  const tituloVista = colaVistaActual==='pacto' ? 'fecha pacto (compromiso fijo)' : 'fecha productiva (se recalcula a tu ritmo real)';
+  const tituloVista = colaVistaActual==='pacto' ? 'fecha pacto (compromiso fijo)' : 'fecha productiva (G-PRO asigna la fecha por acumulación de capacidad)';
+  const tituloCard = colaVistaActual==='pacto' ? `Sobra cupo (${tituloVista})` : `Se queda sin cola (${tituloVista})`;
+  const semanaClaveVista = colaVistaActual==='pacto' ? proy.semanaSinCupo : colaSemanaFinColaAcumulado('prod');
   resumen.innerHTML = `
     <div class="row" style="flex-wrap:wrap;gap:12px;">
       <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
@@ -4456,8 +4577,8 @@ function renderColaProductiva(){
         <div class="hint" style="margin-top:2px;">De eso, quedarían <strong>${fmt(proy.atrasoRestante,1)} m²</strong> sin pagar si se mantiene el ritmo simulado</div>
       </div>
       <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
-        <div class="hint">Se queda sin cola (${tituloVista})</div>
-        <div style="font-weight:700;font-size:16px;color:${proy.semanaSinCupo?'var(--red)':'var(--green)'};">${proy.semanaSinCupo ? 'semana del '+fechaDMY(proy.semanaSinCupo) : 'no se agota en el horizonte cargado'}</div>
+        <div class="hint">${tituloCard}</div>
+        <div style="font-weight:700;font-size:16px;color:${semanaClaveVista?'var(--red)':'var(--green)'};">${semanaClaveVista ? 'semana del '+fechaDMY(semanaClaveVista) : 'no se agota en el horizonte cargado'}</div>
       </div>
     </div>
     <div class="hint" style="margin-top:10px;">Cálculo aproximado: agrupa por semana lo pendiente pegado de G-PRO y lo compara contra tu capacidad real de Fin de Línea. Puede diferir un poco del Excel original, que usa un criterio de semana ligeramente distinto — la tendencia (cuándo se vuelve negativo) es el dato confiable.</div>
