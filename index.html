@@ -4458,7 +4458,6 @@ function colaComputarProyeccion(tipo, tasaForzada){
   let atrasoAcumulado = vencidos;
   const resultado = semanasOrdenadas.map((lunes, idx)=>{
     let diasHabiles = 0;
-    let pendienteMostrar = 0; // para la etiqueta: semana completa (lunes a domingo), no solo desde hoy
     for(let i=0;i<7;i++){
       const d = colaSumarDias(lunes, i);
       const wd = new Date(...d.split('-').map(Number).map((v,idx2)=>idx2===1?v-1:v)).getDay();
@@ -4468,16 +4467,17 @@ function colaComputarProyeccion(tipo, tasaForzada){
       // contaba la semana completa aunque ya estuviera mediada, lo que inflaba la capacidad
       // de la semana actual y hacía que "se queda sin cola" cayera antes de tiempo.
       if(dObl.includes(wd) && !feriados.has(d) && d>=hoy) diasHabiles++;
-      pendienteMostrar += (dias[d] && dias[d][campo]) || 0;
     }
     const capacidad = tasaDiaria * diasHabiles;
-    const pendiente = semanas[lunes]; // este sigue siendo solo "desde hoy" — el que alimenta el balance, sin duplicar lo que ya está en "vencidos"
+    const pendiente = semanas[lunes]; // solo "desde hoy" -- el mismo número se usa para calcular
+    // el saldo Y para mostrarlo en "Pactados", así la cuenta a mano (saldo anterior +
+    // pactados - a fabricar) siempre cierra, incluida la semana actual parcial.
     balance += pendiente - capacidad;
     // atraso restante progresivo: cada semana que sobra capacidad (por encima de lo
     // pactado de esa semana), esa diferencia se descuenta del atraso viejo, hasta llegar a 0
     const excedenteSemana = Math.max(0, capacidad - pendiente);
     atrasoAcumulado = Math.max(0, atrasoAcumulado - excedenteSemana);
-    return { semana: lunes, pendiente: idx===0 ? pendienteMostrar : pendiente, capacidad, balance, atrasoRestanteSemana: atrasoAcumulado };
+    return { semana: lunes, pendiente, capacidad, balance, atrasoRestanteSemana: atrasoAcumulado };
   });
 
   // "se queda sin cola" = la semana donde empieza la racha negativa que YA NO SE RECUPERA
