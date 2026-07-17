@@ -1703,6 +1703,30 @@ function actualizarIndicadorSync(estado){
    ============================================================ */
 const LS_KEY = 'lfda_cierre_sectores_v1';
 
+// cadena de producción real de LFDA: cada sector recibe pulmón de su proveedor anterior.
+// Solo se asigna si el sector todavía no tiene sectorProveedor definido (no pisa configuración manual).
+// OJO: esta constante tiene que declararse ANTES de "let state = loadState();" (mas abajo en
+// este archivo) -- loadState() la usa (via migrarCadenaProveedores) apenas se ejecuta, y si
+// para ese momento esta constante todavia no se inicializo, tira ReferenceError y la app
+// descarta todo el estado guardado en vez de cargarlo.
+const CADENA_PROVEEDORES_DEFAULT = {
+  '1-ALM': {sectorProveedor:'0-Planificación'},
+  '4-VID': {sectorProveedor:'0-Planificación'},
+  '2-MEC': {sectorProveedor:'1-ALM'},
+  '3-SOL': {sectorProveedor:'2-MEC'},
+  '6-ARM': {sectorProveedor:'3-SOL'},
+  '7-ACR': {sectorProveedor:'6-ARM', proveedoresAdicionales:['4-VID','5-DVH']},
+  '8-LI':  {sectorProveedor:'7-ACR'}
+};
+
+// mismo motivo que CADENA_PROVEEDORES_DEFAULT arriba: esta constante la usa
+// migrarPermisosUsuarios(), llamada desde loadState() -- tiene que estar inicializada
+// antes de "let state = loadState();".
+const EMOJI_POR_SECTOR = {
+  '0-Planificación':'📐', '1-ALM':'📦', '2-MEC':'⚙️', '3-SOL':'🛠️',
+  '4-VID':'🪟', '5-DVH':'🪟', '6-ARM':'🔧', '7-ACR':'🏗️', '8-LI':'📊'
+};
+
 const DEFAULT_CAUSAS = {
   'Mano de obra': ['Ausentismo','Falta de personal','Capacitación insuficiente','Bajo rendimiento'],
   'Máquina': ['Rotura / falla mecánica','Mantenimiento programado','Falta de repuestos','Setup / cambio de formato'],
@@ -2122,18 +2146,6 @@ function migrarSectorPlanificacionFaltante(s){
   });
 }
 
-// cadena de producción real de LFDA: cada sector recibe pulmón de su proveedor anterior.
-// Solo se asigna si el sector todavía no tiene sectorProveedor definido (no pisa configuración manual).
-const CADENA_PROVEEDORES_DEFAULT = {
-  '1-ALM': {sectorProveedor:'0-Planificación'},
-  '4-VID': {sectorProveedor:'0-Planificación'},
-  '2-MEC': {sectorProveedor:'1-ALM'},
-  '3-SOL': {sectorProveedor:'2-MEC'},
-  '6-ARM': {sectorProveedor:'3-SOL'},
-  '7-ACR': {sectorProveedor:'6-ARM', proveedoresAdicionales:['4-VID','5-DVH']},
-  '8-LI':  {sectorProveedor:'7-ACR'}
-};
-
 function migrarCadenaProveedores(s){
   const nombresExistentes = (s.sectores||[]).map(sec=>sec.nombre);
   // resolvemos el nombre real de planificación (puede tener prefijo numérico distinto, ej "0-Planificación")
@@ -2223,11 +2235,6 @@ function migrarObjetivosPorSector(s){
   delete s.objetivo;
   if(!s.umbralPulmonBajoDefault) s.umbralPulmonBajoDefault = umbralLegacy;
 }
-
-const EMOJI_POR_SECTOR = {
-  '0-Planificación':'📐', '1-ALM':'📦', '2-MEC':'⚙️', '3-SOL':'🛠️',
-  '4-VID':'🪟', '5-DVH':'🪟', '6-ARM':'🔧', '7-ACR':'🏗️', '8-LI':'📊'
-};
 
 function migrarPermisosUsuarios(s){
   // versiones anteriores no tenían permisos granulares por usuario — a los líderes
