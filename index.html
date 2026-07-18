@@ -4801,15 +4801,20 @@ function colaTasaDiariaReal(){
 function colaPromedioSectorReal(key){
   const dObl = state.diasObligatorios||[1,2,3,4,5];
   const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
+  // mismo alcance que usa el dashboard (avSectorStats): solo el mes calendario actual,
+  // hasta hoy -- antes esto promediaba TODA la historia cargada (todos los meses juntos),
+  // que es un número distinto al del dashboard aunque el criterio de días hábiles ya
+  // fuera el mismo. "Hoy" real, no el mes que se esté navegando en el dashboard, para que
+  // Cola Productiva no cambie si alguien deja el dashboard mirando un mes viejo.
+  const hoy = fechaHoyLocal();
+  const mesActualReal = hoy.slice(0,7);
   let suma=0, count=0;
-  Object.keys(state.dias||{}).forEach(f=>{
+  Object.keys(state.dias||{}).filter(f=>f.startsWith(mesActualReal) && f<=hoy).forEach(f=>{
     const s = state.dias[f].sectores && state.dias[f].sectores[key];
     if(s && typeof s.cerrado==='number'){
       suma+=s.cerrado;
-      // mismo criterio que ya se corrigió en el dashboard (avSectorStats): un sábado
-      // con datos cargados suma al total, pero no cuenta como un día más en el divisor
-      // del promedio -- si no, la tasa diaria de Cola Productiva quedaba desalineada
-      // de la que ya se ve en "Fin de línea · acumulado real".
+      // un sábado con datos cargados suma al total, pero no cuenta como un día más en el
+      // divisor del promedio -- si no, la tasa diaria quedaba inflada hacia abajo.
       const [y,m,d] = f.split('-').map(Number);
       const wd = new Date(y,m-1,d).getDay();
       if(dObl.includes(wd) && !feriados.has(f)) count++;
