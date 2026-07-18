@@ -447,6 +447,25 @@ body.tema-claro #view-avance{
 #view-avance #avEditToggle.active{background:var(--av-brand); border-color:var(--av-brand); color:#fff;}
 #view-avance #avCustomGrid{position:relative; width:100%;}
 #view-avance .av-widget{position:absolute; background:var(--av-panel); border:1px solid var(--av-line); border-radius:10px; box-sizing:border-box; display:flex; flex-direction:column; overflow:hidden; min-width:220px; min-height:120px;}
+#view-avance .av-widget[data-widget="colaProductiva"]{position:absolute;}
+#view-avance .av-widget[data-widget="colaProductiva"]::before{
+  content:''; position:absolute; top:-30%; right:-8%; width:480px; height:480px; z-index:0; pointer-events:none;
+  background:radial-gradient(circle, rgba(225,67,46,.16), transparent 70%);
+  filter:blur(14px); animation:avColaGlowDrift 9s ease-in-out infinite alternate;
+}
+@keyframes avColaGlowDrift{ from{transform:translate(0,0);} to{transform:translate(-70px,60px);} }
+#view-avance .av-widget[data-widget="colaProductiva"] > *{position:relative; z-index:1;}
+.ccup-anillo-alerta{
+  position:absolute; top:0; width:56px; height:100%; pointer-events:none; display:none;
+  border-radius:14px; transform:translateX(-50%);
+}
+.ccup-anillo-alerta.on{ display:block; animation:avAnilloPulso 2.1s ease-in-out infinite; }
+.ccup-anillo-alerta.buena{ box-shadow:0 0 0 2px rgba(79,174,124,.55) inset; background:rgba(79,174,124,.06); }
+.ccup-anillo-alerta.alerta{ box-shadow:0 0 0 2px rgba(255,210,63,.55) inset; background:rgba(255,210,63,.06); }
+@keyframes avAnilloPulso{
+  0%,100%{ opacity:.55; }
+  50%{ opacity:1; }
+}
 #view-avance .av-widget[data-widget="header"]{overflow:visible; z-index:20;}
 #view-avance .av-widget-handle{padding:7px 12px; font-size:11px; font-weight:600; color:var(--av-muted); border-bottom:1px solid var(--av-line); user-select:none; flex-shrink:0; letter-spacing:.02em;}
 #view-avance .av-widget-body{flex:1; min-height:0; padding:10px 12px; overflow:hidden;}
@@ -696,7 +715,10 @@ body.tema-claro #view-avance{
             <button class="btn btn-sm" id="colaDetalleToggle">🙈 Ocultar detalle</button>
             <span id="colaTotalEnCola" style="font-size:16px;font-weight:800;color:var(--red);"></span>
           </div>
-          <div style="height:480px;"><canvas id="chartColaProductiva"></canvas></div>
+          <div style="height:480px; position:relative;">
+            <canvas id="chartColaProductiva"></canvas>
+            <div id="colaAnilloAlerta" class="ccup-anillo-alerta"></div>
+          </div>
           <div id="colaResumen" style="margin-top:14px;text-align:left;"></div>
         </div>
       </div>
@@ -909,6 +931,7 @@ body.tema-claro #view-avance{
             <div id="avClock"><span class="d">--:--</span>--/--/----</div>
             <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
             <button class="btn" id="avDirectorioBtn" style="display:none;">📊 Cola Productiva</button>
+            <button class="btn" id="avComercialBtn" style="display:none; background:linear-gradient(135deg,#E1432E,#ff6a52); color:#fff; border-color:#E1432E; font-weight:700;">🛒 Modo Comercial</button>
             <button class="btn icon" id="btnToggleTemaAvance" title="Cambiar tema claro/oscuro">🌙</button>
           </div>
         </header>
@@ -1045,7 +1068,10 @@ body.tema-claro #view-avance{
             </div>
             <span id="avColaTotalActual" style="color:var(--av-brand); font-weight:800; font-size:16px;"></span>
           </div>
-          <div style="flex:1; min-height:0;"><canvas id="avChartCola"></canvas></div>
+          <div style="flex:1; min-height:0; position:relative;">
+            <canvas id="avChartCola"></canvas>
+            <div id="avColaAnilloAlerta" class="ccup-anillo-alerta"></div>
+          </div>
           <div id="avColaResumen" style="text-align:left; flex-shrink:0;"></div>
         </div>
       </div>
@@ -1522,6 +1548,12 @@ const firebaseConfig = {
 const FIRESTORE_COLLECTION = 'lfda_cierre_sectores';
 const FIRESTORE_DOC_ID = 'estado_principal';
 const INSTANCE_ID = 'inst_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+// colección APARTE para las reservas de Comercial -- a propósito no van adentro del
+// documento único de arriba (ese ya es grande y lo tocan varias PCs de planta a la vez;
+// meter reservas ahí sería arriesgar ese documento). Cada reserva es su propio documento.
+const RESERVAS_COLLECTION = 'lfda_reservas_comerciales';
+let reservasComerciales = []; // caché local, se mantiene sincronizada por el listener de abajo
+let reservasListenerActivo = false;
 
 let firestoreDb = null;
 let firestoreListenerActivo = false;
@@ -1545,6 +1577,7 @@ function inicializarFirebase(){
       .then(()=>{
         firebaseAuthListo = true;
         escucharCambiosFirestore();
+        escucharReservasComerciales();
         // si hubo un intento de guardado mientras todavía nos autenticábamos, lo reintentamos ahora
         if(firestoreSubidaPendiente){
           firestoreSubidaPendiente = false;
@@ -1613,6 +1646,35 @@ function escucharCambiosFirestore(){
         actualizarIndicadorSync('local');
       }
     );
+}
+
+function escucharReservasComerciales(){
+  if(!firestoreDb || reservasListenerActivo) return;
+  reservasListenerActivo = true;
+  firestoreDb.collection(RESERVAS_COLLECTION).orderBy('creadoEnMs','asc')
+    .onSnapshot(
+      (snap)=>{
+        reservasComerciales = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        // si la pantalla de Cola de Cupos está abierta en este momento, la refrescamos
+        // para que las reservas de otros vendedores/PCs se vean sin tener que recargar
+        if(typeof ccupRender==='function' && document.getElementById('viewColaCupos') && document.getElementById('viewColaCupos').style.display!=='none'){
+          ccupRender();
+        }
+      },
+      (error)=>{ console.error('Error escuchando reservas comerciales', error); }
+    );
+}
+
+// crea una reserva nueva -- devuelve la promesa de Firestore (el llamador decide qué
+// mostrar mientras tanto). tipo: 'pacto' | 'prod'. semanaDesde: fecha 'YYYY-MM-DD' de
+// la semana (lunes) a partir de la cual se empieza a descontar cupo.
+function crearReservaComercial({ tipo, semanaDesde, m2, vendedor, cliente, telefono, notas }){
+  if(!firestoreDb) return Promise.reject(new Error('Sin conexión a Firestore'));
+  return firestoreDb.collection(RESERVAS_COLLECTION).add({
+    tipo, semanaDesde, m2, vendedor, cliente, telefono, notas: notas||'',
+    creadoEnMs: Date.now(),
+    creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+  });
 }
 
 function aplicarEstadoRemoto(data){
@@ -3709,6 +3771,7 @@ function renderAvance(){
   const [y,m] = avMesActual.split('-').map(Number);
   document.getElementById('avMesLabel').textContent = `${monthNames[m-1]} ${y}`;
   document.getElementById('avDirectorioBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
+  document.getElementById('avComercialBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
   document.getElementById('avDirectorioBtn').textContent = avModoDirectorio ? '← Volver al dashboard' : '📊 Cola Productiva';
 
   const hoyReal = fechaHoyLocal();
@@ -3962,6 +4025,10 @@ const colaEtiquetasPlugin = {
 };
 
 function colaHexToRgb(hex){
+  if(hex.startsWith('rgb')){
+    const m = hex.match(/[\d.]+/g);
+    return {r:+m[0], g:+m[1], b:+m[2]};
+  }
   const n = parseInt(hex.slice(1),16);
   return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
 }
@@ -3971,6 +4038,22 @@ function colaInterpolarColor(c1, c2, t){
   const g = Math.round(a.g + (b.g-a.g)*t);
   const bl = Math.round(a.b + (b.b-a.b)*t);
   return `rgb(${r},${g},${bl})`;
+}
+// degradé vertical por barra (más claro arriba, el color real abajo) -- le da
+// profundidad a las barras en vez de quedar un color plano sin vida. Scriptable option
+// de Chart.js: se recalcula cada vez que hay chartArea disponible.
+function colaGradienteBarras(coloresPorIndice){
+  return (ctx)=>{
+    const {chart, dataIndex} = ctx;
+    const area = chart.chartArea;
+    if(!area) return coloresPorIndice[dataIndex];
+    const base = coloresPorIndice[dataIndex];
+    if(!base) return base;
+    const g = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    g.addColorStop(0, colaInterpolarColor(base, '#ffffff', 0.32));
+    g.addColorStop(1, base);
+    return g;
+  };
 }
 // verde = equilibrado (ni atrasado ni sin cola), amarillo = alerta hacia cualquiera de los
 // dos lados, rojo = el peor de los casos en cualquier dirección (mucho atraso, o mucho
@@ -4050,7 +4133,7 @@ function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
   const chart = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels, datasets:[
-      { type:'bar', label: tipo==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, capacidades, cupoReal, alertaIndex: alertaIndexGrafico, alertaBuena: tipo==='pacto', backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2, hidden: !colaSeriesVisibles.saldo },
+      { type:'bar', label: tipo==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, capacidades, cupoReal, alertaIndex: alertaIndexGrafico, alertaBuena: tipo==='pacto', backgroundColor: colaGradienteBarras(colores), borderRadius:5, borderSkipped:false, order:2, hidden: !colaSeriesVisibles.saldo },
       { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1, hidden: !colaSeriesVisibles.atraso },
       { type:'line', label:'Tendencia saldo (ritmo simulado)', data: valores, borderColor:'#5B8DEF', backgroundColor:'#5B8DEF', borderWidth:2, pointRadius:2.5, pointBackgroundColor:'#5B8DEF', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0, hidden: !colaSeriesVisibles.tendencia },
       ...(valoresRitmoReal ? [{ type:'line', label:'Saldo a ritmo real', data: valoresRitmoReal, borderColor:'#8d9199', backgroundColor:'#8d9199', borderWidth:2, borderDash:[6,3], pointRadius:2, pointBackgroundColor:'#8d9199', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0, hidden: !colaSeriesVisibles.real }] : []),
@@ -4076,10 +4159,11 @@ function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
   // en vez de adivinar tiempos, escuchamos el tamaño real del contenedor y forzamos el
   // resize apenas cambie (misma técnica robusta que ya usamos para el escenario general).
   if(window.ResizeObserver){
-    const ro = new ResizeObserver(()=>{ chart.resize(); });
+    const ro = new ResizeObserver(()=>{ chart.resize(); colaPosicionarAnillo('avColaAnilloAlerta', chart, alertaIndexGrafico, tipo==='pacto'); });
     ro.observe(canvas.parentElement);
     chart._roAncho = ro; // por si hace falta desconectarlo más adelante
   }
+  colaPosicionarAnillo('avColaAnilloAlerta', chart, alertaIndexGrafico, tipo==='pacto');
   return chart;
 }
 function avRenderColaProductiva(){
@@ -4103,7 +4187,7 @@ function avRenderColaProductiva(){
   document.getElementById('avBtnColaTogglePacto').className = colaVistaActual==='pacto' ? 'btn btn-primary' : 'btn btn-ghost';
   document.getElementById('avBtnColaToggleProd').className = colaVistaActual==='prod' ? 'btn btn-primary' : 'btn btn-ghost';
   avChartColaInstance = avDibujarChartCola(colaVistaActual, 'avChartCola', avChartColaInstance);
-  document.getElementById('avColaTotalActual').textContent = `Total en cola: ${fmt(colaTotalEnCola(colaVistaActual),1)} m²`;
+  colaAnimarNumero('avColaTotalActual', colaTotalEnCola(colaVistaActual), v=>`Total en cola: ${fmt(v,1)} m²`);
 
   const proyPacto = colaComputarProyeccion('pacto');
   const proyProd = colaComputarProyeccion('prod');
@@ -4417,6 +4501,11 @@ document.getElementById('avDirectorioBtn').addEventListener('click', ()=>{
     });
   });
 });
+document.getElementById('avComercialBtn').addEventListener('click', ()=>{
+  // botón aparte: abre la vista de tarjetas (Cola de Cupos) en modo lectura, sin
+  // tocar el gráfico técnico de arriba, que quedó como estaba.
+  ccupAbrir(false);
+});
 
 function avTickClock(){
   const now = new Date();
@@ -4708,6 +4797,40 @@ let colaSeriesVisibles = { saldo:true, atraso:true, tendencia:true, real:true, p
 // suma TODO lo que hay cargado en la cola de G-PRO para ese tipo (vencido + futuro),
 // sin importar semana -- es el total real del pulmón de trabajo pendiente, a diferencia
 // del balance semana a semana que solo compara contra lo que "llega" cada semana puntual.
+// anima un número (cuenta progresiva) en vez de que salte de golpe al nuevo valor --
+// mismo efecto que ya tienen los "héroes" de otras pantallas. Guarda el último valor
+// mostrado en el propio elemento (dataset) para poder animar DESDE ahí la próxima vez.
+// posiciona el anillo HTML (no canvas) justo sobre la barra de la semana crítica --
+// se anima con CSS puro (sin redibujar el canvas), así el pulso no cuesta nada de CPU
+// aunque quede prendido todo el día en la TV.
+function colaPosicionarAnillo(elId, chart, alertaIndex, esBuena){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const meta = chart.getDatasetMeta ? chart.getDatasetMeta(0) : null;
+  if(alertaIndex<0 || !meta || !meta.data[alertaIndex]){ el.classList.remove('on'); return; }
+  const bar = meta.data[alertaIndex];
+  el.style.left = bar.x + 'px';
+  el.style.width = Math.max((bar.width||20)*1.7, 40) + 'px';
+  el.classList.add('on');
+  el.classList.toggle('buena', !!esBuena);
+  el.classList.toggle('alerta', !esBuena);
+}
+
+function colaAnimarNumero(elId, valorFinal, armarTexto){
+  const el = document.getElementById(elId);
+  if(!el) return;
+  const anterior = parseFloat(el.dataset.ccupValorNum||'0') || 0;
+  if(Math.abs(anterior-valorFinal)<0.05){ el.textContent = armarTexto(valorFinal); el.dataset.ccupValorNum = valorFinal; return; }
+  const dur = 700, inicio = performance.now();
+  function tick(now){
+    const p = Math.min(1, (now-inicio)/dur);
+    const eased = 1-Math.pow(1-p,3);
+    el.textContent = armarTexto(anterior + (valorFinal-anterior)*eased);
+    if(p<1) requestAnimationFrame(tick); else el.dataset.ccupValorNum = valorFinal;
+  }
+  requestAnimationFrame(tick);
+}
+
 function colaTotalEnCola(tipo){
   const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
   const campo = tipo==='pacto' ? 'supAbePenPacto' : 'supAbePenProd';
@@ -4720,6 +4843,28 @@ function colaTotalEnCola(tipo){
 // producir todo lo que hay pegado de G-PRO al ritmo simulado. Tiene sentido para Fecha
 // Productiva porque ahí G-PRO va poniendo las fechas por acumulación (a medida que hay
 // capacidad disponible), así que "vaciar la cola" es literalmente drenar el total.
+// aplica las reservas de Comercial YA CONFIRMADAS sobre el cupo real de cada semana,
+// en el mismo orden en que se crearon (primero en llegar, primero en consumir cupo) --
+// si una reserva pide más de lo que queda esa semana, sigue comiendo de las semanas
+// siguientes, igual que hace el propio formulario al crearla. Devuelve un array paralelo
+// a proy.semanas con el cupo YA neto de reservas (lo que realmente queda para ofrecer).
+function colaCupoNetoDeReservas(proy, tipo){
+  const restante = proy.semanas.map(s=>s.cupoReal!==undefined ? s.cupoReal : 0);
+  const reservasDelTipo = reservasComerciales.filter(r=>r.tipo===tipo).sort((a,b)=>(a.creadoEnMs||0)-(b.creadoEnMs||0));
+  reservasDelTipo.forEach(r=>{
+    let faltan = r.m2;
+    const idxInicio = proy.semanas.findIndex(s=>s.semana===r.semanaDesde);
+    if(idxInicio<0) return;
+    for(let i=idxInicio; i<restante.length && faltan>0.001; i++){
+      if(restante[i]<=0) continue;
+      const consumo = Math.min(restante[i], faltan);
+      restante[i] -= consumo;
+      faltan -= consumo;
+    }
+  });
+  return restante.map(v=>Math.round(v*10)/10);
+}
+
 function colaSemanaFinColaAcumulado(tipo, tasaForzada){
   const proy = colaComputarProyeccion(tipo, tasaForzada);
   const total = colaTotalEnCola(tipo);
@@ -4822,7 +4967,7 @@ function renderColaProductiva(){
   const proy = colaComputarProyeccion(colaVistaActual);
   document.getElementById('btnColaTogglePacto').className = colaVistaActual==='pacto' ? 'btn btn-primary' : 'btn btn-ghost';
   document.getElementById('btnColaToggleProd').className = colaVistaActual==='prod' ? 'btn btn-primary' : 'btn btn-ghost';
-  document.getElementById('colaTotalEnCola').textContent = `Total en cola (${colaVistaActual==='pacto'?'fecha pacto':'fecha productiva'}): ${fmt(colaTotalEnCola(colaVistaActual),1)} m²`;
+  colaAnimarNumero('colaTotalEnCola', colaTotalEnCola(colaVistaActual), v=>`Total en cola (${colaVistaActual==='pacto'?'fecha pacto':'fecha productiva'}): ${fmt(v,1)} m²`);
   document.getElementById('colaEscalaLabel').textContent = `±${fmt(colaEscalaEje,0)} m²`;
   document.getElementById('colaLineasLabel').textContent = `${colaCantidadLineas}`;
   document.getElementById('colaHorizonteLabel').textContent = `${colaHorizonteSemanas} semana${colaHorizonteSemanas===1?'':'s'}`;
@@ -4873,7 +5018,7 @@ function renderColaProductiva(){
   chartColaInstance = new Chart(canvas.getContext('2d'), {
     type:'bar',
     data:{ labels, datasets:[
-      { type:'bar', label: colaVistaActual==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, capacidades, cupoReal, alertaIndex: alertaIndexGrafico, alertaBuena: colaVistaActual==='pacto', backgroundColor: colores, borderRadius:5, borderSkipped:false, order:2, hidden: !colaSeriesVisibles.saldo },
+      { type:'bar', label: colaVistaActual==='pacto' ? 'Saldo (Fecha Pacto)' : 'Saldo (Fecha Productiva)', data: valores, pendientes, capacidades, cupoReal, alertaIndex: alertaIndexGrafico, alertaBuena: colaVistaActual==='pacto', backgroundColor: colaGradienteBarras(colores), borderRadius:5, borderSkipped:false, order:2, hidden: !colaSeriesVisibles.saldo },
       { type:'line', label:'Atraso que va quedando', data: atrasoLinea, borderColor:'#F2C744', backgroundColor:'#F2C744', borderWidth:2.5, pointRadius:5, pointBackgroundColor:'#F2C744', pointBorderColor:'#0A0B0D', pointBorderWidth:2, tension:0, order:1, hidden: !colaSeriesVisibles.atraso },
       { type:'line', label:'Tendencia saldo (ritmo simulado)', data: valores, borderColor:'#5B8DEF', backgroundColor:'#5B8DEF', borderWidth:2, pointRadius:2.5, pointBackgroundColor:'#5B8DEF', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0, hidden: !colaSeriesVisibles.tendencia },
       ...(valoresRitmoReal ? [{ type:'line', label:'Saldo a ritmo real', data: valoresRitmoReal, borderColor:'#8d9199', backgroundColor:'#8d9199', borderWidth:2, borderDash:[6,3], pointRadius:2, pointBackgroundColor:'#8d9199', pointBorderColor:'#0A0B0D', pointBorderWidth:1, tension:.15, order:0, hidden: !colaSeriesVisibles.real }] : []),
@@ -4895,9 +5040,10 @@ function renderColaProductiva(){
     }
   });
   if(window.ResizeObserver){
-    const ro = new ResizeObserver(()=>{ chartColaInstance.resize(); });
+    const ro = new ResizeObserver(()=>{ chartColaInstance.resize(); colaPosicionarAnillo('colaAnilloAlerta', chartColaInstance, alertaIndexGrafico, colaVistaActual==='pacto'); });
     ro.observe(canvas.parentElement);
   }
+  colaPosicionarAnillo('colaAnilloAlerta', chartColaInstance, alertaIndexGrafico, colaVistaActual==='pacto');
 
   const resumen = document.getElementById('colaResumen');
   const tituloVista = colaVistaActual==='pacto' ? 'fecha pacto (compromiso fijo)' : 'fecha productiva (G-PRO asigna la fecha por acumulación de capacidad)';
@@ -9104,6 +9250,412 @@ if('serviceWorker' in navigator){
     });
   });
 }
+</script>
+<!-- ============================================================
+     COLA DE CUPOS — vista de tarjetas por mes (reemplaza el gráfico técnico
+     para el botón "Cola Productiva" del dashboard/TV) + acceso Comercial con
+     login y reserva de cupo (?vista=comercial). Autocontenida a propósito,
+     con prefijo "ccup-" en todo, para no pisar el resto de los estilos/JS.
+     ============================================================ -->
+<style>
+  #viewColaCupos{position:fixed; inset:0; z-index:90; overflow-y:auto; display:none;
+    background:#0A0B0D; color:#F2F3F5; font-family:'Inter',sans-serif;
+    padding:calc(24px + env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
+  }
+  .ccup-topbar{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:18px;}
+  .ccup-eyebrow{font-size:11px; letter-spacing:.12em; color:#8A8E94; text-transform:uppercase; font-weight:700;}
+  .ccup-h1{font-size:26px; font-weight:900; margin:4px 0 0;}
+  .ccup-h1 span{color:#E1432E;}
+  .ccup-switch{display:flex; gap:6px; background:#1B1E21; border:1px solid #282B2F; border-radius:10px; padding:4px;}
+  .ccup-switch button{background:none; border:none; color:#8A8E94; font-family:inherit; font-weight:700; font-size:13px; padding:8px 14px; border-radius:7px; cursor:pointer;}
+  .ccup-switch button.active{background:#E1432E; color:#fff;}
+  .ccup-volver{background:#1B1E21; border:1px solid #282B2F; color:#F2F3F5; font-family:inherit; font-weight:700; font-size:13px; padding:9px 16px; border-radius:8px; cursor:pointer;}
+
+  .ccup-hero{position:relative; overflow:hidden; background:linear-gradient(135deg,#141618,#1B1E21); border:1px solid #282B2F; border-radius:18px; padding:24px 28px; margin-bottom:20px;}
+  .ccup-hero-label{font-size:12px; color:#8A8E94; font-weight:600;}
+  .ccup-hero-num{font-size:46px; font-weight:900; color:#fff; text-shadow:0 0 24px rgba(225,67,46,.5);}
+  .ccup-hero-num small{font-size:22px; color:#8A8E94; font-weight:700;}
+
+  .ccup-cal{display:flex; flex-direction:column; gap:20px;}
+  .ccup-mes{position:relative; border-radius:20px; padding:20px 22px 18px; background:linear-gradient(160deg,#1d2023,#121417 55%,#0d0f11); border:1px solid #282B2F;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), inset 0 -14px 26px -18px rgba(0,0,0,.7), 0 14px 30px -10px rgba(0,0,0,.5);}
+  .ccup-mes h3{font-size:14px; font-weight:900; margin:0 0 14px; display:flex; align-items:center; gap:10px;}
+  .ccup-badge{font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; padding:3px 9px; border-radius:20px; background:#1B1E21; color:#8A8E94; border:1px solid #282B2F;}
+  .ccup-mes.lleno .ccup-badge{background:rgba(110,255,179,.15); color:#6EFFB3; border-color:rgba(110,255,179,.3);}
+  .ccup-mes.vacio .ccup-badge{background:rgba(225,67,46,.12); color:#ff8a75; border-color:rgba(225,67,46,.3);}
+  .ccup-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:13px;}
+  .ccup-card{position:relative; border-radius:15px; padding:15px 14px 13px; border:1px solid #282B2F; overflow:hidden; cursor:pointer;
+    transition:transform .2s ease; -webkit-tap-highlight-color:transparent;}
+  .ccup-card:hover{transform:translateY(-3px) scale(1.03);}
+  .ccup-card:active{transform:scale(.97);}
+  .ccup-card .f{font-size:11.5px; color:rgba(255,255,255,.7); font-weight:700;}
+  .ccup-card .m{font-size:21px; font-weight:900; margin-top:9px;}
+  .ccup-card.hot{background:linear-gradient(155deg,#1c5e42,#0f3a2b); animation:ccupPulse 2.4s ease-in-out infinite;}
+  .ccup-card.ok{background:linear-gradient(155deg,#1c3d33,#122824);}
+  .ccup-card.low{background:linear-gradient(155deg,#3a3418,#26220f);}
+  .ccup-card.hot .m,.ccup-card.ok .m{color:#6EFFB3;}
+  .ccup-card.low .m{color:#F2C744;}
+  @keyframes ccupPulse{0%,100%{box-shadow:0 4px 24px rgba(0,0,0,.4);}50%{box-shadow:0 0 26px 4px rgba(110,255,179,.4),0 4px 24px rgba(0,0,0,.4);}}
+  .ccup-vacio-txt{font-size:12.5px; color:#54585D; font-style:italic; padding:8px 2px;}
+
+  /* modales (detalle / reserva / lista / login) -- mismo patrón para los 4 */
+  .ccup-overlay{position:fixed; inset:0; z-index:95; background:rgba(4,4,5,.75); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+    display:none; align-items:center; justify-content:center; padding:20px;}
+  .ccup-overlay.abierto{display:flex;}
+  .ccup-panel{background:linear-gradient(165deg,#141618,#101214); border:1px solid #282B2F; border-radius:20px; padding:26px 26px 22px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; position:relative;}
+  .ccup-close{position:absolute; top:14px; right:14px; background:#1B1E21; border:1px solid #282B2F; color:#8A8E94; width:30px; height:30px; border-radius:9px; cursor:pointer; font-size:14px;}
+  .ccup-dia{display:flex; align-items:center; gap:10px; padding:12px 13px; border-radius:11px; border:1px solid #282B2F; background:rgba(255,255,255,.02); margin-bottom:8px;}
+  .ccup-dia.libre{background:rgba(79,174,124,.08); border-color:rgba(79,174,124,.3);}
+  .ccup-dia.excedido{background:rgba(225,67,46,.08); border-color:rgba(225,67,46,.35);}
+  .ccup-dia.feriado{opacity:.7;}
+  .ccup-dia .nom{width:105px; font-weight:700; font-size:13px;}
+  .ccup-dia .nom small{display:block; color:#8A8E94; font-size:10.5px; font-weight:600;}
+  .ccup-dia .det{flex:1; font-size:11.5px; color:#8A8E94;}
+  .ccup-dia .ico{font-size:19px; width:40px; text-align:center;}
+  .ccup-dia .cif{width:78px; text-align:right; font-weight:800; font-size:13.5px;}
+  .ccup-dia .cif.pos{color:#4FAE7C;} .ccup-dia .cif.neg{color:#ff5940;}
+  .ccup-btn-reservar{width:100%; margin-top:14px; background:linear-gradient(135deg,#E1432E,#ff6a52); color:#fff; border:none; padding:14px; border-radius:12px; font-weight:800; font-size:14px; font-family:inherit; cursor:pointer;}
+  .ccup-form label{display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:700; color:#8A8E94; margin-bottom:12px;}
+  .ccup-form input, .ccup-form textarea{background:#1B1E21; border:1px solid #282B2F; color:#F2F3F5; padding:10px 11px; border-radius:9px; font-size:14px; font-family:inherit;}
+  .ccup-btn-confirmar{width:100%; background:#4FAE7C; color:#0d2a1c; border:none; padding:13px; border-radius:10px; font-weight:800; font-size:14px; font-family:inherit; cursor:pointer;}
+  .ccup-aviso{font-size:12px; text-align:center; min-height:16px; font-weight:700; margin-top:8px;}
+  .ccup-aviso.ok{color:#6EFFB3;} .ccup-aviso.error{color:#ff5940;}
+  .ccup-fab{position:fixed; bottom:calc(18px + env(safe-area-inset-bottom)); right:18px; z-index:80; background:#141618; border:1px solid #282B2F; color:#F2F3F5; font-family:inherit; font-weight:700; font-size:13px; padding:12px 16px; border-radius:30px; cursor:pointer; display:none; align-items:center; gap:8px; box-shadow:0 10px 30px rgba(0,0,0,.5);}
+  .ccup-fab .badge{background:#E1432E; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:20px;}
+  .ccup-reserva-item{border:1px solid #282B2F; border-radius:12px; padding:13px; margin-bottom:9px; background:rgba(255,255,255,.02); font-size:12px;}
+  .ccup-reserva-item .top{display:flex; justify-content:space-between; font-weight:800; font-size:14px;}
+  .ccup-reserva-item .m2{color:#6EFFB3;}
+  .ccup-login-card{max-width:380px; margin:8vh auto 0; text-align:center;}
+  .ccup-login-card h2{font-size:24px; font-weight:900; margin:6px 0 10px;}
+  .ccup-login-card p{font-size:13px; color:#8A8E94; margin:0 0 18px; line-height:1.5;}
+  @media (max-width:640px){
+    .ccup-overlay{padding:0; align-items:stretch;}
+    .ccup-panel{max-width:100%; width:100%; max-height:100%; height:100%; border-radius:0; padding:calc(20px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));}
+  }
+</style>
+
+<div id="viewColaCupos">
+  <div class="ccup-topbar">
+    <div>
+      <div class="ccup-eyebrow">LFDA · Producción</div>
+      <div class="ccup-h1">Cola de <span>cupos</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div class="ccup-switch">
+        <button id="ccupBtnPacto" class="active" onclick="ccupCambiarTipo('pacto')">Fecha Pacto</button>
+        <button id="ccupBtnProd" onclick="ccupCambiarTipo('prod')">Fecha Productiva</button>
+      </div>
+      <button class="ccup-volver" id="ccupBtnVolver" onclick="ccupVolver()">← Volver</button>
+    </div>
+  </div>
+
+  <div class="ccup-hero">
+    <div class="ccup-hero-label">Total disponible para comprometer</div>
+    <div class="ccup-hero-num" id="ccupHeroNum">—<small> m²</small></div>
+  </div>
+
+  <div class="ccup-cal" id="ccupCal"></div>
+</div>
+
+<button class="ccup-fab" id="ccupFab" onclick="ccupAbrirListaReservas()">📋 Mis reservas <span class="badge" id="ccupFabBadge">0</span></button>
+
+<!-- LOGIN (solo en ?vista=comercial) -->
+<div class="ccup-overlay" id="ccupLoginOverlay">
+  <div class="ccup-panel ccup-login-card">
+    <div style="font-weight:900; font-size:14px; letter-spacing:.1em; color:#E1432E;">LFDA</div>
+    <h2>Portal Comercial</h2>
+    <p>Ingresá tu nombre para empezar a reservar cupo con tus clientes.</p>
+    <div class="ccup-form">
+      <label>Tu nombre<input type="text" id="ccupLoginNombre"></label>
+    </div>
+    <button class="ccup-btn-confirmar" onclick="ccupIniciarSesion()">Ingresar</button>
+    <div style="margin-top:14px; font-size:10.5px; color:#54585D; line-height:1.5;">Login de demo (solo nombre) — cuando haga falta, se reemplaza por el login real de la empresa con permisos por vendedor.</div>
+  </div>
+</div>
+
+<!-- DETALLE DE LA SEMANA -->
+<div class="ccup-overlay" id="ccupDetalleOverlay" onclick="ccupCerrarDetalle(event)">
+  <div class="ccup-panel" onclick="event.stopPropagation()">
+    <button class="ccup-close" onclick="ccupCerrarDetalle()">✕</button>
+    <div style="font-size:11px; color:#8A8E94; font-weight:700; text-transform:uppercase; letter-spacing:.05em;" id="ccupDetalleEyebrow">Detalle de la semana</div>
+    <div style="font-size:22px; font-weight:900; margin:4px 0 4px;" id="ccupDetalleFecha">Semana del —</div>
+    <div style="font-weight:700; font-size:14px; margin-bottom:16px;" id="ccupDetalleTotal"></div>
+    <div id="ccupDetalleDias"></div>
+    <div style="display:flex; gap:14px; margin-top:14px; padding-top:12px; border-top:1px solid #282B2F; font-size:10.5px; color:#8A8E94; flex-wrap:wrap;">
+      <span>✅ cupo libre</span><span>❌ excedido/pagando atraso</span><span>🎉 feriado</span>
+    </div>
+    <button class="ccup-btn-reservar" id="ccupBtnAbrirReserva" onclick="ccupAbrirFormReserva()" style="display:none;">📌 Reservar cupo de esta semana</button>
+  </div>
+</div>
+
+<!-- FORMULARIO DE RESERVA -->
+<div class="ccup-overlay" id="ccupReservaOverlay" onclick="ccupCerrarFormReserva(event)">
+  <div class="ccup-panel" onclick="event.stopPropagation()">
+    <button class="ccup-close" onclick="ccupCerrarFormReserva()">✕</button>
+    <div style="font-size:11px; color:#8A8E94; font-weight:700; text-transform:uppercase;">Nueva reserva · <span id="ccupReservaSemanaLabel"></span></div>
+    <div style="font-size:20px; font-weight:900; margin:4px 0 16px;">📌 Reservar cupo</div>
+    <div class="ccup-form">
+      <label>Vendedor<input type="text" id="ccupRVendedor"></label>
+      <label>Cliente / Empresa<input type="text" id="ccupRCliente" placeholder="Ej: Estudio Arq. Fernández"></label>
+      <label>Teléfono<input type="tel" id="ccupRTelefono" placeholder="Ej: 11 2345-6789"></label>
+      <label>m² a reservar<input type="number" id="ccupRM2" min="1" step="0.1"><span id="ccupRM2Hint" style="font-size:11px; color:#6EFFB3; font-weight:600;"></span></label>
+      <label>Notas (opcional)<textarea id="ccupRNotas" rows="2"></textarea></label>
+    </div>
+    <button class="ccup-btn-confirmar" onclick="ccupConfirmarReserva()">✅ Confirmar reserva</button>
+    <div class="ccup-aviso" id="ccupRAviso"></div>
+  </div>
+</div>
+
+<!-- LISTA DE RESERVAS -->
+<div class="ccup-overlay" id="ccupListaOverlay" onclick="ccupCerrarListaReservas(event)">
+  <div class="ccup-panel" onclick="event.stopPropagation()">
+    <button class="ccup-close" onclick="ccupCerrarListaReservas()">✕</button>
+    <div style="font-size:11px; color:#8A8E94; font-weight:700; text-transform:uppercase;">Reservas cargadas</div>
+    <div style="font-size:20px; font-weight:900; margin:4px 0 16px;">📋 Todas las reservas</div>
+    <div id="ccupListaCont"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// COLA DE CUPOS -- estado propio, con prefijo ccup para no chocar con nada del resto
+// ============================================================
+let ccupTipoActual = 'pacto';
+let ccupModoComercial = false;
+let ccupVendedorActual = '';
+let ccupSemanaAbierta = null;
+const CCUP_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function ccupFmt(v){ return (v>=0?'+':'') + Number(v).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1}) + ' m²'; }
+function ccupClase(v, top3){
+  if(v<=0) return 'none';
+  if(top3.includes(v)) return 'hot';
+  if(v>=150) return 'ok';
+  return 'low';
+}
+
+function ccupAbrir(modoComercial){
+  ccupModoComercial = !!modoComercial;
+  document.getElementById('viewColaCupos').style.display = 'block';
+  document.getElementById('ccupBtnVolver').textContent = modoComercial ? '✕ Salir' : '← Volver';
+  if(ccupModoComercial && !ccupVendedorActual){
+    document.getElementById('ccupLoginOverlay').classList.add('abierto');
+  } else {
+    document.getElementById('ccupFab').style.display = ccupModoComercial ? 'flex' : 'none';
+    ccupRender();
+  }
+}
+function ccupVolver(){
+  document.getElementById('viewColaCupos').style.display = 'none';
+  if(ccupModoComercial){
+    // el link de Comercial no tiene "atrás" real -- lo dejamos en blanco, listo para
+    // que otro vendedor entre con su nombre
+    ccupVendedorActual = '';
+    document.getElementById('ccupFab').style.display = 'none';
+  }
+}
+function ccupCambiarTipo(t){
+  ccupTipoActual = t;
+  document.getElementById('ccupBtnPacto').classList.toggle('active', t==='pacto');
+  document.getElementById('ccupBtnProd').classList.toggle('active', t==='prod');
+  ccupRender();
+}
+
+function ccupIniciarSesion(){
+  const nombre = document.getElementById('ccupLoginNombre').value.trim();
+  if(!nombre){ document.getElementById('ccupLoginNombre').focus(); return; }
+  ccupVendedorActual = nombre;
+  document.getElementById('ccupLoginOverlay').classList.remove('abierto');
+  document.getElementById('ccupFab').style.display = 'flex';
+  ccupRender();
+}
+
+// ---- Render principal: usa el cálculo REAL ya existente (colaComputarProyeccion +
+// cupo real neto de atraso) y le descuenta las reservas de Comercial ya confirmadas ----
+function ccupRender(){
+  const proy = colaComputarProyeccion(ccupTipoActual);
+  const cupoNeto = colaCupoNetoDeReservas(proy, ccupTipoActual);
+  const semanas = proy.semanas.map((s,i)=>({ semana:s.semana, v: cupoNeto[i] }));
+
+  const total = semanas.filter(s=>s.v>0).reduce((a,s)=>a+s.v,0);
+  document.getElementById('ccupHeroNum').innerHTML = Math.round(total).toLocaleString('es-AR') + '<small> m²</small>';
+
+  const top3 = [...semanas].map(s=>s.v).sort((a,b)=>b-a).slice(0,3);
+
+  // agrupar por mes real (el string de semana es 'YYYY-MM-DD')
+  const porMes = {};
+  semanas.forEach(s=>{
+    const [y,m] = s.semana.split('-');
+    const clave = y+'-'+m;
+    (porMes[clave] = porMes[clave]||[]).push(s);
+  });
+  const claves = Object.keys(porMes).sort();
+
+  const cont = document.getElementById('ccupCal');
+  cont.innerHTML = '';
+  if(!claves.length){
+    cont.innerHTML = '<div class="ccup-vacio-txt">Todavía no hay cola cargada — subila primero desde Cierre Diario → Hoy.</div>';
+    return;
+  }
+  claves.forEach((clave,mi)=>{
+    const [y,m] = clave.split('-');
+    const semanasDelMes = porMes[clave];
+    const conCupo = semanasDelMes.filter(s=>s.v>0);
+    const todasConCupo = conCupo.length===semanasDelMes.length;
+    const box = document.createElement('div');
+    box.className = 'ccup-mes' + (todasConCupo?' lleno':'') + (!conCupo.length?' vacio':'');
+    box.style.animationDelay = (mi*0.06)+'s';
+    const badge = todasConCupo ? '<span class="ccup-badge">Cupo todo el mes</span>' : (!conCupo.length ? '<span class="ccup-badge">Sin cupo este mes</span>' : '');
+    const titulo = `${CCUP_MESES[parseInt(m,10)-1]} ${y} ${badge}`;
+    if(!conCupo.length){
+      box.innerHTML = `<h3>${titulo}</h3><div class="ccup-vacio-txt">Ninguna semana con cupo disponible este mes.</div>`;
+    } else {
+      box.innerHTML = `<h3>${titulo}</h3><div class="ccup-grid">` + conCupo.map((s,i)=>{
+        const c = ccupClase(s.v, top3);
+        return `<div class="ccup-card ${c}" style="animation-delay:${i*0.05}s" onclick="ccupAbrirDetalle('${s.semana}')"><div class="f">Sem. ${fechaDMY(s.semana)}</div><div class="m">${ccupFmt(s.v)}</div></div>`;
+      }).join('') + '</div>';
+    }
+    cont.appendChild(box);
+  });
+}
+
+// ---- Detalle día por día: usa el dato REAL cargado de G-PRO por fecha (no inventa
+// ningún reparto), y los feriados reales que ya carga la propia app ----
+function ccupDesglosarSemana(semanaISO, tipo){
+  const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
+  const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
+  const campo = tipo==='pacto' ? 'supAbePenPacto' : 'supAbePenProd';
+  const tasaDiaria = colaTasaOverride!==null ? colaTasaOverride : colaTasaDiariaReal();
+  const nombres = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
+  const hoy = fechaHoyLocal();
+  // atraso que ya traía la semana (mismo valor que usa el cálculo semanal real)
+  const proy = colaComputarProyeccion(tipo);
+  const semInfo = proy.semanas.find(s=>s.semana===semanaISO);
+  let atrasoDia = semInfo ? (proy.semanas.indexOf(semInfo)===0 ? proy.vencidos : proy.semanas[proy.semanas.indexOf(semInfo)-1].atrasoRestanteSemana) : 0;
+  return nombres.map((nombre,i)=>{
+    const fechaStr = colaSumarDias(semanaISO, i);
+    const esFeriado = feriados.has(fechaStr);
+    const esPasado = fechaStr < hoy;
+    if(esFeriado) return { nombre, fecha:fechaDMY(fechaStr), feriado:true };
+    if(esPasado) return { nombre, fecha:fechaDMY(fechaStr), pasado:true };
+    const pactadoDia = (dias[fechaStr] && dias[fechaStr][campo]) || 0;
+    const excedente = tasaDiaria - pactadoDia;
+    const excedenteParaAtraso = Math.max(0, excedente);
+    const cupoReal = Math.max(0, excedenteParaAtraso - atrasoDia);
+    atrasoDia = Math.max(0, atrasoDia - excedenteParaAtraso);
+    return { nombre, fecha:fechaDMY(fechaStr), feriado:false, capacidad:tasaDiaria, pactado:pactadoDia, diff:cupoReal, enPagoDeAtraso: excedente>0 && cupoReal===0 };
+  });
+}
+
+function ccupAbrirDetalle(semanaISO){
+  const proy = colaComputarProyeccion(ccupTipoActual);
+  const cupoNeto = colaCupoNetoDeReservas(proy, ccupTipoActual);
+  const idx = proy.semanas.findIndex(s=>s.semana===semanaISO);
+  const v = idx>=0 ? cupoNeto[idx] : 0;
+  ccupSemanaAbierta = semanaISO;
+
+  document.getElementById('ccupDetalleEyebrow').textContent = 'Detalle de la semana · ' + (ccupTipoActual==='pacto'?'Fecha Pacto':'Fecha Productiva');
+  document.getElementById('ccupDetalleFecha').textContent = 'Semana del ' + fechaDMY(semanaISO);
+  const totalEl = document.getElementById('ccupDetalleTotal');
+  totalEl.textContent = (v>0?'Cupo disponible total: ':'Sin cupo esta semana') + (v>0?ccupFmt(v).replace('+',''):'');
+  totalEl.style.color = v>0 ? '#6EFFB3' : '#ff5940';
+
+  const dias = ccupDesglosarSemana(semanaISO, ccupTipoActual);
+  document.getElementById('ccupDetalleDias').innerHTML = dias.map(d=>{
+    if(d.feriado) return `<div class="ccup-dia feriado"><div class="nom">${d.nombre}<small>${d.fecha}</small></div><div class="det">Feriado — sin producción</div><div class="ico">🎉</div><div class="cif">—</div></div>`;
+    if(d.pasado) return `<div class="ccup-dia feriado"><div class="nom">${d.nombre}<small>${d.fecha}</small></div><div class="det">Ya pasó</div><div class="ico">·</div><div class="cif">—</div></div>`;
+    const libre = d.diff>0;
+    const det = d.enPagoDeAtraso ? `Capacidad <b>${ccupFmt(d.capacidad).replace('+','')}</b> · Pactado <b>${ccupFmt(d.pactado).replace('+','')}</b> · sobra va a atraso viejo` : `Capacidad <b>${ccupFmt(d.capacidad).replace('+','')}</b> · Pactado <b>${ccupFmt(d.pactado).replace('+','')}</b>`;
+    return `<div class="ccup-dia ${libre?'libre':'excedido'}"><div class="nom">${d.nombre}<small>${d.fecha}</small></div><div class="det">${det}</div><div class="ico">${libre?'✅':'❌'}</div><div class="cif ${libre?'pos':'neg'}">${libre?ccupFmt(d.diff):'0,0 m²'}</div></div>`;
+  }).join('');
+
+  document.getElementById('ccupBtnAbrirReserva').style.display = (ccupModoComercial && v>0) ? '' : 'none';
+  document.getElementById('ccupDetalleOverlay').classList.add('abierto');
+}
+function ccupCerrarDetalle(ev){ if(ev && ev.target!==ev.currentTarget) return; document.getElementById('ccupDetalleOverlay').classList.remove('abierto'); }
+
+// ---- Reserva (solo modo Comercial) ----
+function ccupAbrirFormReserva(){
+  const proy = colaComputarProyeccion(ccupTipoActual);
+  const cupoNeto = colaCupoNetoDeReservas(proy, ccupTipoActual);
+  const idx = proy.semanas.findIndex(s=>s.semana===ccupSemanaAbierta);
+  const v = idx>=0 ? cupoNeto[idx] : 0;
+  document.getElementById('ccupDetalleOverlay').classList.remove('abierto');
+  document.getElementById('ccupReservaSemanaLabel').textContent = 'semana del ' + fechaDMY(ccupSemanaAbierta);
+  document.getElementById('ccupRVendedor').value = ccupVendedorActual;
+  document.getElementById('ccupRCliente').value = '';
+  document.getElementById('ccupRTelefono').value = '';
+  document.getElementById('ccupRM2').value = v;
+  document.getElementById('ccupRM2Hint').textContent = `Disponible esta semana: ${ccupFmt(v).replace('+','')} — si pedís más, se reserva desde acá en adelante`;
+  document.getElementById('ccupRNotas').value = '';
+  document.getElementById('ccupRAviso').textContent = '';
+  document.getElementById('ccupReservaOverlay').classList.add('abierto');
+}
+function ccupCerrarFormReserva(ev){ if(ev && ev.target!==ev.currentTarget) return; document.getElementById('ccupReservaOverlay').classList.remove('abierto'); }
+
+function ccupConfirmarReserva(){
+  const vendedor = document.getElementById('ccupRVendedor').value.trim();
+  const cliente = document.getElementById('ccupRCliente').value.trim();
+  const telefono = document.getElementById('ccupRTelefono').value.trim();
+  const m2 = parseFloat(document.getElementById('ccupRM2').value);
+  const notas = document.getElementById('ccupRNotas').value.trim();
+  const aviso = document.getElementById('ccupRAviso');
+  if(!vendedor || !cliente || !telefono || !m2 || m2<=0){
+    aviso.textContent = 'Completá vendedor, cliente, teléfono y los m² a reservar.';
+    aviso.className = 'ccup-aviso error';
+    return;
+  }
+  aviso.textContent = 'Guardando...'; aviso.className = 'ccup-aviso';
+  crearReservaComercial({ tipo:ccupTipoActual, semanaDesde:ccupSemanaAbierta, m2, vendedor, cliente, telefono, notas })
+    .then(()=>{
+      aviso.textContent = `✅ Reservado ${ccupFmt(m2).replace('+','')} para ${cliente} desde la semana del ${fechaDMY(ccupSemanaAbierta)}.`;
+      aviso.className = 'ccup-aviso ok';
+      setTimeout(()=>{ document.getElementById('ccupReservaOverlay').classList.remove('abierto'); }, 1600);
+      // el listener de Firestore ya va a actualizar reservasComerciales y re-renderizar solo
+    })
+    .catch(err=>{
+      console.error('Error creando reserva', err);
+      aviso.textContent = 'No se pudo guardar la reserva — revisá la conexión e intentá de nuevo.';
+      aviso.className = 'ccup-aviso error';
+    });
+}
+
+// ---- Lista de reservas ----
+function ccupAbrirListaReservas(){
+  document.getElementById('ccupFabBadge').textContent = reservasComerciales.length;
+  const cont = document.getElementById('ccupListaCont');
+  if(!reservasComerciales.length){
+    cont.innerHTML = '<div class="ccup-vacio-txt">Todavía no hay reservas cargadas.</div>';
+  } else {
+    cont.innerHTML = [...reservasComerciales].reverse().map(r=>`
+      <div class="ccup-reserva-item">
+        <div class="top"><span>${r.cliente}</span><span class="m2">${ccupFmt(r.m2).replace('+','')}</span></div>
+        <div style="color:#8A8E94; margin-top:4px; line-height:1.5;">📅 ${r.tipo==='pacto'?'Pacto':'Productiva'}, desde semana del ${fechaDMY(r.semanaDesde)} · 👤 ${r.vendedor} · 📞 ${r.telefono}${r.notas?' · 📝 '+r.notas:''}</div>
+      </div>`).join('');
+  }
+  document.getElementById('ccupListaOverlay').classList.add('abierto');
+}
+function ccupCerrarListaReservas(ev){ if(ev && ev.target!==ev.currentTarget) return; document.getElementById('ccupListaOverlay').classList.remove('abierto'); }
+document.addEventListener('keydown', e=>{
+  if(e.key!=='Escape') return;
+  ccupCerrarDetalle(); ccupCerrarFormReserva(); ccupCerrarListaReservas();
+});
+
+// mantiene actualizado el contador del botón flotante en vivo
+setInterval(()=>{ const b=document.getElementById('ccupFabBadge'); if(b) b.textContent = reservasComerciales.length; }, 2000);
+
+// ---- Punto de entrada: ?vista=comercial abre directo en modo Comercial ----
+(function ccupChequearURL(){
+  const vistaParam = new URLSearchParams(location.search).get('vista');
+  if(vistaParam==='comercial'){
+    // esperamos a que el estado (state.colaProductiva) y Firestore estén listos
+    const intentar = ()=>{
+      if(typeof state!=='undefined' && state.colaProductiva){ ccupAbrir(true); }
+      else setTimeout(intentar, 300);
+    };
+    intentar();
+  }
+})();
 </script>
 </body>
 </html>
