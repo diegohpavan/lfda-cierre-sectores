@@ -3518,12 +3518,21 @@ function avFechasDelMes(){
 }
 function avSectorStats(key){
   const fechas = avFechasDelMes().filter(f=>f<=avDiaSeleccionado);
+  const dObl = state.diasObligatorios||[1,2,3,4,5];
+  const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
   let sum=0, count=0, lastVal=null, lastDate=null, valorSeleccionado=null;
   for(const f of fechas){
     const dia = state.dias[f];
     const s = dia && dia.sectores ? dia.sectores[key] : null;
     if(s && typeof s.cerrado === 'number'){
-      sum += s.cerrado; count++; lastVal = s.cerrado; lastDate = f;
+      sum += s.cerrado; lastVal = s.cerrado; lastDate = f;
+      // el promedio diario es "m² por día HÁBIL" -- si a veces se carga producción de un
+      // sábado (u otro día no obligatorio), esos m² igual suman al total acumulado, pero
+      // NO cuentan en el divisor del promedio, si no el promedio queda inflado en menos
+      // días de los que en realidad se trabajaron según el calendario de la fábrica.
+      const [y,m,d] = f.split('-').map(Number);
+      const wd = new Date(y,m-1,d).getDay();
+      if(dObl.includes(wd) && !feriados.has(f)) count++;
       if(f===avDiaSeleccionado) valorSeleccionado = s.cerrado;
     }
   }
@@ -3914,11 +3923,22 @@ const colaEtiquetasPlugin = {
       const barAlerta = meta.data[ds.alertaIndex];
       const anchoCol = barAlerta.width ? barAlerta.width*1.6 : 40;
       const colorAlerta = ds.alertaBuena ? '#4FAE7C' : '#FFD23F';
+      // pulso real en el tiempo (no un punteado fijo) -- como se dibuja DENTRO del mismo
+      // canvas, en el mismo sistema de coordenadas que las barras, nunca se puede
+      // desalinear por el escalado de la pantalla TV (a diferencia de un div aparte).
+      const fase = (Date.now()%1800)/1800;
+      const pulso = 0.4 + 0.6*Math.abs(Math.sin(fase*Math.PI));
+      const y0 = chart.chartArea.top+2, alto = chart.chartArea.bottom-chart.chartArea.top-4;
+      ctx.save();
+      ctx.globalAlpha = pulso;
+      ctx.fillStyle = colorAlerta;
+      ctx.globalAlpha = pulso*0.14;
+      ctx.fillRect(barAlerta.x-anchoCol/2, y0, anchoCol, alto);
+      ctx.globalAlpha = pulso;
       ctx.strokeStyle = colorAlerta;
-      ctx.lineWidth = 3;
-      ctx.setLineDash([6,4]);
-      ctx.strokeRect(barAlerta.x-anchoCol/2, chart.chartArea.top+2, anchoCol, chart.chartArea.bottom-chart.chartArea.top-4);
-      ctx.setLineDash([]);
+      ctx.lineWidth = 2.5 + pulso*1.5;
+      ctx.strokeRect(barAlerta.x-anchoCol/2, y0, anchoCol, alto);
+      ctx.restore();
       ctx.font = '800 11px Inter, sans-serif';
       ctx.fillStyle = colorAlerta;
       ctx.textAlign = 'center';
@@ -4164,6 +4184,7 @@ function avDibujarChartCola(tipo, canvasId, instanciaPrevia){
     chart._roAncho = ro; // por si hace falta desconectarlo más adelante
   }
   colaPosicionarAnillo('avColaAnilloAlerta', chart, alertaIndexGrafico, tipo==='pacto');
+  colaChartAnimadoActivo = chart;
   return chart;
 }
 function avRenderColaProductiva(){
@@ -4791,8 +4812,8 @@ function colaPasoDesdeCantidad(){
   const divisionesPorLado = Math.max((colaCantidadLineas-1)/2, 1);
   return colaEscalaEje / divisionesPorLado;
 }
-let colaDetalleOculto = false; // oculta Pactados/A fabricar/Diferencia (para reuniones con gerencia)
-let colaSeriesVisibles = { saldo:true, atraso:true, tendencia:true, real:true, produccion:true }; // qué líneas/series se dibujan en el gráfico
+let colaDetalleOculto = true; // arranca oculto por defecto -- Diego pidió que abra así (más limpio para los gerentes), quien quiera el detalle lo prende manualmente
+let colaSeriesVisibles = { saldo:true, atraso:true, tendencia:false, real:false, produccion:false }; // arranca solo con Saldo/Atraso -- quien quiera Tendencia/Vs.real/Producción las prende manualmente
 
 // suma TODO lo que hay cargado en la cola de G-PRO para ese tipo (vencido + futuro),
 // sin importar semana -- es el total real del pulmón de trabajo pendiente, a diferencia
@@ -4800,20 +4821,29 @@ let colaSeriesVisibles = { saldo:true, atraso:true, tendencia:true, real:true, p
 // anima un número (cuenta progresiva) en vez de que salte de golpe al nuevo valor --
 // mismo efecto que ya tienen los "héroes" de otras pantallas. Guarda el último valor
 // mostrado en el propio elemento (dataset) para poder animar DESDE ahí la próxima vez.
-// posiciona el anillo HTML (no canvas) justo sobre la barra de la semana crítica --
-// se anima con CSS puro (sin redibujar el canvas), así el pulso no cuesta nada de CPU
-// aunque quede prendido todo el día en la TV.
+// el anillo HTML aparte no queda confiable en esta pantalla: el TV usa un
+// transform:scale() sobre todo el escenario, y eso hace que la posición que reporta
+// Chart.js (pensada para pixeles CSS normales) no coincida bien con un div posicionado
+// por afuera del canvas -- por eso se veía corrido y más ancho de lo que debía. Se
+// desactiva: el pulso "vivo" ahora se dibuja directo adentro del canvas (ver
+// colaEtiquetasPlugin), que no tiene ese problema de coordenadas.
 function colaPosicionarAnillo(elId, chart, alertaIndex, esBuena){
   const el = document.getElementById(elId);
-  if(!el) return;
-  const meta = chart.getDatasetMeta ? chart.getDatasetMeta(0) : null;
-  if(alertaIndex<0 || !meta || !meta.data[alertaIndex]){ el.classList.remove('on'); return; }
-  const bar = meta.data[alertaIndex];
-  el.style.left = bar.x + 'px';
-  el.style.width = Math.max((bar.width||20)*1.7, 40) + 'px';
-  el.classList.add('on');
-  el.classList.toggle('buena', !!esBuena);
-  el.classList.toggle('alerta', !esBuena);
+  if(el) el.classList.remove('on');
+}
+
+// redibuja (sin recalcular nada, solo pintar de nuevo) el gráfico de Cola Productiva
+// que esté activo en este momento, cada 90ms -- así el recuadro de alerta pulsa de
+// verdad en vez de quedar fijo. chart.draw() es barato (no vuelve a animar ni a
+// recalcular ejes), así que dejarlo prendido todo el día no debería notarse en la TV.
+let colaChartAnimadoActivo = null;
+if(!window.__colaPulsoLoop){
+  window.__colaPulsoLoop = true;
+  setInterval(()=>{
+    if(colaChartAnimadoActivo && !colaChartAnimadoActivo.destroyed){
+      try{ colaChartAnimadoActivo.draw(); }catch(e){}
+    }
+  }, 90);
 }
 
 function colaAnimarNumero(elId, valorFinal, armarTexto){
@@ -5044,6 +5074,7 @@ function renderColaProductiva(){
     ro.observe(canvas.parentElement);
   }
   colaPosicionarAnillo('colaAnilloAlerta', chartColaInstance, alertaIndexGrafico, colaVistaActual==='pacto');
+  colaChartAnimadoActivo = chartColaInstance;
 
   const resumen = document.getElementById('colaResumen');
   const tituloVista = colaVistaActual==='pacto' ? 'fecha pacto (compromiso fijo)' : 'fecha productiva (G-PRO asigna la fecha por acumulación de capacidad)';
@@ -9258,7 +9289,7 @@ if('serviceWorker' in navigator){
      con prefijo "ccup-" en todo, para no pisar el resto de los estilos/JS.
      ============================================================ -->
 <style>
-  #viewColaCupos{position:fixed; inset:0; z-index:90; overflow-y:auto; display:none;
+  #viewColaCupos{position:fixed; inset:0; z-index:600; overflow-y:auto; display:none;
     background:#0A0B0D; color:#F2F3F5; font-family:'Inter',sans-serif;
     padding:calc(24px + env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
   }
@@ -9293,13 +9324,15 @@ if('serviceWorker' in navigator){
   .ccup-card.hot{background:linear-gradient(155deg,#1c5e42,#0f3a2b); animation:ccupPulse 2.4s ease-in-out infinite;}
   .ccup-card.ok{background:linear-gradient(155deg,#1c3d33,#122824);}
   .ccup-card.low{background:linear-gradient(155deg,#3a3418,#26220f);}
+  .ccup-card.none{background:linear-gradient(155deg,#241a1a,#1a1414); opacity:.62;}
+  .ccup-card.none .m{color:#54585D; font-size:16px;}
   .ccup-card.hot .m,.ccup-card.ok .m{color:#6EFFB3;}
   .ccup-card.low .m{color:#F2C744;}
   @keyframes ccupPulse{0%,100%{box-shadow:0 4px 24px rgba(0,0,0,.4);}50%{box-shadow:0 0 26px 4px rgba(110,255,179,.4),0 4px 24px rgba(0,0,0,.4);}}
   .ccup-vacio-txt{font-size:12.5px; color:#54585D; font-style:italic; padding:8px 2px;}
 
   /* modales (detalle / reserva / lista / login) -- mismo patrón para los 4 */
-  .ccup-overlay{position:fixed; inset:0; z-index:95; background:rgba(4,4,5,.75); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  .ccup-overlay{position:fixed; inset:0; z-index:610; background:rgba(4,4,5,.75); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
     display:none; align-items:center; justify-content:center; padding:20px;}
   .ccup-overlay.abierto{display:flex;}
   .ccup-panel{background:linear-gradient(165deg,#141618,#101214); border:1px solid #282B2F; border-radius:20px; padding:26px 26px 22px; width:100%; max-width:480px; max-height:88vh; overflow-y:auto; position:relative;}
@@ -9320,7 +9353,7 @@ if('serviceWorker' in navigator){
   .ccup-btn-confirmar{width:100%; background:#4FAE7C; color:#0d2a1c; border:none; padding:13px; border-radius:10px; font-weight:800; font-size:14px; font-family:inherit; cursor:pointer;}
   .ccup-aviso{font-size:12px; text-align:center; min-height:16px; font-weight:700; margin-top:8px;}
   .ccup-aviso.ok{color:#6EFFB3;} .ccup-aviso.error{color:#ff5940;}
-  .ccup-fab{position:fixed; bottom:calc(18px + env(safe-area-inset-bottom)); right:18px; z-index:80; background:#141618; border:1px solid #282B2F; color:#F2F3F5; font-family:inherit; font-weight:700; font-size:13px; padding:12px 16px; border-radius:30px; cursor:pointer; display:none; align-items:center; gap:8px; box-shadow:0 10px 30px rgba(0,0,0,.5);}
+  .ccup-fab{position:fixed; bottom:calc(18px + env(safe-area-inset-bottom)); right:18px; z-index:601; background:#141618; border:1px solid #282B2F; color:#F2F3F5; font-family:inherit; font-weight:700; font-size:13px; padding:12px 16px; border-radius:30px; cursor:pointer; display:none; align-items:center; gap:8px; box-shadow:0 10px 30px rgba(0,0,0,.5);}
   .ccup-fab .badge{background:#E1432E; color:#fff; font-size:11px; font-weight:800; padding:2px 8px; border-radius:20px;}
   .ccup-reserva-item{border:1px solid #282B2F; border-radius:12px; padding:13px; margin-bottom:9px; background:rgba(255,255,255,.02); font-size:12px;}
   .ccup-reserva-item .top{display:flex; justify-content:space-between; font-weight:800; font-size:14px;}
@@ -9507,14 +9540,14 @@ function ccupRender(){
     box.style.animationDelay = (mi*0.06)+'s';
     const badge = todasConCupo ? '<span class="ccup-badge">Cupo todo el mes</span>' : (!conCupo.length ? '<span class="ccup-badge">Sin cupo este mes</span>' : '');
     const titulo = `${CCUP_MESES[parseInt(m,10)-1]} ${y} ${badge}`;
-    if(!conCupo.length){
-      box.innerHTML = `<h3>${titulo}</h3><div class="ccup-vacio-txt">Ninguna semana con cupo disponible este mes.</div>`;
-    } else {
-      box.innerHTML = `<h3>${titulo}</h3><div class="ccup-grid">` + conCupo.map((s,i)=>{
-        const c = ccupClase(s.v, top3);
-        return `<div class="ccup-card ${c}" style="animation-delay:${i*0.05}s" onclick="ccupAbrirDetalle('${s.semana}')"><div class="f">Sem. ${fechaDMY(s.semana)}</div><div class="m">${ccupFmt(s.v)}</div></div>`;
-      }).join('') + '</div>';
-    }
+    // se muestran TODAS las semanas del mes como tarjetas -- incluidas las que ya están
+    // comprometidas o sin cupo (en gris) -- para que se vea el mes completo de un
+    // vistazo, en vez de un mensaje vacío cuando no queda nada libre.
+    box.innerHTML = `<h3>${titulo}</h3><div class="ccup-grid">` + semanasDelMes.map((s,i)=>{
+      const c = ccupClase(s.v, top3);
+      const texto = s.v>0 ? ccupFmt(s.v) : 'Sin cupo';
+      return `<div class="ccup-card ${c}" style="animation-delay:${i*0.05}s" onclick="ccupAbrirDetalle('${s.semana}')"><div class="f">Sem. ${fechaDMY(s.semana)}</div><div class="m">${texto}</div></div>`;
+    }).join('') + '</div>';
     cont.appendChild(box);
   });
 }
