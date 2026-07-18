@@ -4525,7 +4525,9 @@ document.getElementById('avDirectorioBtn').addEventListener('click', ()=>{
 document.getElementById('avComercialBtn').addEventListener('click', ()=>{
   // botón aparte: abre la vista de tarjetas (Cola de Cupos) en modo lectura, sin
   // tocar el gráfico técnico de arriba, que quedó como estaba.
-  ccupAbrir(false);
+  // habilita login + reserva igual que el link externo -- este botón es para uso
+  // interno (dentro del dashboard), así que no hace falta mandarlos a la página aparte
+  ccupAbrir(true);
 });
 
 function avTickClock(){
@@ -4797,10 +4799,21 @@ function colaTasaDiariaReal(){
   return colaPromedioSectorReal(liKey);
 }
 function colaPromedioSectorReal(key){
+  const dObl = state.diasObligatorios||[1,2,3,4,5];
+  const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
   let suma=0, count=0;
   Object.keys(state.dias||{}).forEach(f=>{
     const s = state.dias[f].sectores && state.dias[f].sectores[key];
-    if(s && typeof s.cerrado==='number'){ suma+=s.cerrado; count++; }
+    if(s && typeof s.cerrado==='number'){
+      suma+=s.cerrado;
+      // mismo criterio que ya se corrigió en el dashboard (avSectorStats): un sábado
+      // con datos cargados suma al total, pero no cuenta como un día más en el divisor
+      // del promedio -- si no, la tasa diaria de Cola Productiva quedaba desalineada
+      // de la que ya se ve en "Fin de línea · acumulado real".
+      const [y,m,d] = f.split('-').map(Number);
+      const wd = new Date(y,m-1,d).getDay();
+      if(dObl.includes(wd) && !feriados.has(f)) count++;
+    }
   });
   return count>0 ? suma/count : 0;
 }
@@ -4893,6 +4906,29 @@ function colaCupoNetoDeReservas(proy, tipo){
     }
   });
   return restante.map(v=>Math.round(v*10)/10);
+}
+
+// qué semanas quedan "tocadas" por al menos una reserva confirmada -- ya sea la semana
+// donde arranca la reserva, o las siguientes que consume en cascada. Se usa para marcar
+// la tarjeta con un aviso directo ("📌 Reservado"), no solo mostrar el número más chico.
+function colaSemanasConReserva(proy, tipo){
+  const restante = proy.semanas.map(s=>s.cupoReal!==undefined ? s.cupoReal : 0);
+  const tocadas = new Set();
+  const reservasDelTipo = reservasComerciales.filter(r=>r.tipo===tipo).sort((a,b)=>(a.creadoEnMs||0)-(b.creadoEnMs||0));
+  reservasDelTipo.forEach(r=>{
+    let faltan = r.m2;
+    const idxInicio = proy.semanas.findIndex(s=>s.semana===r.semanaDesde);
+    if(idxInicio<0) return;
+    tocadas.add(proy.semanas[idxInicio].semana);
+    for(let i=idxInicio; i<restante.length && faltan>0.001; i++){
+      if(restante[i]<=0) continue;
+      const consumo = Math.min(restante[i], faltan);
+      if(consumo>0) tocadas.add(proy.semanas[i].semana);
+      restante[i] -= consumo;
+      faltan -= consumo;
+    }
+  });
+  return tocadas;
 }
 
 function colaSemanaFinColaAcumulado(tipo, tasaForzada){
@@ -9301,6 +9337,8 @@ if('serviceWorker' in navigator){
   .ccup-switch button{background:none; border:none; color:#8A8E94; font-family:inherit; font-weight:700; font-size:13px; padding:8px 14px; border-radius:7px; cursor:pointer;}
   .ccup-switch button.active{background:#E1432E; color:#fff;}
   .ccup-volver{background:#1B1E21; border:1px solid #282B2F; color:#F2F3F5; font-family:inherit; font-weight:700; font-size:13px; padding:9px 16px; border-radius:8px; cursor:pointer;}
+  .ccup-pendientes{background:rgba(242,199,68,.12); border:1px solid rgba(242,199,68,.4); color:#F2C744; font-family:inherit; font-weight:700; font-size:12.5px; padding:8px 14px; border-radius:8px; cursor:pointer;}
+  .ccup-pendientes:hover{background:rgba(242,199,68,.2);}
 
   .ccup-hero{position:relative; overflow:hidden; background:linear-gradient(135deg,#141618,#1B1E21); border:1px solid #282B2F; border-radius:18px; padding:24px 28px; margin-bottom:20px;}
   .ccup-hero-label{font-size:12px; color:#8A8E94; font-weight:600;}
@@ -9315,17 +9353,32 @@ if('serviceWorker' in navigator){
   .ccup-mes.lleno .ccup-badge{background:rgba(110,255,179,.15); color:#6EFFB3; border-color:rgba(110,255,179,.3);}
   .ccup-mes.vacio .ccup-badge{background:rgba(225,67,46,.12); color:#ff8a75; border-color:rgba(225,67,46,.3);}
   .ccup-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:13px;}
-  .ccup-card{position:relative; border-radius:15px; padding:15px 14px 13px; border:1px solid #282B2F; overflow:hidden; cursor:pointer;
+  .ccup-card{position:relative; border-radius:15px; padding:16px 15px 14px; min-height:92px; border:1px solid #282B2F; overflow:hidden; cursor:pointer;
     transition:transform .2s ease; -webkit-tap-highlight-color:transparent;}
   .ccup-card:hover{transform:translateY(-3px) scale(1.03);}
   .ccup-card:active{transform:scale(.97);}
   .ccup-card .f{font-size:11.5px; color:rgba(255,255,255,.7); font-weight:700;}
   .ccup-card .m{font-size:21px; font-weight:900; margin-top:9px;}
+  .ccup-card-reserva{
+    margin-top:9px; display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:800;
+    color:#ffd479; background:rgba(255,180,60,.16); border:1px solid rgba(255,180,60,.4);
+    padding:3px 9px; border-radius:20px; letter-spacing:.02em;
+    animation:ccupAvisoIn .35s cubic-bezier(.22,1,.36,1), ccupAvisoPulso 2.2s ease-in-out infinite .35s;
+  }
+  @keyframes ccupAvisoIn{ from{opacity:0; transform:translateY(4px) scale(.85);} to{opacity:1; transform:translateY(0) scale(1);} }
+  @keyframes ccupAvisoPulso{ 0%,100%{box-shadow:0 0 0 0 rgba(255,180,60,.45);} 50%{box-shadow:0 0 0 5px rgba(255,180,60,0);} }
   .ccup-card.hot{background:linear-gradient(155deg,#1c5e42,#0f3a2b); animation:ccupPulse 2.4s ease-in-out infinite;}
   .ccup-card.ok{background:linear-gradient(155deg,#1c3d33,#122824);}
   .ccup-card.low{background:linear-gradient(155deg,#3a3418,#26220f);}
-  .ccup-card.none{background:linear-gradient(155deg,#241a1a,#1a1414); opacity:.62;}
-  .ccup-card.none .m{color:#54585D; font-size:16px;}
+  .ccup-card.none{background:linear-gradient(155deg,#2a1616,#1a1212); position:relative; overflow:hidden;}
+  .ccup-card.none::before{
+    content:''; position:absolute; inset:0; pointer-events:none;
+    background:repeating-linear-gradient(135deg, rgba(225,67,46,.09) 0 10px, transparent 10px 22px);
+    background-size:56px 56px; animation:ccupRayasVivas 5s linear infinite;
+  }
+  @keyframes ccupRayasVivas{ from{background-position:0 0;} to{background-position:56px 56px;} }
+  .ccup-card.none .f{color:rgba(255,255,255,.55); position:relative;}
+  .ccup-card.none .m{color:#ff8f7d; font-size:21px; position:relative;}
   .ccup-card.hot .m,.ccup-card.ok .m{color:#6EFFB3;}
   .ccup-card.low .m{color:#F2C744;}
   @keyframes ccupPulse{0%,100%{box-shadow:0 4px 24px rgba(0,0,0,.4);}50%{box-shadow:0 0 26px 4px rgba(110,255,179,.4),0 4px 24px rgba(0,0,0,.4);}}
@@ -9358,6 +9411,8 @@ if('serviceWorker' in navigator){
   .ccup-reserva-item{border:1px solid #282B2F; border-radius:12px; padding:13px; margin-bottom:9px; background:rgba(255,255,255,.02); font-size:12px;}
   .ccup-reserva-item .top{display:flex; justify-content:space-between; font-weight:800; font-size:14px;}
   .ccup-reserva-item .m2{color:#6EFFB3;}
+  .ccup-btn-cancelar{margin-top:10px; background:none; border:1px solid rgba(225,67,46,.4); color:#ff8f7d; font-family:inherit; font-weight:700; font-size:11.5px; padding:6px 12px; border-radius:8px; cursor:pointer;}
+  .ccup-btn-cancelar:hover{background:rgba(225,67,46,.12);}
   .ccup-login-card{max-width:380px; margin:8vh auto 0; text-align:center;}
   .ccup-login-card h2{font-size:24px; font-weight:900; margin:6px 0 10px;}
   .ccup-login-card p{font-size:13px; color:#8A8E94; margin:0 0 18px; line-height:1.5;}
@@ -9378,6 +9433,7 @@ if('serviceWorker' in navigator){
         <button id="ccupBtnPacto" class="active" onclick="ccupCambiarTipo('pacto')">Fecha Pacto</button>
         <button id="ccupBtnProd" onclick="ccupCambiarTipo('prod')">Fecha Productiva</button>
       </div>
+      <button class="ccup-pendientes" id="ccupPendientesBtn" onclick="ccupAbrirListaReservas()" style="display:none;">🕓 <span id="ccupPendientesNum">0</span> reservas sin confirmar</button>
       <button class="ccup-volver" id="ccupBtnVolver" onclick="ccupVolver()">← Volver</button>
     </div>
   </div>
@@ -9412,7 +9468,8 @@ if('serviceWorker' in navigator){
     <button class="ccup-close" onclick="ccupCerrarDetalle()">✕</button>
     <div style="font-size:11px; color:#8A8E94; font-weight:700; text-transform:uppercase; letter-spacing:.05em;" id="ccupDetalleEyebrow">Detalle de la semana</div>
     <div style="font-size:22px; font-weight:900; margin:4px 0 4px;" id="ccupDetalleFecha">Semana del —</div>
-    <div style="font-weight:700; font-size:14px; margin-bottom:16px;" id="ccupDetalleTotal"></div>
+    <div style="font-weight:900; font-size:26px; margin-bottom:6px; text-shadow:0 0 18px currentColor;" id="ccupDetalleTotal"></div>
+    <div id="ccupDetalleReserva" style="margin-bottom:14px;"></div>
     <div id="ccupDetalleDias"></div>
     <div style="display:flex; gap:14px; margin-top:14px; padding-top:12px; border-top:1px solid #282B2F; font-size:10.5px; color:#8A8E94; flex-wrap:wrap;">
       <span>✅ cupo libre</span><span>❌ excedido/pagando atraso</span><span>🎉 feriado</span>
@@ -9506,8 +9563,10 @@ function ccupIniciarSesion(){
 // ---- Render principal: usa el cálculo REAL ya existente (colaComputarProyeccion +
 // cupo real neto de atraso) y le descuenta las reservas de Comercial ya confirmadas ----
 function ccupRender(){
+  ccupActualizarPendientes();
   const proy = colaComputarProyeccion(ccupTipoActual);
   const cupoNeto = colaCupoNetoDeReservas(proy, ccupTipoActual);
+  const semanasReservadas = colaSemanasConReserva(proy, ccupTipoActual);
   const semanas = proy.semanas.map((s,i)=>({ semana:s.semana, v: cupoNeto[i] }));
 
   const total = semanas.filter(s=>s.v>0).reduce((a,s)=>a+s.v,0);
@@ -9546,7 +9605,9 @@ function ccupRender(){
     box.innerHTML = `<h3>${titulo}</h3><div class="ccup-grid">` + semanasDelMes.map((s,i)=>{
       const c = ccupClase(s.v, top3);
       const texto = s.v>0 ? ccupFmt(s.v) : 'Sin cupo';
-      return `<div class="ccup-card ${c}" style="animation-delay:${i*0.05}s" onclick="ccupAbrirDetalle('${s.semana}')"><div class="f">Sem. ${fechaDMY(s.semana)}</div><div class="m">${texto}</div></div>`;
+      const tieneReserva = semanasReservadas.has(s.semana);
+      const avisoReserva = tieneReserva ? `<div class="ccup-card-reserva">📌 Reservado</div>` : '';
+      return `<div class="ccup-card ${c}" style="animation-delay:${i*0.05}s" onclick="ccupAbrirDetalle('${s.semana}')"><div class="f">Sem. ${fechaDMY(s.semana)}</div><div class="m">${texto}</div>${avisoReserva}</div>`;
     }).join('') + '</div>';
     cont.appendChild(box);
   });
@@ -9592,6 +9653,17 @@ function ccupAbrirDetalle(semanaISO){
   const totalEl = document.getElementById('ccupDetalleTotal');
   totalEl.textContent = (v>0?'Cupo disponible total: ':'Sin cupo esta semana') + (v>0?ccupFmt(v).replace('+',''):'');
   totalEl.style.color = v>0 ? '#6EFFB3' : '#ff5940';
+
+  const semanasReservadas = colaSemanasConReserva(proy, ccupTipoActual);
+  const reservaEl = document.getElementById('ccupDetalleReserva');
+  const reservasQueEmpiezanAca = reservasComerciales.filter(r=>r.tipo===ccupTipoActual && r.semanaDesde===semanaISO);
+  if(reservasQueEmpiezanAca.length){
+    reservaEl.innerHTML = reservasQueEmpiezanAca.map(r=>`<div class="ccup-card-reserva" style="display:flex;">📌 Reservado: ${ccupFmt(r.m2).replace('+','')} — ${r.cliente} (${r.vendedor})</div>`).join('');
+  } else if(semanasReservadas.has(semanaISO)){
+    reservaEl.innerHTML = `<div class="ccup-card-reserva" style="display:flex;">📌 Cupo comprometido por una reserva de una semana anterior</div>`;
+  } else {
+    reservaEl.innerHTML = '';
+  }
 
   const dias = ccupDesglosarSemana(semanaISO, ccupTipoActual);
   document.getElementById('ccupDetalleDias').innerHTML = dias.map(d=>{
@@ -9664,9 +9736,16 @@ function ccupAbrirListaReservas(){
       <div class="ccup-reserva-item">
         <div class="top"><span>${r.cliente}</span><span class="m2">${ccupFmt(r.m2).replace('+','')}</span></div>
         <div style="color:#8A8E94; margin-top:4px; line-height:1.5;">📅 ${r.tipo==='pacto'?'Pacto':'Productiva'}, desde semana del ${fechaDMY(r.semanaDesde)} · 👤 ${r.vendedor} · 📞 ${r.telefono}${r.notas?' · 📝 '+r.notas:''}</div>
+        <button class="ccup-btn-cancelar" onclick="ccupCancelarReserva('${r.id}')">✕ Cancelar reserva</button>
       </div>`).join('');
   }
   document.getElementById('ccupListaOverlay').classList.add('abierto');
+}
+function ccupCancelarReserva(id){
+  if(!confirm('¿Cancelar esta reserva? Libera el cupo que tenía bloqueado.')) return;
+  firestoreDb.collection(RESERVAS_COLLECTION).doc(id).delete()
+    .then(()=>{ ccupAbrirListaReservas(); }) // se refresca solo apenas llegue el cambio del listener, esto solo agiliza la vista actual
+    .catch(err=>{ console.error('Error cancelando reserva', err); alert('No se pudo cancelar — revisá la conexión e intentá de nuevo.'); });
 }
 function ccupCerrarListaReservas(ev){ if(ev && ev.target!==ev.currentTarget) return; document.getElementById('ccupListaOverlay').classList.remove('abierto'); }
 document.addEventListener('keydown', e=>{
@@ -9675,7 +9754,19 @@ document.addEventListener('keydown', e=>{
 });
 
 // mantiene actualizado el contador del botón flotante en vivo
-setInterval(()=>{ const b=document.getElementById('ccupFabBadge'); if(b) b.textContent = reservasComerciales.length; }, 2000);
+setInterval(()=>{ const b=document.getElementById('ccupFabBadge'); if(b) b.textContent = reservasComerciales.length; ccupActualizarPendientes(); }, 2000);
+
+// todas las reservas son "virtuales" hasta que el cliente firma y el pedido se carga en
+// G-PRO -- este contador en la barra superior lo deja bien visible para no perderlas de
+// vista. Más adelante la idea es que, cuando el N° de operación de G-PRO coincida con
+// una reserva, se borre sola -- por ahora se borran a mano desde "Mis reservas".
+function ccupActualizarPendientes(){
+  const btn = document.getElementById('ccupPendientesBtn');
+  const num = document.getElementById('ccupPendientesNum');
+  if(!btn || !num) return;
+  num.textContent = reservasComerciales.length;
+  btn.style.display = reservasComerciales.length ? '' : 'none';
+}
 
 // ---- Punto de entrada: ?vista=comercial abre directo en modo Comercial ----
 (function ccupChequearURL(){
