@@ -719,10 +719,14 @@ body.tema-claro #view-avance{
             <input type="month" id="veMes">
           </div>
           <div class="cfg-field">
-            <label>m² comprados afuera ese mes</label>
+            <label>N° de pedido</label>
+            <input type="text" id="vePedido" placeholder="Ej: 4521">
+          </div>
+          <div class="cfg-field">
+            <label>m² de ese pedido</label>
             <input type="number" id="veM2" step="0.1" min="0" placeholder="Ej: 150">
           </div>
-          <button class="btn btn-primary" id="btnVeGuardar">Guardar</button>
+          <button class="btn btn-primary" id="btnVeGuardar">Agregar</button>
         </div>
         <div id="veLista" style="margin-top:16px;"></div>
       </div>
@@ -2456,6 +2460,17 @@ function migrarPermisosUsuarios(s){
   if(s.usuarios && !s.usuarios.adminColor) s.usuarios.adminColor = 'c0';
   if(!s.diasObligatorios) s.diasObligatorios = [1,2,3,4,5];
   if(!s.diasIncluirEnParetoExcepcion) s.diasIncluirEnParetoExcepcion = [];
+  // migración: vidriosExternos era antes { mes: numero } (un total por mes, se pisaba
+  // a cada carga) -- ahora es { mes: { entradaId: {m2, pedido, ts} } } (varias filas,
+  // una por pedido). Convertimos cualquier valor viejo (número suelto) a una entrada.
+  if(s.vidriosExternos){
+    Object.keys(s.vidriosExternos).forEach(mes=>{
+      if(typeof s.vidriosExternos[mes] === 'number'){
+        const m2Viejo = s.vidriosExternos[mes];
+        s.vidriosExternos[mes] = { ['ve_migrado_'+mes]: { m2: m2Viejo, pedido: '(carga anterior sin N° de pedido)', ts: 0 } };
+      }
+    });
+  }
 }
 
 function migrarHistoricoPulmones(s){
@@ -3602,9 +3617,10 @@ function avSectorStats(key){
   // si se compró vidrio afuera este mes, esos m² pasan igual por Vidrios y DVH pero no
   // son producción interna real -- se descuentan del acumulado antes de calcular
   // promedio/estimación, para que reflejen lo que el sector realmente pudo producir.
+  // Se suman todas las entradas (pedidos) cargadas ese mes.
   let externos = 0;
-  if((key==='4-VID' || key==='5-DVH') && state.vidriosExternos && state.vidriosExternos[avMesActual]){
-    externos = state.vidriosExternos[avMesActual];
+  if(key==='4-VID' || key==='5-DVH'){
+    externos = typeof veTotalDelMes==='function' ? veTotalDelMes(avMesActual) : 0;
     sum = Math.max(0, sum - externos);
   }
   const prom = count>0 ? sum/count : 0;
@@ -4721,6 +4737,14 @@ function gproParsearNumero(str){
 }
 
 // ---- Vidrios — compra externa ----
+// cada carga es su propia entrada (con N° de pedido), agrupadas por mes -- así Diego
+// tiene referencia de qué pedido aportó cada m², en vez de un solo total por mes que
+// se pisaba a cada carga.
+function veIdNuevo(){ return 've_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function veTotalDelMes(mes){
+  const entradas = (state.vidriosExternos && state.vidriosExternos[mes]) || {};
+  return Object.values(entradas).reduce((a,e)=>a+(e.m2||0), 0);
+}
 function renderVidriosExternos(){
   const mesInput = document.getElementById('veMes');
   if(mesInput && !mesInput.value){
@@ -4729,52 +4753,67 @@ function renderVidriosExternos(){
   }
   const cont = document.getElementById('veLista');
   if(!cont) return;
-  const entradas = Object.entries(state.vidriosExternos||{}).sort((a,b)=>b[0].localeCompare(a[0]));
-  if(!entradas.length){
-    cont.innerHTML = '<div class="hint">Todavía no cargaste ningún mes.</div>';
+  const meses = Object.keys(state.vidriosExternos||{}).filter(m=>Object.keys(state.vidriosExternos[m]||{}).length).sort((a,b)=>b.localeCompare(a));
+  if(!meses.length){
+    cont.innerHTML = '<div class="hint">Todavía no cargaste ningún pedido.</div>';
     return;
   }
   const nombresMes = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  cont.innerHTML = entradas.map(([mes,m2])=>{
+  cont.innerHTML = meses.map(mes=>{
     const [y,m] = mes.split('-').map(Number);
-    return `<div class="row" style="gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line2);">
-      <span style="flex:1;">${nombresMes[m-1]} ${y}</span>
-      <span style="font-weight:700;color:var(--amber);">-${m2.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})} m²</span>
-      <button class="btn btn-ghost btn-sm" onclick="borrarVidriosExternos('${mes}')">✕ Borrar</button>
-    </div>`;
+    const entradas = Object.entries(state.vidriosExternos[mes]||{}).sort((a,b)=>(a[1].ts||0)-(b[1].ts||0));
+    const total = veTotalDelMes(mes);
+    const filas = entradas.map(([id,e])=>`
+      <div class="row" style="gap:12px;align-items:center;padding:6px 0 6px 14px;border-bottom:1px solid var(--line2);">
+        <span style="flex:1;color:var(--muted);">Pedido ${e.pedido||'—'}</span>
+        <span style="font-weight:600;">${(e.m2||0).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})} m²</span>
+        <button class="btn btn-ghost btn-sm" onclick="borrarVidriosExternos('${mes}','${id}')">✕</button>
+      </div>`).join('');
+    return `
+      <div style="margin-bottom:10px;">
+        <div class="row" style="gap:12px;align-items:center;padding:6px 0;">
+          <span style="flex:1;font-weight:700;">${nombresMes[m-1]} ${y}</span>
+          <span style="font-weight:700;color:var(--amber);">${total.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})} m² total</span>
+        </div>
+        ${filas}
+      </div>`;
   }).join('');
 }
 document.getElementById('btnVeGuardar').addEventListener('click', ()=>{
   const mes = document.getElementById('veMes').value;
+  const pedido = document.getElementById('vePedido').value.trim();
   const m2 = parseFloat(document.getElementById('veM2').value);
   if(!mes){ toast('Elegí un mes', true); return; }
+  if(!pedido){ toast('Ingresá el N° de pedido', true); return; }
   if(isNaN(m2) || m2<=0){ toast('Ingresá m² mayores a 0', true); return; }
   state.vidriosExternos = state.vidriosExternos || {};
-  // se SUMA a lo que ya había cargado ese mes -- Diego va agregando compras a medida
-  // que pasan durante el mes, no carga el total una sola vez.
-  const total = round1((state.vidriosExternos[mes]||0) + m2);
-  state.vidriosExternos[mes] = total;
-  guardarVidriosExternosEnNube(mes, total);
+  state.vidriosExternos[mes] = state.vidriosExternos[mes] || {};
+  const id = veIdNuevo();
+  const entrada = { m2: round1(m2), pedido, ts: Date.now() };
+  state.vidriosExternos[mes][id] = entrada;
+  guardarVidriosExternosEnNube(mes, id, entrada);
   saveState(); // guarda el resto del estado como siempre (localStorage + Firestore)
+  document.getElementById('vePedido').value = '';
   document.getElementById('veM2').value = '';
   renderVidriosExternos();
-  toast(`Guardado — ${total.toLocaleString('es-AR',{minimumFractionDigits:1})} m² acumulados en ${mes}`);
+  toast(`Agregado — pedido ${pedido}, ${m2.toLocaleString('es-AR')} m²`);
 });
-function borrarVidriosExternos(mes){
-  if(!confirm(`¿Borrar la compra externa cargada para ${mes}?`)) return;
-  delete state.vidriosExternos[mes];
-  guardarVidriosExternosEnNube(mes, null); // null = borrar ese mes puntual en Firestore
+function borrarVidriosExternos(mes, id){
+  const e = state.vidriosExternos[mes] && state.vidriosExternos[mes][id];
+  if(!confirm(`¿Borrar el pedido ${e?e.pedido:''} (${e?e.m2:0} m²)?`)) return;
+  delete state.vidriosExternos[mes][id];
+  guardarVidriosExternosEnNube(mes, id, null);
   saveState();
   renderVidriosExternos();
 }
-// escribe SOLO el mes puntual de vidriosExternos directo a Firestore, con merge, en vez
-// de depender del guardado general (que manda el estado completo tal como lo tiene esta
-// pestaña en memoria). Así, si "Calcular cierre del día" se dispara desde otra PC/pestaña
-// que todavía no se enteró de esta carga, no la pisa -- cada mes de vidriosExternos vive
-// como su propio campo puntual dentro del documento, no como un objeto que se reemplaza entero.
-function guardarVidriosExternosEnNube(mes, valor){
+// escribe SOLO la entrada puntual (mes + id) directo a Firestore, con update() de campo
+// anidado, en vez de depender del guardado general (que manda el estado completo tal
+// como lo tiene esta pestaña en memoria). Así, si "Calcular cierre del día" se dispara
+// desde otra PC/pestaña que todavía no se enteró de esta carga, no la pisa -- y como
+// cada pedido es su propia entrada, tampoco dos cargas al mismo tiempo se pisan entre sí.
+function guardarVidriosExternosEnNube(mes, id, valor){
   if(!firestoreDb) return;
-  const campo = `vidriosExternos.${mes}`;
+  const campo = `vidriosExternos.${mes}.${id}`;
   const payload = { [campo]: valor===null ? firebase.firestore.FieldValue.delete() : valor };
   firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).update(payload)
     .catch(err=>console.error('Error guardando vidrios externos en Firestore', err));
