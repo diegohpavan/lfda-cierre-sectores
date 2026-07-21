@@ -455,15 +455,12 @@ body.tema-claro #view-avance{
 }
 @keyframes avColaGlowDrift{ from{transform:translate(0,0);} to{transform:translate(-70px,60px);} }
 
-/* 1) cinta transportadora -- una franja arriba de cada tarjeta de sector con rayas que
-   se desplazan todas sincronizadas, dando la sensación de una cinta continua a lo largo
-   de todo el flujo (ABAST. -> ... -> FIN LÍNEA) */
+/* franja fija arriba de cada tarjeta de sector (a Diego no le gustó el movimiento,
+   la dejamos como una simple línea de acento) */
 #view-avance .sector-card::before{
   content:''; position:absolute; top:0; left:0; right:0; height:4px; z-index:2;
-  background:repeating-linear-gradient(90deg, var(--av-brand) 0 8px, transparent 8px 18px);
-  background-size:26px 4px; animation:avCintaMove 1.1s linear infinite; opacity:.6;
+  background:var(--av-brand); opacity:.6;
 }
-@keyframes avCintaMove{ from{background-position:0 0;} to{background-position:-26px 0;} }
 
 /* 4) las barritas de "Hoy" (gauge-fill) con una textura que fluye hacia adelante,
    como si el material siguiera avanzando aunque el número no cambie */
@@ -4451,14 +4448,6 @@ function avDrawBarChart(){
     svgContent += `<rect x="${bx}" y="${yAgua+3}" width="${barW}" height="${H}" fill="${colorBase}"/>`;
     svgContent += `<g class="avAguaOnda avAguaRapida" style="--w:${barW}px; animation-delay:${i*0.12}s"><path d="${avOndaPath(bx,barW,yAgua,2,2.4,H)}" fill="${colorClaro}" opacity="0.6"/></g>`;
     svgContent += `</g></g>`;
-    // efecto 3D isométrico: cara lateral (más oscura) y tapa superior (más clara) de la
-    // barra de acumulado, como si fuera una caja con volumen real en vez de un rectángulo
-    // plano -- el mismo truco que un gráfico de barras "isométrico".
-    const prof = 7, profY = -5;
-    const colorOscuro = colaInterpolarColor(colorBase, '#000000', 0.4);
-    const colorTapa = colaInterpolarColor(colorBase, '#ffffff', 0.25);
-    svgContent += `<polygon points="${bx+barW},${yAgua} ${bx+barW+prof},${yAgua+profY} ${bx+barW+prof},${H-padB+profY} ${bx+barW},${H-padB}" fill="${colorOscuro}"/>`;
-    svgContent += `<polygon points="${bx},${yAgua} ${bx+prof},${yAgua+profY} ${bx+barW+prof},${yAgua+profY} ${bx+barW},${yAgua}" fill="${colorTapa}"/>`;
     svgContent += `<text x="${bx+barW/2}" y="${H-padB-estH-8}" text-anchor="middle" font-size="12" font-weight="600" fill="#EAEEF3" font-family="Inter, sans-serif">${avFmt(st.estimacion,0)}</text>`;
     const accLabelY = accH>18 ? H-padB-accH+14 : H-padB-accH-6;
     const accLabelColor = accH>18 ? '#0A1015' : '#8792A2';
