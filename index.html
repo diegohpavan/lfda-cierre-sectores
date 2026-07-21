@@ -4748,19 +4748,36 @@ document.getElementById('btnVeGuardar').addEventListener('click', ()=>{
   const mes = document.getElementById('veMes').value;
   const m2 = parseFloat(document.getElementById('veM2').value);
   if(!mes){ toast('Elegí un mes', true); return; }
-  if(isNaN(m2) || m2<0){ toast('Ingresá los m² comprados (0 o más)', true); return; }
+  if(isNaN(m2) || m2<=0){ toast('Ingresá m² mayores a 0', true); return; }
   state.vidriosExternos = state.vidriosExternos || {};
-  state.vidriosExternos[mes] = round1(m2);
-  saveState();
+  // se SUMA a lo que ya había cargado ese mes -- Diego va agregando compras a medida
+  // que pasan durante el mes, no carga el total una sola vez.
+  const total = round1((state.vidriosExternos[mes]||0) + m2);
+  state.vidriosExternos[mes] = total;
+  guardarVidriosExternosEnNube(mes, total);
+  saveState(); // guarda el resto del estado como siempre (localStorage + Firestore)
   document.getElementById('veM2').value = '';
   renderVidriosExternos();
-  toast('Guardado — se descuenta de Vidrios y DVH ese mes');
+  toast(`Guardado — ${total.toLocaleString('es-AR',{minimumFractionDigits:1})} m² acumulados en ${mes}`);
 });
 function borrarVidriosExternos(mes){
   if(!confirm(`¿Borrar la compra externa cargada para ${mes}?`)) return;
   delete state.vidriosExternos[mes];
+  guardarVidriosExternosEnNube(mes, null); // null = borrar ese mes puntual en Firestore
   saveState();
   renderVidriosExternos();
+}
+// escribe SOLO el mes puntual de vidriosExternos directo a Firestore, con merge, en vez
+// de depender del guardado general (que manda el estado completo tal como lo tiene esta
+// pestaña en memoria). Así, si "Calcular cierre del día" se dispara desde otra PC/pestaña
+// que todavía no se enteró de esta carga, no la pisa -- cada mes de vidriosExternos vive
+// como su propio campo puntual dentro del documento, no como un objeto que se reemplaza entero.
+function guardarVidriosExternosEnNube(mes, valor){
+  if(!firestoreDb) return;
+  const campo = `vidriosExternos.${mes}`;
+  const payload = { [campo]: valor===null ? firebase.firestore.FieldValue.delete() : valor };
+  firestoreDb.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).update(payload)
+    .catch(err=>console.error('Error guardando vidrios externos en Firestore', err));
 }
 
 document.getElementById('btnGproProcesar').addEventListener('click', ()=>{
