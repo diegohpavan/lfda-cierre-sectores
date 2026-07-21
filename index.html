@@ -1858,7 +1858,11 @@ function subirEstadoAFirestore(){
         produccionDetalle: state.produccionDetalle || {config:null, registros:{}},
         avanceLayout: state.avanceLayout || {widgets:{}},
         avanceDiasHabiles: state.avanceDiasHabiles || {},
-        vidriosExternos: state.vidriosExternos || {},
+        // vidriosExternos NO va acá a propósito -- se guarda aparte, entrada por entrada
+        // (ver guardarVidriosExternosEnNube), porque si dos pestañas/PCs guardan el
+        // estado general al mismo tiempo, la que tenga la copia en memoria más vieja
+        // termina pisando con "update({...})" la entrada que la otra acababa de sumar.
+        // Sacándolo de este .set() completo, ninguna otra acción lo puede pisar.
         avanceFeriados: state.avanceFeriados || [],
         colaProductiva: state.colaProductiva || { dias: {} },
         personalPorSector: state.personalPorSector || {},
@@ -1866,7 +1870,7 @@ function subirEstadoAFirestore(){
         _formatoCampos: true,
         _instanceId: INSTANCE_ID,
         _ts: firebase.firestore.FieldValue.serverTimestamp()
-      }).then(()=>{
+      }, { merge: true }).then(()=>{
         actualizarIndicadorSync('online');
         window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0);
       }).catch(e=>{
