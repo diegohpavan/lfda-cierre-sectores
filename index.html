@@ -3935,7 +3935,7 @@ function renderAvance(){
           <div class="row"><span class="k">Acumulado</span><span class="v">${avFmt(st.sum,0)}</span></div>
           <div class="row"><span class="k">Estimación</span><span class="v">${avFmt(st.estimacion,0)}</span></div>
           <div class="row"><span class="k">Pulmón</span><span class="v">${avFmt(pulmon,0)}</span></div>
-          ${st.externos>0 ? `<div class="row"><span class="k">V. externos</span><span class="v" style="color:var(--av-warn);">-${avFmt(st.externos,1)}</span></div>` : ''}
+          ${st.externos>0 ? `<div class="row"><span class="k">V. externos</span><span class="v" style="color:var(--av-warn);">${avFmt(st.externos,1)}</span></div>` : ''}
         </div>
         <svg class="flow-arrow" viewBox="0 0 16 16"><path d="M2 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>`;
