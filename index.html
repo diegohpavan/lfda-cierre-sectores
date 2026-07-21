@@ -704,6 +704,29 @@ body.tema-claro #view-avance{
         </div>
       </div>
 
+      <div class="panel" id="panelVidriosExternos" style="display:none;">
+        <div class="panel-head">
+          <h2>🪟 Vidrios — compra externa</h2>
+        </div>
+        <div class="hint" style="margin-bottom:16px;">
+          Cuando se compra vidrio afuera (no lo produce Vidrios/DVH internamente), esos m² igual
+          quedan contados en el acumulado de esos dos sectores porque pasan por el proceso. Cargá
+          acá cuánto se compró afuera cada mes, para descontarlo y ver la producción interna real.
+        </div>
+        <div class="row" style="gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div class="cfg-field">
+            <label>Mes</label>
+            <input type="month" id="veMes">
+          </div>
+          <div class="cfg-field">
+            <label>m² comprados afuera ese mes</label>
+            <input type="number" id="veM2" step="0.1" min="0" placeholder="Ej: 150">
+          </div>
+          <button class="btn btn-primary" id="btnVeGuardar">Guardar</button>
+        </div>
+        <div id="veLista" style="margin-top:16px;"></div>
+      </div>
+
       <div class="panel" id="panelColaProductiva" style="display:none;">
         <div class="panel-head">
           <h2>📦 Cola productiva — disponibilidad de cupo</h2>
@@ -1731,6 +1754,7 @@ function aplicarEstadoRemoto(data){
       produccionDetalle: data.produccionDetalle || null,
       avanceLayout: data.avanceLayout || {widgets:{}},
       avanceDiasHabiles: data.avanceDiasHabiles || {},
+      vidriosExternos: data.vidriosExternos || {},
       avanceFeriados: data.avanceFeriados || [
         {fecha:'2026-01-01', motivo:'Año Nuevo'}, {fecha:'2026-02-16', motivo:'Carnaval'}, {fecha:'2026-02-17', motivo:'Carnaval'},
         {fecha:'2026-03-23', motivo:'No laborable turístico'}, {fecha:'2026-03-24', motivo:'Día de la Memoria'},
@@ -1830,6 +1854,7 @@ function subirEstadoAFirestore(){
         produccionDetalle: state.produccionDetalle || {config:null, registros:{}},
         avanceLayout: state.avanceLayout || {widgets:{}},
         avanceDiasHabiles: state.avanceDiasHabiles || {},
+        vidriosExternos: state.vidriosExternos || {},
         avanceFeriados: state.avanceFeriados || [],
         colaProductiva: state.colaProductiva || { dias: {} },
         personalPorSector: state.personalPorSector || {},
@@ -1971,6 +1996,7 @@ function defaultState(){
       widgets: {}   // { hero:{x,y,w,h}, pipeline:{...}, barChart:{...}, lineChart:{...}, ranking:{...} } — se completa solo al mover/redimensionar
     },
     avanceDiasHabiles: {},  // { '2026-07': 22, ... } — corrección manual de días hábiles por mes (ej. por feriados), se recuerda entre sesiones
+    vidriosExternos: {},  // { '2026-06': 150, '2026-07': 90, ... } — m² de vidrio comprado afuera ese mes, se descuenta del acumulado real de Vidrios y DVH
     avanceFeriados: [   // se descuentan de "días hábiles" y "días transcurridos" en Avance por Sector — calendario oficial 2026 (Ley 27.399 + Resolución 164/2025), Diego puede agregar/sacar fechas en Configuración
       {fecha:'2026-01-01', motivo:'Año Nuevo'},
       {fecha:'2026-02-16', motivo:'Carnaval'},
@@ -3573,12 +3599,20 @@ function avSectorStats(key){
       if(f===avDiaSeleccionado) valorSeleccionado = s.cerrado;
     }
   }
+  // si se compró vidrio afuera este mes, esos m² pasan igual por Vidrios y DVH pero no
+  // son producción interna real -- se descuentan del acumulado antes de calcular
+  // promedio/estimación, para que reflejen lo que el sector realmente pudo producir.
+  let externos = 0;
+  if((key==='4-VID' || key==='5-DVH') && state.vidriosExternos && state.vidriosExternos[avMesActual]){
+    externos = state.vidriosExternos[avMesActual];
+    sum = Math.max(0, sum - externos);
+  }
   const prom = count>0 ? sum/count : 0;
   const dh = avDiasHabilesActuales();
   const dt = avDiasTranscurridos();
   const dr = Math.max(dh-dt, 0);
   const estimacion = count>0 ? sum + prom*dr : sum;
-  return {sum, prom, count, lastVal, lastDate, valorSeleccionado, estimacion};
+  return {sum, prom, count, lastVal, lastDate, valorSeleccionado, estimacion, externos};
 }
 function avDiasHabilesActuales(){
   if(avDiasHabilesOverride!==null && avDiasHabilesOverride>0) return avDiasHabilesOverride;
@@ -3901,6 +3935,7 @@ function renderAvance(){
           <div class="row"><span class="k">Acumulado</span><span class="v">${avFmt(st.sum,0)}</span></div>
           <div class="row"><span class="k">Estimación</span><span class="v">${avFmt(st.estimacion,0)}</span></div>
           <div class="row"><span class="k">Pulmón</span><span class="v">${avFmt(pulmon,0)}</span></div>
+          ${st.externos>0 ? `<div class="row"><span class="k">V. externos</span><span class="v" style="color:var(--av-warn);">-${avFmt(st.externos,1)}</span></div>` : ''}
         </div>
         <svg class="flow-arrow" viewBox="0 0 16 16"><path d="M2 8h10M8 3l5 5-5 5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>`;
@@ -4685,6 +4720,49 @@ function gproParsearNumero(str){
   return isNaN(n) ? null : n;
 }
 
+// ---- Vidrios — compra externa ----
+function renderVidriosExternos(){
+  const mesInput = document.getElementById('veMes');
+  if(mesInput && !mesInput.value){
+    const hoy = new Date();
+    mesInput.value = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}`;
+  }
+  const cont = document.getElementById('veLista');
+  if(!cont) return;
+  const entradas = Object.entries(state.vidriosExternos||{}).sort((a,b)=>b[0].localeCompare(a[0]));
+  if(!entradas.length){
+    cont.innerHTML = '<div class="hint">Todavía no cargaste ningún mes.</div>';
+    return;
+  }
+  const nombresMes = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  cont.innerHTML = entradas.map(([mes,m2])=>{
+    const [y,m] = mes.split('-').map(Number);
+    return `<div class="row" style="gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line2);">
+      <span style="flex:1;">${nombresMes[m-1]} ${y}</span>
+      <span style="font-weight:700;color:var(--amber);">-${m2.toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})} m²</span>
+      <button class="btn btn-ghost btn-sm" onclick="borrarVidriosExternos('${mes}')">✕ Borrar</button>
+    </div>`;
+  }).join('');
+}
+document.getElementById('btnVeGuardar').addEventListener('click', ()=>{
+  const mes = document.getElementById('veMes').value;
+  const m2 = parseFloat(document.getElementById('veM2').value);
+  if(!mes){ toast('Elegí un mes', true); return; }
+  if(isNaN(m2) || m2<0){ toast('Ingresá los m² comprados (0 o más)', true); return; }
+  state.vidriosExternos = state.vidriosExternos || {};
+  state.vidriosExternos[mes] = round1(m2);
+  saveState();
+  document.getElementById('veM2').value = '';
+  renderVidriosExternos();
+  toast('Guardado — se descuenta de Vidrios y DVH ese mes');
+});
+function borrarVidriosExternos(mes){
+  if(!confirm(`¿Borrar la compra externa cargada para ${mes}?`)) return;
+  delete state.vidriosExternos[mes];
+  saveState();
+  renderVidriosExternos();
+}
+
 document.getElementById('btnGproProcesar').addEventListener('click', ()=>{
   const texto = document.getElementById('gproPasteBox').value;
   if(!texto.trim()){ document.getElementById('gproMsg').textContent='Pegá datos primero.'; return; }
@@ -5297,8 +5375,9 @@ function renderHoy(){
   document.getElementById('todayLabel').textContent = capitalize(todayLabel());
 
   document.getElementById('panelGproSync').style.display = esAdmin() ? '' : 'none';
+  document.getElementById('panelVidriosExternos').style.display = esAdmin() ? '' : 'none';
   document.getElementById('panelColaProductiva').style.display = esAdmin() ? '' : 'none';
-  if(esAdmin()) renderColaProductiva();
+  if(esAdmin()){ renderColaProductiva(); renderVidriosExternos(); }
 
   renderAvisoFecha();
 
