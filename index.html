@@ -3211,9 +3211,10 @@ function construirGridDetalle(){
   const lunes = document.getElementById('semanaDetalleInput').value || detalleLunesDeEstaSemana();
   const hoyStr = fechaHoyLocal();
   const esAdministrador = esAdmin();
-  // un líder puede cargar/editar solo el día de hoy; los días anteriores quedan
-  // bloqueados para que no se puedan adulterar cargas viejas. El admin no tiene este límite.
-  const fechaBloqueada = (fecha)=> !esAdministrador && fecha!==hoyStr;
+  // antes un líder solo podía cargar/editar el día de hoy (los días anteriores quedaban
+  // bloqueados) -- Diego pidió sacar ese límite: ahora cualquiera con permiso para
+  // editar este detalle puede cargar cualquier día, sin restricción por fecha.
+  const fechaBloqueada = (fecha)=> false;
 
   if(!detalleActorActual){
     wrap.innerHTML = `<div class="hint">Todavía no hay ningún ${cfg.actorLabel.toLowerCase()} cargado en este sector. Usá "+ Nuevo" para agregar el primero.</div>`;
@@ -5860,23 +5861,21 @@ function crearBloqueSector(nombre, r, fechaParaPulmonInicio){
     </div>
     <div class="sb-bar"><div class="sb-bar-fill" style="width:${barPct}%;background:${barColor};"></div></div>
     ${potencial!==null ? `<div class="hint" style="margin-bottom:8px;">Sin esos problemas, podría haber llegado a <b style="color:var(--ink);">${fmt(potencial)} m²</b> (${fmt(r.cerrado)} reales + ${fmt(round1(potencial-r.cerrado))} perdidos).</div>` : ''}
-    ${cumple ? '' : `
-      <div class="sb-causas">
-        ${r.motivoCausa.length>0
-          ? r.motivoCausa.map(c=>`
-            <div class="sb-causa-row">
-              <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
-            </div>
-          `).join('')
-          : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía</span></div>`
-        }
-        ${puedeDeclararCausas() ? `
-          <div class="sb-pendiente-row">
-            <button class="btn btn-sm ${r.motivoCausa.length ? 'btn-ghost' : 'btn-danger'}" data-edit-causa="${esc(nombre)}|hoy">${r.motivoCausa.length ? '✎ Editar '+r.motivoCausa.length+' causa(s)' : 'Declarar causa'}</button>
+    <div class="sb-causas">
+      ${r.motivoCausa.length>0
+        ? r.motivoCausa.map(c=>`
+          <div class="sb-causa-row">
+            <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
           </div>
+        `).join('')
+        : (cumple ? '' : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía</span></div>`)
+      }
+      ${puedeDeclararCausas() ? `
+        <div class="sb-pendiente-row">
+          <button class="btn btn-sm ${r.motivoCausa.length ? 'btn-ghost' : (cumple ? 'btn-ghost' : 'btn-danger')}" data-edit-causa="${esc(nombre)}|hoy">${r.motivoCausa.length ? '✎ Editar '+r.motivoCausa.length+' causa(s)' : (cumple ? '+ Declarar causa' : 'Declarar causa')}</button>
+        </div>
         ` : ''}
       </div>
-    `}
   `;
   return div;
 }
