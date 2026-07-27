@@ -21,6 +21,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -641,6 +642,169 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 #view-avance{ position:fixed; inset:0; z-index:500; background:var(--av-bg); color:var(--av-text); font-family:'Inter',sans-serif; -webkit-font-smoothing:antialiased; overflow:hidden; }
 #view-avance, #view-avance *{ box-sizing:border-box; }
 
+/* ===== Vistas Organigrama y Polivalencias — clases prefijadas "poli-" para no chocar con nada existente ===== */
+#view-organigrama .poli-header, #view-polivalencias .poli-header{
+  display:flex; justify-content:space-between; align-items:flex-end;
+  padding-bottom:10px; margin-bottom:16px; border-bottom:1px solid var(--line);
+}
+#view-organigrama .poli-header h1, #view-polivalencias .poli-header h1{ margin:4px 0 0; font-size:22px; }
+#view-organigrama .eyebrow, #view-polivalencias .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.1em; color:var(--amber); text-transform:uppercase; }
+.poli-sync{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink-dim); }
+
+.poli-org-toolbar, .poli-toolbar{ display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+.poli-org-toolbar input[type=text], .poli-toolbar input[type=text], .poli-toolbar select{
+  background:var(--panel2); border:1px solid var(--line); color:var(--ink);
+  padding:9px 12px; border-radius:8px; font-size:13px; min-width:200px;
+}
+.poli-add-op{ display:flex; gap:6px; align-items:center; margin-left:auto; }
+.poli-add-op input{ min-width:200px; }
+
+.poli-tree-wrap{ border:1px solid var(--line); border-radius:10px; background:var(--panel); padding:26px 20px 32px; overflow-x:auto; }
+.poli-tree-level{ display:flex; justify-content:center; gap:20px; flex-wrap:wrap; }
+.poli-tree-branch{ display:flex; flex-direction:column; align-items:center; }
+.poli-card{
+  position:relative; background:var(--panel2); border:1px solid var(--line); border-radius:10px;
+  padding:10px 16px; text-align:center; white-space:nowrap; cursor:default;
+  transition:border-color .15s, box-shadow .15s, transform .15s;
+}
+.poli-card .dot{ width:9px; height:9px; border-radius:50%; margin:0 auto 5px; }
+.poli-card .nm{ font-weight:700; font-size:13px; color:var(--ink); }
+.poli-card .rl{ font-size:10.5px; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; margin-top:1px; }
+.poli-card.expandable{ cursor:pointer; }
+.poli-card.expandable:hover{ border-color:var(--amber); transform:translateY(-2px); }
+.poli-card.gerente{ border-color:#e8c34a; box-shadow:0 0 18px rgba(232,195,74,.2); padding:14px 22px; }
+.poli-card.jefe{ border-color:var(--blue); }
+.poli-card.operario{ padding:6px 10px; display:flex; align-items:center; gap:8px; text-align:left; white-space:normal; }
+.poli-card.operario .nm{ font-size:12px; }
+.poli-card.operario .rl{ font-size:10px; }
+.poli-card.operario .dot{ margin:0; flex-shrink:0; }
+.poli-card.highlight{ border-color:var(--amber); box-shadow:0 0 16px rgba(232,163,61,.4); }
+.poli-card.dim{ opacity:.25; }
+.poli-badge{
+  position:absolute; top:-8px; right:-8px; background:var(--amber); color:#241c02;
+  font-size:10px; font-weight:800; border-radius:20px; padding:2px 6px; line-height:1;
+  box-shadow:0 2px 6px rgba(0,0,0,.4);
+}
+.poli-badge.open{ background:var(--ink-faint); color:var(--bg); }
+.poli-lider-group{
+  display:flex; flex-direction:column; align-items:stretch; gap:6px;
+  border:1px dashed var(--line); border-radius:12px; padding:12px 14px;
+  margin-top:6px; max-width:320px; margin-left:auto; margin-right:auto;
+}
+.poli-tree-children{ display:flex; justify-content:center; gap:18px; flex-wrap:wrap; margin-top:22px; padding-top:16px; position:relative; }
+.poli-tree-children::before{ content:''; position:absolute; top:0; left:50%; width:1px; height:16px; background:var(--line); transform:translateX(-50%); }
+.poli-legend{ display:flex; gap:16px; flex-wrap:wrap; margin-top:14px; font-size:12px; color:var(--ink-dim); }
+.poli-legend span{ display:inline-flex; align-items:center; gap:6px; }
+.poli-legend i{ width:9px; height:9px; border-radius:50%; display:inline-block; }
+
+.poli-flow{ display:flex; align-items:stretch; gap:6px; overflow-x:auto; padding:6px 2px 14px; }
+.poli-fnode{
+  min-width:120px; background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  padding:11px 9px; text-align:center; cursor:pointer; flex-shrink:0; user-select:none;
+}
+.poli-fnode:hover{ border-color:var(--amber); }
+.poli-fnode.active{ border-color:var(--amber); box-shadow:0 0 12px rgba(232,163,61,.3); }
+.poli-fnode .dot{ width:8px; height:8px; border-radius:50%; margin:0 auto 6px; display:inline-block; }
+.poli-fnode .name{ font-size:12px; font-weight:700; color:var(--ink); }
+.poli-fnode .count{ font-size:20px; font-weight:800; margin-top:4px; color:var(--ink); }
+.poli-arrow{ align-self:center; color:var(--line2); font-size:19px; flex-shrink:0; }
+
+.poli-kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin:16px 0; }
+.poli-kpi{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:14px 16px; }
+.poli-kpi .lbl{ font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
+.poli-kpi .val{ font-size:24px; font-weight:800; margin-top:4px; color:var(--ink); }
+.poli-kpi .sub{ font-size:11px; color:var(--ink-dim); margin-top:2px; }
+.poli-kpi.top ol{ margin:6px 0 0; padding-left:16px; font-size:12px; color:var(--ink); }
+
+.poli-niveles-guia{
+  display:flex; gap:16px; flex-wrap:wrap; align-items:center;
+  background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  padding:12px 16px; margin:14px 0;
+}
+.poli-niveles-guia .item{ display:flex; align-items:center; gap:8px; font-size:13px; color:var(--ink); }
+.poli-niveles-guia .item b{ font-weight:800; }
+.poli-niveles-guia .item span{ color:var(--ink-dim); }
+
+.poli-matrix-wrap{ background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:auto; max-height:58vh; }
+.poli-matrix-wrap table{ border-collapse:collapse; width:100%; font-size:13px; }
+.poli-matrix-wrap thead th{
+  position:sticky; top:0; background:var(--panel2); z-index:2; padding:8px 6px; text-align:center;
+  border-bottom:1px solid var(--line); font-size:11px; color:var(--ink-dim);
+}
+.poli-matrix-wrap thead th.name-col{ text-align:left; position:sticky; left:0; z-index:3; background:var(--panel2); }
+.poli-matrix-wrap thead th .rm{ cursor:pointer; color:var(--red); margin-left:4px; font-weight:900; }
+.poli-matrix-wrap tbody td.name-col{ position:sticky; left:0; background:var(--panel); z-index:1; padding:7px 12px; border-bottom:1px solid var(--line); white-space:nowrap; color:var(--ink); }
+.poli-matrix-wrap tbody td.name-col .leg{ color:var(--ink-dim); font-size:11px; margin-left:6px; }
+.poli-matrix-wrap tbody tr.grp td{ background:var(--panel2); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-dim); padding:6px 10px; }
+.poli-matrix-wrap tbody td{ padding:5px; text-align:center; border-bottom:1px solid var(--line); }
+.poli-lvl{
+  width:28px; height:28px; border-radius:6px; border:1px solid var(--line); cursor:pointer;
+  display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:800;
+  background:var(--panel2); color:var(--ink-dim); user-select:none;
+}
+.poli-lvl[data-l="1"]{ background:#2c4b6b; color:#cfe2f5; border-color:#3d6690; }
+.poli-lvl[data-l="2"]{ background:#245e6b; color:#cdeef2; border-color:#2e7f90; }
+.poli-lvl[data-l="3"]{ background:#1c7a63; color:#d7f7ec; border-color:#249c7e; }
+.poli-lvl[data-l="4"]{ background:#a3811f; color:#fff3cf; border-color:#e8c34a; }
+
+.poli-subnav-btn{ display:block; width:100%; background:none; border:none; color:var(--ink-dim); padding:7px 8px; font-size:12px; text-align:left; border-radius:6px; transition:.15s; cursor:pointer; }
+.poli-subnav-btn:hover{ background:var(--bg2); color:var(--ink); }
+.poli-subnav-btn.active{ color:var(--amber); font-weight:600; }
+
+.poli-chips{ display:flex; flex-wrap:wrap; gap:8px; }
+.poli-chip{
+  background:var(--panel2); border:1px solid var(--line); border-radius:20px;
+  padding:6px 14px; font-size:12.5px; color:var(--ink); cursor:pointer; font-family:inherit;
+  transition:.15s;
+}
+.poli-chip:hover{ border-color:var(--amber); transform:translateY(-1px); }
+.poli-chip.titular{ border-color:var(--blue); }
+.poli-chip.poli{ border-color:var(--green); color:var(--ink); }
+.poli-chip small{ display:block; color:var(--ink-dim); font-size:10.5px; margin-top:1px; }
+.poli-analisis-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+.poli-analisis-card h3{ margin:0 0 4px; font-size:15px; }
+.poli-analisis-card .sub{ color:var(--ink-dim); font-size:12px; margin-bottom:12px; }
+
+.poli-modal-overlay{
+  display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:900;
+  align-items:center; justify-content:center; padding:20px;
+}
+.poli-modal-overlay.show{ display:flex; }
+.poli-modal-panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:12px;
+  max-width:560px; width:100%; max-height:82vh; overflow:auto; padding:22px 24px;
+}
+.poli-modal-panel h2{ margin:0 0 2px; font-size:18px; }
+.poli-modal-panel .sub{ color:var(--ink-dim); font-size:12.5px; margin-bottom:16px; }
+.poli-modal-close{ float:right; background:none; border:1px solid var(--line); color:var(--ink-dim); width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:14px; }
+.poli-modal-sector-block{ margin-bottom:14px; }
+.poli-modal-sector-block h4{ margin:0 0 6px; font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-dim); }
+.poli-modal-op-row{ display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--line); font-size:13px; }
+.poli-modal-op-row:last-child{ border-bottom:none; }
+.poli-modal-empty{ color:var(--ink-dim); font-size:13px; text-align:center; padding:20px; }
+
+.poli-riesgo-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:10px; margin-bottom:18px; }
+.poli-riesgo-card{
+  background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px;
+  cursor:pointer; transition:.15s;
+}
+.poli-riesgo-card:hover{ border-color:var(--amber); transform:translateY(-1px); }
+.poli-riesgo-card.alerta{ border-color:var(--red); }
+.poli-riesgo-card .nombre{ font-weight:700; font-size:13px; }
+.poli-riesgo-card .cnt{ font-size:22px; font-weight:800; margin-top:4px; }
+.poli-riesgo-card .cnt.ok{ color:var(--green); }
+.poli-riesgo-card .cnt.bad{ color:var(--red); }
+.poli-riesgo-card .txt{ font-size:11px; color:var(--ink-dim); }
+.poli-top10{ list-style:none; margin:0; padding:0; }
+.poli-top10 li{
+  display:flex; align-items:center; gap:12px; padding:9px 6px; border-bottom:1px solid var(--line);
+  cursor:pointer; border-radius:6px;
+}
+.poli-top10 li:hover{ background:var(--panel2); }
+.poli-top10 .rank{ font-weight:800; color:var(--amber); width:22px; text-align:center; }
+.poli-top10 .nombre{ flex:1; font-size:13px; }
+.poli-top10 .cnt{ font-weight:700; font-size:13px; color:var(--green); }
+
 </style>
 </head>
 <body>
@@ -707,6 +871,12 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 
     <button class="sidebar-nav-btn" data-nav="detalle">🔩 Producción x operario</button>
     <button class="sidebar-nav-btn" data-nav="avance">📺 Avance por Sector (TV)</button>
+    <button class="sidebar-nav-btn" data-nav="organigrama">🧭 Organigrama</button>
+    <button class="sidebar-nav-btn" data-nav="polivalencias">🧩 Polivalencias</button>
+    <div class="sidebar-subnav" id="sidebarPoliSubnav" style="display:none;">
+      <button class="poli-subnav-btn active" data-nav-sub="carga">Carga</button>
+      <button class="poli-subnav-btn" data-nav-sub="analisis">Análisis</button>
+    </div>
     <div class="app-sidebar-filtro" id="sidebarFiltroCausas" style="display:none;">
       <label>Desde</label>
       <input type="date" id="inputFiltroGraficosDesde">
@@ -1260,6 +1430,102 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 </div></div>
   </div>
 
+  <!-- ===================== VISTA ORGANIGRAMA ===================== -->
+  <div class="view" id="view-organigrama">
+    <div class="poli-header">
+      <div>
+        <div class="eyebrow">LFDA · Producción</div>
+        <h1>Organigrama</h1>
+      </div>
+    </div>
+    <div class="poli-org-toolbar">
+      <input type="text" id="orgSearch" placeholder="Buscar persona…">
+      <button class="btn btn-ghost" id="resetOrgView">Cerrar todo</button>
+    </div>
+    <div class="poli-tree-wrap">
+      <div class="poli-tree-level" id="treeRoot"></div>
+    </div>
+    <div class="poli-legend">
+      <span><i style="background:#e8c34a"></i> Gerente</span>
+      <span><i style="background:var(--blue)"></i> Jefes de Producción</span>
+      <span><i style="background:var(--green)"></i> Líderes de sector</span>
+      <span><i style="background:var(--ink-faint)"></i> Operarios</span>
+    </div>
+  </div>
+
+  <!-- ===================== VISTA POLIVALENCIAS ===================== -->
+  <div class="view" id="view-polivalencias">
+    <div class="poli-header">
+      <div>
+        <div class="eyebrow">LFDA · Producción</div>
+        <h1>Polivalencias</h1>
+      </div>
+      <div class="poli-sync">
+        <span class="sync-dot on" id="poliSyncDot"></span>
+        <span id="poliSyncLabel">En vivo</span>
+      </div>
+    </div>
+
+    <div class="cfg-tabpage active" id="poliTab-carga">
+      <div class="poli-flow" id="poliFlowLine"></div>
+
+      <div class="poli-kpis" id="poliKpiRow"></div>
+
+      <div class="poli-niveles-guia">
+        <div class="item"><span class="poli-lvl" data-l="0">0</span> — Sin evaluar</div>
+        <div class="item"><span class="poli-lvl" data-l="1">1</span> <b>L1</b> <span>Inducido (observa)</span></div>
+        <div class="item"><span class="poli-lvl" data-l="2">2</span> <b>L2</b> <span>Aprendizaje (con supervisión)</span></div>
+        <div class="item"><span class="poli-lvl" data-l="3">3</span> <b>L3</b> <span>Autónomo</span></div>
+        <div class="item"><span class="poli-lvl" data-l="4">4</span> <b>L4</b> <span>Experto / Formador</span></div>
+      </div>
+
+      <div class="poli-toolbar">
+        <select id="poliFilterSector"></select>
+        <input type="text" id="poliSearch" placeholder="Buscar por nombre o legajo…">
+        <button class="btn" id="poliBtnExcel">📥 Exportar a Excel</button>
+        <div class="poli-add-op">
+          <input type="text" id="poliNewOpName" placeholder="Nueva operación para este sector…">
+          <button class="btn btn-primary" id="poliBtnAddOp">+ Agregar tarea</button>
+        </div>
+      </div>
+
+      <div class="poli-matrix-wrap">
+        <table>
+          <thead><tr id="poliHeadRow"></tr></thead>
+          <tbody id="poliBodyRows"></tbody>
+        </table>
+      </div>
+      <p class="help-txt" style="margin-top:10px;">
+        Click en cada celda para ciclar el nivel (0 a 4). Se guarda solo, en vivo, para todos los que tengan esta pantalla abierta.
+      </p>
+    </div>
+
+    <div class="cfg-tabpage" id="poliTab-analisis">
+      <div class="poli-riesgo-grid" id="poliRiesgoGrid"></div>
+      <div class="poli-toolbar">
+        <select id="poliAnalisisSector"></select>
+      </div>
+      <div id="poliAnalisisDetail"></div>
+      <p class="help-txt" style="margin:6px 0 18px;">
+        Titulares del sector en un color, y en otro las personas de otros sectores que ya tienen nivel Autónomo (3) o Experto (4) en alguna tarea de este sector — a esas se les puede pedir que cubran acá si hace falta. Tocá cualquier nombre para ver su ficha completa.
+      </p>
+      <div class="poli-analisis-card">
+        <h3>🏆 Top 10 polivalentes de la planta</h3>
+        <div class="sub">Personas con más operaciones en nivel Autónomo o Experto, en cualquier sector</div>
+        <ol class="poli-top10" id="poliTop10List"></ol>
+      </div>
+    </div>
+  </div>
+
+  <div class="poli-modal-overlay" id="poliPersonaOverlay">
+    <div class="poli-modal-panel">
+      <button class="poli-modal-close" id="poliClosePersonaModal">✕</button>
+      <h2 id="poliModalNombre"></h2>
+      <div class="sub" id="poliModalSub"></div>
+      <div id="poliModalBody"></div>
+    </div>
+  </div>
+
   <!-- ===================== VISTA CONFIG ===================== -->
   <div class="view" id="view-config">
     <div class="cfg-layout">
@@ -1532,6 +1798,17 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
       <input type="file" id="inputCargarUnificado" accept="application/json" style="display:none;">
       <button class="btn btn-primary btn-sm" id="btnCargarUnificado">Cargar JSON</button>
       <div id="resultadoCargarUnificado" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="panel" style="border-color:var(--amber); margin-top:16px;">
+      <div class="panel-head"><h2>📥 Exportar histórico de pulmones</h2></div>
+      <div class="hint" style="margin-bottom:10px;">
+        Descarga un Excel (CSV) con el pulmón de inicio y cierre de cada sector, día por día,
+        para todo el historial cargado. "Inicio" de un día es el mismo valor que quedó de
+        "cierre" el día hábil anterior.
+      </div>
+      <button class="btn btn-primary btn-sm" id="btnExportarPulmones">📥 Descargar Excel de pulmones</button>
+      <div id="resultadoExportarPulmones" style="margin-top:10px;"></div>
     </div>
 
     </div>
@@ -5004,6 +5281,7 @@ function irASeccion(nav, sub){
 
   const subnavWrap = document.getElementById('sidebarHistSubnav');
   subnavWrap.style.display = (nav==='historial') ? '' : 'none';
+  document.getElementById('sidebarPoliSubnav').style.display = (nav==='polivalencias') ? '' : 'none';
 
   ['sidebarFiltroCausas','sidebarFiltroEvolucion','sidebarFiltroDias'].forEach(id=>{
     document.getElementById(id).style.display = 'none';
@@ -5019,9 +5297,19 @@ function irASeccion(nav, sub){
     document.getElementById(idFiltro).style.display = '';
     renderHistorial();
   }
+  if(nav==='polivalencias'){
+    const subFinal = sub || 'carga';
+    document.querySelectorAll('#sidebarPoliSubnav .poli-subnav-btn').forEach(b=>b.classList.toggle('active', b.dataset.navSub===subFinal));
+    document.querySelectorAll('#view-polivalencias .cfg-tabpage').forEach(page=>{
+      page.classList.toggle('active', page.id === 'poliTab-'+subFinal);
+    });
+    poliRenderPolivalenciasView();
+    if(subFinal==='analisis') poliRenderAnalisis();
+  }
   if(nav==='config') renderConfig();
   if(nav==='detalle') renderDetalle();
   if(nav==='avance') renderAvance();
+  if(nav==='organigrama') poliRenderOrganigramaView();
 }
 
 document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
@@ -5035,10 +5323,17 @@ document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
       // si ya estaba en historial, conserva la subsección activa; si no, arranca en causas
       const subActual = document.querySelector('.sidebar-subnav-btn.active');
       irASeccion('historial', subActual ? subActual.dataset.navSub : 'causas');
+    } else if(btn.dataset.nav==='polivalencias'){
+      const subActual = document.querySelector('#sidebarPoliSubnav .poli-subnav-btn.active');
+      irASeccion('polivalencias', subActual ? subActual.dataset.navSub : 'carga');
     } else {
       irASeccion(btn.dataset.nav);
     }
   });
+});
+
+document.querySelectorAll('#sidebarPoliSubnav .poli-subnav-btn[data-nav-sub]').forEach(btn=>{
+  btn.addEventListener('click', ()=> irASeccion('polivalencias', btn.dataset.navSub));
 });
 
 // abre el almanaque nativo al tocar cualquier parte del campo de fecha, no solo el ícono
@@ -7877,6 +8172,50 @@ document.getElementById('btnCargarUnificado').addEventListener('click', ()=>{
   document.getElementById('inputCargarUnificado').click();
 });
 
+// exporta el histórico de pulmones (inicio/cierre) por sector a un CSV que Excel abre
+// directo. "Cierre" es el valor guardado ese día (el más confiable, lo que ya muestra
+// el resto de la app). "Inicio" no se guarda por separado en el histórico -- se estima
+// como el cierre del día anterior CON DATO para ese sector (así queda la app hoy), se
+// lo aclara en la propia planilla para no hacerse pasar por un dato que no tenemos.
+document.getElementById('btnExportarPulmones').addEventListener('click', ()=>{
+  const cont = document.getElementById('resultadoExportarPulmones');
+  const sectoresNombres = (state.sectores||[]).map(s=>s.nombre);
+  const fechas = Object.keys(state.pulmones||{}).sort();
+  if(!fechas.length || !sectoresNombres.length){
+    cont.innerHTML = '<span style="color:var(--red);">No hay histórico de pulmones cargado todavía.</span>';
+    return;
+  }
+  const ultimoPorSector = {};
+  const filas = [];
+  fechas.forEach(fecha=>{
+    sectoresNombres.forEach(sector=>{
+      const cierre = state.pulmones[fecha] ? state.pulmones[fecha][sector] : undefined;
+      if(cierre===undefined || cierre===null) return;
+      const inicio = ultimoPorSector[sector]!==undefined ? ultimoPorSector[sector] : '';
+      filas.push({fecha, sector, inicio, cierre});
+      ultimoPorSector[sector] = cierre;
+    });
+  });
+  if(!filas.length){
+    cont.innerHTML = '<span style="color:var(--red);">No hay valores de pulmón cargados para ningún sector.</span>';
+    return;
+  }
+  let csv = 'Fecha;Sector;Pulmon inicio (m2) [estimado, = cierre del dia anterior con dato];Pulmon cierre (m2)\n';
+  filas.forEach(f=>{
+    csv += `${f.fecha};${f.sector};${f.inicio};${f.cierre}\n`;
+  });
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `pulmones_historico_${fechaHoyLocal()}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  cont.innerHTML = `<span style="color:var(--green);">✓ Descargado — ${filas.length} filas (${fechas.length} días, ${sectoresNombres.length} sectores).</span>`;
+});
+
 // genera un respaldo con el estado de ESTE momento (sin esperar a las condiciones automáticas)
 // y lo descarga directo, para cuando se necesita la última versión sí o sí actualizada.
 document.getElementById('btnRespaldoActualAhora').addEventListener('click', ()=>{
@@ -10326,6 +10665,608 @@ function ccupActualizarPendientes(){
     intentar();
   }
 })();
+
+/* ============================================================
+   ORGANIGRAMA Y POLIVALENCIAS — módulo con prefijo "poli" en todo
+   para no chocar con ninguna variable/función existente del archivo.
+   Guarda en Firestore, colección propia (lfda_polivalencias), separada
+   del documento principal de Cierre Diario.
+   ============================================================ */
+
+const POLI_COLLECTION = 'lfda_polivalencias';
+const POLI_CONFIG_DOC = 'config';
+const POLI_NIVELES_DOC = 'niveles';
+
+const POLI_SECTORS = [
+  { id:'0-Planificación', name:'Planificación', color:'#8a8fa3' },
+  { id:'1-ALM', name:'Abastecimiento', color:'#4f7cac' },
+  { id:'2-MEC', name:'Mecanizado', color:'#4f7cac' },
+  { id:'3-SOL', name:'Soldado', color:'#4f8caa' },
+  { id:'4-VID', name:'Vidrio', color:'#1f9d8a' },
+  { id:'5-DVH', name:'DVH', color:'#17b3a3' },
+  { id:'6-ARM', name:'Armado', color:'#3f9ba0' },
+  { id:'7-ACR', name:'Acristalado', color:'#2c9d6f' },
+  { id:'8-LI', name:'Logística', color:'#e8a33d' },
+  { id:'CAL', name:'Calidad', color:'#d1673e' },
+  { id:'MAN', name:'Mantenimiento', color:'#d1673e' },
+  { id:'SIN', name:'Servicio Interno', color:'#d1673e' },
+];
+const POLI_LINE_ORDER = ['0-Planificación','1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
+const POLI_SUPPORT_ORDER = ['CAL','MAN','SIN'];
+const POLI_ALL_SECTOR_ORDER = POLI_LINE_ORDER.concat(POLI_SUPPORT_ORDER);
+
+const POLI_PEOPLE = [
+  ["Vera Maidana, Alfredo Ramon","270","0-Planificación"],
+  ["Cisneros, Victor Ariel","168","1-ALM"],["Corpus, Diego Alejandro","110","1-ALM"],
+  ["Gelvez, Gerardo Gaston","21","1-ALM"],["Maldonado Salomon, Augusto Rafael","296","1-ALM"],
+  ["Marquez, Facundo Nahuel","145","1-ALM"],["Matcovich, Martinez Eric","350","1-ALM"],
+  ["Perez, Fernandez Luca","351","1-ALM"],["Suarez, Cristian Emanuel","119","1-ALM"],
+  ["Benitez, Alexis German","327","2-MEC"],["Celiz, Cristian Eduardo","101","2-MEC"],
+  ["Garcia, Pablo Ariel","67","2-MEC"],["Gimenez, Nicolas","267","2-MEC"],
+  ["Roldan, Nicolas Ezequiel","349","2-MEC"],
+  ["Amarillo, Cristian Daniel","166","3-SOL"],["Amarillo, Ricardo Ariel","165","3-SOL"],
+  ["Garnica, Juan Jose","147","3-SOL"],["Quiroga, Gonzalez Yonatan","326","3-SOL"],
+  ["Rufino, Boris Gabriel","275","3-SOL"],
+  ["Benitez, Hector Ezequiel","324","4-VID"],["Bernal, Nicolas","212","4-VID"],
+  ["Brian, Jonathan Fabian","323","4-VID"],["Cordoba, Angel Daniel","176","4-VID"],
+  ["Gavilan, Marcelo Adrian","315","4-VID"],["Molina, Alan Jose","300","4-VID"],
+  ["Salvetti, Carlos Gustavo","140","4-VID"],["Zacarias, Roberto Adàn","54","4-VID"],
+  ["Zamudio, Ezequiel Nicolas","345","4-VID"],
+  ["Acevedo, Diego Orlando","62","5-DVH"],["Aguilera, Matias Ezequiel","273","5-DVH"],
+  ["Gimenez, Dylan Steven","335","5-DVH"],["Lemma, Marcelo David","346","5-DVH"],
+  ["Martinez, Dario","76","5-DVH"],["Quiña, Pablo","156","5-DVH"],
+  ["Viera, Kevin Ariel","347","5-DVH"],
+  ["Alarcon, Adan Gustavo","293","6-ARM"],["Coimbra, Brian Daniel","85","6-ARM"],
+  ["De Los Santos, Leonardo Luis Marcelo","272","6-ARM"],["De Los Santos, Leonardo Omar","297","6-ARM"],
+  ["Garcete Baez, Carlos Javier","343","6-ARM"],["Lopez, Edgardo Gabriel","171","6-ARM"],
+  ["Lopez, Josè Antonio","149","6-ARM"],["Santacruz, Portillo Fredy","129","6-ARM"],
+  ["Vecino, Matias Alberto","202","6-ARM"],["Venialgo Prieto, Willian Daniel","174","6-ARM"],
+  ["Vera, Gaston Alberto","33","6-ARM"],
+  ["Comba Ayala, Nicolas Jose","314","7-ACR"],["Gauna, Kevin Nahuel","344","7-ACR"],
+  ["Isla, Daniel","201","7-ACR"],["Olguin, Maximiliano Gabriel","139","7-ACR"],
+  ["Perez, Silvio Orlando","102","7-ACR"],["Rios, Romero Gerardo","214","7-ACR"],
+  ["Trombotti, Daniel Jorge","94","7-ACR"],
+  ["Maglio, Alejandro Javier","","8-LI"],["Cabral, Carlos Sebastian","","8-LI"],
+  ["Cabrera, Eduardo Maximiliano","","8-LI"],
+  ["Coimbra, Mauro Javier","52","CAL"],["Frutos, Eduardo Martin","151","CAL"],
+  ["Aranda, Walter Ezequiel","103","MAN"],["Montenegro, Juan Bautista","20","MAN"],
+  ["Paez, Braian Pascual","295","MAN"],
+  ["Carranza, Leandro Gaston","34","SIN"],
+];
+// ids estables para las 3 personas sin legajo (no dependen del orden del array)
+const POLI_ID_SIN_LEGAJO = { 'Maglio, Alejandro Javier':'N-MAGLIO', 'Cabral, Carlos Sebastian':'N-CABRAL', 'Cabrera, Eduardo Maximiliano':'N-CABRERA' };
+function poliPersonaId(nombre, legajo){ return legajo ? ('L'+legajo) : (POLI_ID_SIN_LEGAJO[nombre] || ('N-'+nombre)); }
+
+// líder real de cada sector (roster de login de Cierre Diario)
+const POLI_LIDERES = {
+  '0-Planificación':{nombre:'Vera, Alfredo', id:'L270'},
+  '1-ALM':{nombre:'Maldonado, Augusto', id:'L296'},
+  '2-MEC':{nombre:'García, Pablo', id:'L67'},
+  '3-SOL':{nombre:'Amarillo, Ariel', id:'L165'},
+  '4-VID':{nombre:'Córdoba, Angel', id:'L176'},
+  '5-DVH':{nombre:'Acevedo, Diego', id:'L62'},
+  '6-ARM':{nombre:'Coimbra, Braian', id:'L85'},
+  '7-ACR':{nombre:'Trombotti, Daniel', id:'L94'},
+  '8-LI':{nombre:'Maglio, Alejandro', id:'N-MAGLIO'},
+  CAL:null, MAN:null, SIN:null,
+};
+const POLI_GERENTE = { nombre:'Bonacci, Pablo', rol:'GERENTE' };
+const POLI_JEFES = [{ id:'jefes', nombre:'Muchiutti, Pablo · Pavan, Diego', rol:'JEFES DE PRODUCCIÓN' }];
+
+const POLI_OPERACIONES_INICIALES = {
+  '0-Planificación':[
+    ['PCP-1784907024252','Manejo de Hetmo'],['PCP-1784907043932','Manejo Optiway'],
+    ['PCP-1784907082397','Analisis cotización vidrios'],['PCP-1784907117996','Impresiónes'],
+    ['PCP-1784912890641','G-PRO'],
+  ],
+  '1-ALM':[
+    ['ABA-1','Recepción MP (Remito)'],['ABA-2','Control de Stock'],['ABA-1784913044177','Pañol'],
+    ['ABA-1784913066650','Abast Accesorios'],['ABA-1784913111526','Abast Perfiles principales'],
+    ['ABA-1784913141193','Abast Herrajes'],['ABA-1784913165065','Autoelevador'],
+    ['ABA-1784913177034','Puente Grua'],['ABA-1784913220354','G-PRO'],['ABA-1784913227095','G-CONTROL'],
+  ],
+  '2-MEC':[
+    ['MEC-1','Carga de perfil'],['MEC-1784913276710','Manejo CM'],['MEC-1784913290754','Colocación de refuerzos'],
+    ['MEC-1784913301041','Centro de Atornillado'],['MEC-1784913321004','Retestado de Postes'],
+    ['MEC-1784913355362','G-PRO'],['MEC-1784913360306','G-CONTROL'],['MEC-1784913512890','Programación Maq'],
+  ],
+  '3-SOL':[
+    ['SOL-1784913422227','Soldadora Auto 1'],['SOL-1784913433978','Soldadora Auto 2'],
+    ['SOL-1784913450242','Soldadora Manual 2 Cab'],['SOL-1784913473162','Soldadora Manual 1 Cab'],
+    ['SOL-1784913527394','CNC 1'],['SOL-1784913532490','CNC 2'],['SOL-1784913561218','Sierra Manual Kaban'],
+    ['SOL-1784913590771','G-PRO'],['SOL-1784913608386','G-CONTROL'],['SOL-1784913633571','Programación Maq'],
+  ],
+  '4-VID':[
+    ['VID-1','Carga de Plancha'],['VID-2','Corte + Trozado'],['VID-3','Canteado'],
+    ['VID-4','Lavado + Secado'],['VID-5','Prensado'],['VID-6','Colocación de Polisulfuro'],
+  ],
+  '5-DVH':[
+    ['DVH-1','Carga de Plancha'],['DVH-2','Corte + Trozado'],['DVH-3','Canteado'],
+    ['DVH-4','Lavado + Secado'],['DVH-5','Cámara DVH'],['DVH-6','Colocación de Polisulfuro'],
+  ],
+  '6-ARM':[
+    ['ARM-1784913660506','Abast ACC'],['ARM-1784913672767','Abast Herrajes'],['ARM-1784913682442','Abast Aberturas'],
+    ['ARM-1784913761298','ARM Advance'],['ARM-1784913771364','ARM Prime'],['ARM-1784913778435','ARM Jumbo'],
+    ['ARM-1784913786106','ARM Evolution'],['ARM-1784913822170','ARM Eficient'],
+    ['ARM-1784913849206','G-PRO'],['ARM-1784913853954','G-CONTROL'],
+  ],
+  '7-ACR':[
+    ['ACR-1784913914012','Corte Contrav.'],['ACR-1784913959125','Abast Aberturas'],
+    ['ACR-1784913969730','Acristalado'],['ACR-1784913988018','Manejo Ventosa'],
+    ['ACR-1784913997123','G-PRO'],['ACR-1784914001962','G-CONTROL'],
+  ],
+  '8-LI':[
+    ['LOG-1784914063406','Consolidación Racks'],['LOG-1784914075894','Manejo Autolevador'],
+    ['LOG-1784914083826','Manejo Ventosa'],['LOG-1784914116082','G-PRO'],['LOG-1784914121787','G-CONTROL'],
+  ],
+  CAL:[], MAN:[], SIN:[],
+};
+const POLI_NIVELES_INICIALES = {
+  L270:{ 'PCP-1784907024252':4, 'PCP-1784907043932':4, 'PCP-1784907082397':4, 'PCP-1784907117996':4, 'PCP-1784912890641':4 },
+  L168:{ 'ABA-1':4, 'ABA-2':4 },
+};
+
+function poliFreshState(){
+  const operaciones = {};
+  Object.keys(POLI_OPERACIONES_INICIALES).forEach(sec=>{
+    operaciones[sec] = POLI_OPERACIONES_INICIALES[sec].map(([id,nombre])=>({id, nombre, critica:false}));
+  });
+  return {
+    personas: POLI_PEOPLE.map(([nombre,legajo,sector])=>({ id: poliPersonaId(nombre,legajo), nombre, legajo, sectorTitular:sector })),
+    operaciones,
+    niveles: JSON.parse(JSON.stringify(POLI_NIVELES_INICIALES)),
+  };
+}
+
+let poliState = poliFreshState();
+let poliListenersListos = false;
+
+function poliSectorById(id){ return POLI_SECTORS.find(s=>s.id===id); }
+function poliNivelDe(personaId, opId){ return (poliState.niveles[personaId] && poliState.niveles[personaId][opId]) || 0; }
+
+function poliMostrarSync(estado){
+  const dot = document.getElementById('poliSyncDot'), lbl = document.getElementById('poliSyncLabel');
+  if(!dot) return;
+  dot.className = 'sync-dot ' + (estado==='on' ? 'on' : estado==='wait' ? 'wait' : 'off');
+  lbl.textContent = estado==='on' ? 'En vivo' : estado==='wait' ? 'Conectando…' : 'Solo local';
+}
+
+function poliEsperarFirestore(cb){
+  if(typeof firestoreDb !== 'undefined' && firestoreDb && firebaseAuthListo) cb();
+  else setTimeout(()=>poliEsperarFirestore(cb), 400);
+}
+
+function poliIniciarSync(){
+  poliMostrarSync('wait');
+  poliEsperarFirestore(()=>{
+    // ---- doc de configuración (personas + operaciones): cambia poco, admin lo edita ----
+    firestoreDb.collection(POLI_COLLECTION).doc(POLI_CONFIG_DOC).onSnapshot(snap=>{
+      if(snap.exists){
+        const data = snap.data();
+        if(data.personas) poliState.personas = data.personas;
+        if(data.operaciones) poliState.operaciones = data.operaciones;
+      } else {
+        firestoreDb.collection(POLI_COLLECTION).doc(POLI_CONFIG_DOC)
+          .set({ personas: poliState.personas, operaciones: poliState.operaciones });
+      }
+      poliMostrarSync('on');
+      if(document.getElementById('view-polivalencias').classList.contains('active')) poliRenderPolivalenciasView();
+      if(document.getElementById('view-organigrama').classList.contains('active')) poliRenderOrganigramaView();
+    }, err=>{ console.error('Polivalencias: error leyendo config', err); poliMostrarSync('off'); });
+
+    // ---- doc de niveles: cada líder escribe con set(...,{merge:true}) sobre su propia rama ----
+    firestoreDb.collection(POLI_COLLECTION).doc(POLI_NIVELES_DOC).onSnapshot(snap=>{
+      if(snap.exists){
+        poliState.niveles = snap.data() || {};
+      } else {
+        firestoreDb.collection(POLI_COLLECTION).doc(POLI_NIVELES_DOC).set(poliState.niveles);
+      }
+      if(document.getElementById('view-polivalencias').classList.contains('active')){ poliRenderKPIs(); poliRenderMatrix(); poliRenderFlow(); }
+    }, err=>{ console.error('Polivalencias: error leyendo niveles', err); });
+
+    poliListenersListos = true;
+  });
+}
+poliIniciarSync();
+
+function poliGuardarNivel(personaId, opId, val){
+  poliState.niveles[personaId] = poliState.niveles[personaId] || {};
+  poliState.niveles[personaId][opId] = val;
+  if(typeof firestoreDb !== 'undefined' && firestoreDb){
+    firestoreDb.collection(POLI_COLLECTION).doc(POLI_NIVELES_DOC)
+      .set({ [personaId]: { [opId]: val } }, {merge:true})
+      .catch(e=>console.error('No se pudo guardar el nivel', e));
+  }
+}
+function poliGuardarConfig(){
+  if(typeof firestoreDb !== 'undefined' && firestoreDb){
+    firestoreDb.collection(POLI_COLLECTION).doc(POLI_CONFIG_DOC)
+      .set({ personas: poliState.personas, operaciones: poliState.operaciones })
+      .catch(e=>console.error('No se pudo guardar la configuración', e));
+  }
+}
+
+/* ---------------- ORGANIGRAMA ---------------- */
+const POLI_LIDERES_CON_NOMBRE = POLI_ALL_SECTOR_ORDER.filter(id=>POLI_LIDERES[id]);
+
+function poliBuildOrgTree(){
+  const root = { tipo:'gerente', key:'gerente', nombre:POLI_GERENTE.nombre, rol:POLI_GERENTE.rol, children:[] };
+  POLI_JEFES.forEach(j=>{
+    const jefeNode = { tipo:'jefe', key:'jefe:'+j.id, id:j.id, nombre:j.nombre, rol:j.rol, children:[] };
+    POLI_LIDERES_CON_NOMBRE.forEach(secId=>{
+      const liderId = POLI_LIDERES[secId].id;
+      const miembros = poliState.personas.filter(p=>p.sectorTitular===secId && p.id!==liderId);
+      jefeNode.children.push({
+        tipo:'lider', key:'lider:'+secId, sector:secId, nombre:POLI_LIDERES[secId].nombre,
+        rol:'LÍDER '+poliSectorById(secId).name.toUpperCase(), color:poliSectorById(secId).color,
+        children: miembros.map(p=>({
+          tipo:'operario', key:'operario:'+p.id, nombre:p.nombre, rol:poliSectorById(secId).name,
+          personaId:p.id, color:poliSectorById(secId).color, children:[]
+        }))
+      });
+    });
+    root.children.push(jefeNode);
+  });
+  return root;
+}
+
+const poliExpandedKeys = new Set();
+
+function poliToggleKey(key){
+  if(poliExpandedKeys.has(key)) poliExpandedKeys.delete(key);
+  else poliExpandedKeys.add(key);
+  poliRenderOrgTree();
+}
+
+function poliNodeCard(node){
+  const wrap = document.createElement('div');
+  wrap.className = 'poli-card ' + node.tipo;
+  wrap.dataset.nombre = node.nombre.toLowerCase();
+  const isExpandable = node.children && node.children.length>0;
+  if(isExpandable) wrap.classList.add('expandable');
+  const dotColor = node.tipo==='gerente'?'#e8c34a':node.tipo==='jefe'?'var(--blue)':(node.color||'var(--ink-faint)');
+  const abierto = poliExpandedKeys.has(node.key);
+  const badge = isExpandable ? `<div class="poli-badge ${abierto?'open':''}">${abierto?'–':'+'} ${node.children.length}</div>` : '';
+  wrap.innerHTML = `${badge}<div class="dot" style="background:${dotColor}"></div>
+    <div class="nm">${node.nombre}</div><div class="rl">${node.rol}</div>`;
+  if(isExpandable) wrap.addEventListener('click', ()=> poliToggleKey(node.key));
+  return wrap;
+}
+
+function poliRenderBranch(node){
+  const branch = document.createElement('div');
+  branch.className = 'poli-tree-branch';
+  branch.appendChild(poliNodeCard(node));
+  if(node.children && node.children.length && poliExpandedKeys.has(node.key)){
+    const childrenWrap = document.createElement('div');
+    childrenWrap.className = 'poli-tree-children';
+    if(node.tipo==='lider'){
+      const grp = document.createElement('div');
+      grp.className = 'poli-lider-group';
+      node.children.forEach(child=> grp.appendChild(poliRenderBranch(child)));
+      childrenWrap.appendChild(grp);
+    } else {
+      node.children.forEach(child=> childrenWrap.appendChild(poliRenderBranch(child)));
+    }
+    branch.appendChild(childrenWrap);
+  }
+  return branch;
+}
+
+function poliRenderOrgTree(){
+  const root = document.getElementById('treeRoot');
+  if(!root) return;
+  root.innerHTML = '';
+  root.appendChild(poliRenderBranch(poliBuildOrgTree()));
+}
+
+function poliRenderOrganigramaView(){
+  poliRenderOrgTree();
+}
+
+document.getElementById('resetOrgView').addEventListener('click', ()=>{
+  poliExpandedKeys.clear();
+  document.getElementById('orgSearch').value='';
+  poliRenderOrgTree();
+});
+document.getElementById('orgSearch').addEventListener('input', e=> poliHighlightSearch(e.target.value.trim().toLowerCase()));
+
+function poliHighlightSearch(q){
+  if(!q){ poliRenderOrgTree(); return; }
+  const tree = poliBuildOrgTree();
+  function walk(node, ancestors){
+    const match = node.nombre.toLowerCase().includes(q);
+    if(match) ancestors.forEach(k=> poliExpandedKeys.add(k));
+    (node.children||[]).forEach(c=> walk(c, ancestors.concat(node.key)));
+    return match;
+  }
+  walk(tree, []);
+  poliRenderOrgTree();
+  document.querySelectorAll('#view-organigrama .poli-card').forEach(el=>{
+    const match = el.dataset.nombre && el.dataset.nombre.includes(q);
+    el.classList.toggle('highlight', match);
+    el.classList.toggle('dim', !match);
+  });
+}
+
+/* ---------------- POLIVALENCIAS: flujo + KPIs + matriz ---------------- */
+function poliRenderFlow(){
+  const line = document.getElementById('poliFlowLine');
+  if(!line) return;
+  line.innerHTML = '';
+  const activeSector = document.getElementById('poliFilterSector') ? document.getElementById('poliFilterSector').value : null;
+  POLI_LINE_ORDER.forEach((id,i)=>{
+    const s = poliSectorById(id);
+    const n = poliState.personas.filter(p=>p.sectorTitular===id).length;
+    const div = document.createElement('div');
+    div.className='poli-fnode' + (id===activeSector ? ' active' : '');
+    div.innerHTML = `<div class="dot" style="background:${s.color}"></div><div class="name">${s.name}</div><div class="count">${n}</div>`;
+    div.addEventListener('click', ()=>{
+      document.getElementById('poliFilterSector').value = id;
+      poliRenderMatrix(); poliRenderFlow();
+    });
+    line.appendChild(div);
+    if(i<POLI_LINE_ORDER.length-1){
+      const a=document.createElement('div'); a.className='poli-arrow'; a.textContent='→'; line.appendChild(a);
+    }
+  });
+}
+
+function poliComputeKPIs(){
+  const allOps = [];
+  Object.keys(poliState.operaciones).forEach(sec=> poliState.operaciones[sec].forEach(op=> allOps.push({...op, sector:sec})));
+  let cubiertas=0, enRiesgoCriticas=0;
+  allOps.forEach(op=>{
+    const expertos = poliState.personas.filter(p=> poliNivelDe(p.id,op.id) >= 3).length;
+    if(expertos>=2) cubiertas++;
+    if(op.critica && expertos<2) enRiesgoCriticas++;
+  });
+  const cobertura = allOps.length ? Math.round(cubiertas/allOps.length*100) : 0;
+  let totalL3 = 0;
+  const porPersona = {};
+  poliState.personas.forEach(p=>{
+    let c=0;
+    allOps.forEach(op=>{ if(poliNivelDe(p.id,op.id)>=3) c++; });
+    porPersona[p.id]=c; totalL3+=c;
+  });
+  const promedio = poliState.personas.length ? (totalL3/poliState.personas.length) : 0;
+  const top = [...poliState.personas].sort((a,b)=>porPersona[b.id]-porPersona[a.id]).slice(0,5).filter(p=>porPersona[p.id]>0);
+  return { totalOps:allOps.length, cobertura, cubiertas, enRiesgoCriticas, promedio, top, porPersona };
+}
+
+function poliRenderKPIs(){
+  const row = document.getElementById('poliKpiRow');
+  if(!row) return;
+  const k = poliComputeKPIs();
+  row.innerHTML = `
+    <div class="poli-kpi"><div class="lbl">% Cobertura</div><div class="val">${k.cobertura}%</div>
+      <div class="sub">${k.cubiertas} de ${k.totalOps} operaciones con ≥2 expertos</div></div>
+    <div class="poli-kpi"><div class="lbl">Habilidades críticas en riesgo</div><div class="val" style="color:${k.enRiesgoCriticas>0?'var(--red)':'var(--green)'}">${k.enRiesgoCriticas}</div>
+      <div class="sub">${k.enRiesgoCriticas>0? 'con menos de 2 expertos' : 'ninguna crítica en riesgo'}</div></div>
+    <div class="poli-kpi"><div class="lbl">Polivalencia promedio</div><div class="val">${k.promedio.toFixed(1)}</div>
+      <div class="sub">operaciones nivel 3+ por persona</div></div>
+    <div class="poli-kpi top"><div class="lbl">Top polivalentes</div>
+      <ol>${k.top.map(p=>`<li>${p.nombre} — ${k.porPersona[p.id]}</li>`).join('') || '<li style="color:var(--ink-dim)">Sin datos todavía</li>'}</ol>
+    </div>`;
+}
+
+function poliRenderFilterSector(){
+  const sel = document.getElementById('poliFilterSector');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = POLI_ALL_SECTOR_ORDER.map(id=>`<option value="${id}">${poliSectorById(id).name} (${(poliState.operaciones[id]||[]).length} tareas)</option>`).join('');
+  sel.value = current && POLI_ALL_SECTOR_ORDER.includes(current) ? current : POLI_ALL_SECTOR_ORDER[0];
+}
+
+function poliRenderMatrix(){
+  const secId = document.getElementById('poliFilterSector').value || POLI_ALL_SECTOR_ORDER[0];
+  const ops = poliState.operaciones[secId] || [];
+  const q = document.getElementById('poliSearch').value.trim().toLowerCase();
+
+  const head = document.getElementById('poliHeadRow');
+  head.innerHTML = '<th class="name-col">Persona</th>' + ops.map(op=>
+    `<th title="${op.nombre}">${op.nombre}<span class="rm" data-op="${op.id}" title="Quitar tarea">✕</span></th>`
+  ).join('') + (ops.length? '' : '<th style="color:var(--ink-dim);font-weight:400;">Sin tareas cargadas para este sector — agregá una arriba</th>');
+
+  const body = document.getElementById('poliBodyRows');
+  const personasFiltradas = poliState.personas.filter(p=> !q || p.nombre.toLowerCase().includes(q) || (p.legajo||'').includes(q));
+
+  let html = '';
+  POLI_ALL_SECTOR_ORDER.forEach(gid=>{
+    const grupo = personasFiltradas.filter(p=>p.sectorTitular===gid);
+    if(!grupo.length) return;
+    html += `<tr class="grp"><td colspan="${ops.length+1}">${poliSectorById(gid).name} (${grupo.length})</td></tr>`;
+    grupo.forEach(p=>{
+      html += `<tr><td class="name-col">${p.nombre}<span class="leg">leg ${p.legajo||'-'}</span></td>`;
+      ops.forEach(op=>{
+        const lvl = poliNivelDe(p.id, op.id);
+        html += `<td><span class="poli-lvl" data-l="${lvl}" data-persona="${p.id}" data-op="${op.id}">${lvl}</span></td>`;
+      });
+      html += '</tr>';
+    });
+  });
+  body.innerHTML = html;
+
+  body.querySelectorAll('.poli-lvl').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const cur = parseInt(el.dataset.l,10);
+      const next = (cur+1)%5;
+      el.dataset.l = next; el.textContent = next;
+      poliGuardarNivel(el.dataset.persona, el.dataset.op, next);
+      poliRenderKPIs(); poliRenderFlow();
+    });
+  });
+  head.querySelectorAll('.rm').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const opId = el.dataset.op;
+      if(!confirm('¿Quitar esta tarea de la matriz? Esto la borra para todos.')) return;
+      poliState.operaciones[secId] = poliState.operaciones[secId].filter(o=>o.id!==opId);
+      poliGuardarConfig(); poliRenderPolivalenciasView();
+    });
+  });
+}
+
+document.getElementById('poliBtnAddOp').addEventListener('click', ()=>{
+  const secId = document.getElementById('poliFilterSector').value;
+  const input = document.getElementById('poliNewOpName');
+  const nombre = input.value.trim();
+  if(!nombre) return;
+  poliState.operaciones[secId] = poliState.operaciones[secId] || [];
+  poliState.operaciones[secId].push({id: secId+'-'+Date.now(), nombre, critica:false});
+  input.value='';
+  poliGuardarConfig(); poliRenderPolivalenciasView();
+});
+document.getElementById('poliNewOpName').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('poliBtnAddOp').click(); });
+document.getElementById('poliFilterSector').addEventListener('change', ()=>{ poliRenderMatrix(); poliRenderFlow(); });
+document.getElementById('poliSearch').addEventListener('input', poliRenderMatrix);
+
+document.getElementById('poliBtnExcel').addEventListener('click', ()=>{
+  const rows = [];
+  poliState.personas.forEach(p=>{
+    const row = { Nombre:p.nombre, Legajo:p.legajo, 'Sector titular':poliSectorById(p.sectorTitular).name };
+    Object.keys(poliState.operaciones).forEach(sec=>{
+      poliState.operaciones[sec].forEach(op=>{
+        row[poliSectorById(sec).name+' · '+op.nombre] = poliNivelDe(p.id, op.id);
+      });
+    });
+    rows.push(row);
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Polivalencias');
+  XLSX.writeFile(wb, 'polivalencias_lfda_'+new Date().toISOString().slice(0,10)+'.xlsx');
+});
+
+function poliRenderPolivalenciasView(){
+  poliRenderFilterSector();
+  poliRenderFlow();
+  poliRenderKPIs();
+  poliRenderMatrix();
+}
+
+/* ---------------- ANÁLISIS: quién puede cubrir cada sector ---------------- */
+function poliCobertura(secId){
+  const ops = poliState.operaciones[secId] || [];
+  const titulares = poliState.personas.filter(p=>p.sectorTitular===secId);
+  const polivalentes = poliState.personas
+    .filter(p=>p.sectorTitular!==secId)
+    .map(p=>{
+      const opsCapaz = ops.filter(op=> poliNivelDe(p.id,op.id) >= 3);
+      return { persona:p, opsCapaz };
+    })
+    .filter(x=>x.opsCapaz.length>0);
+  return { titulares, polivalentes };
+}
+
+function poliRenderAnalisisSelector(){
+  const sel = document.getElementById('poliAnalisisSector');
+  if(!sel) return;
+  const current = sel.value;
+  sel.innerHTML = POLI_ALL_SECTOR_ORDER.map(id=>`<option value="${id}">${poliSectorById(id).name}</option>`).join('');
+  sel.value = current && POLI_ALL_SECTOR_ORDER.includes(current) ? current : POLI_ALL_SECTOR_ORDER[0];
+}
+
+function poliIrAAnalisisSector(secId){
+  document.getElementById('poliAnalisisSector').value = secId;
+  poliRenderAnalisisDetail();
+}
+
+function poliRenderAnalisisDetail(){
+  const secId = document.getElementById('poliAnalisisSector').value || POLI_ALL_SECTOR_ORDER[0];
+  const { titulares, polivalentes } = poliCobertura(secId);
+  const wrap = document.getElementById('poliAnalisisDetail');
+  wrap.innerHTML = `
+    <div class="poli-analisis-card">
+      <h3>${poliSectorById(secId).name}${POLI_LIDERES[secId] ? ' · líder '+POLI_LIDERES[secId].nombre : ''}</h3>
+      <div class="sub">${titulares.length} titulares · ${polivalentes.length} personas de otros sectores pueden cubrir acá (nivel 3 o 4 en al menos una tarea)</div>
+      <div class="poli-chips">
+        ${titulares.map(p=>`<button class="poli-chip titular" data-persona="${p.id}">${p.nombre}<small>Titular</small></button>`).join('')}
+        ${polivalentes.map(x=>`<button class="poli-chip poli" data-persona="${x.persona.id}">${x.persona.nombre}<small>Desde ${poliSectorById(x.persona.sectorTitular).name} · ${x.opsCapaz.map(o=>o.nombre).join(', ')}</small></button>`).join('')}
+      </div>
+    </div>`;
+  wrap.querySelectorAll('.poli-chip').forEach(btn=>{
+    btn.addEventListener('click', ()=> poliAbrirFichaPersona(btn.dataset.persona));
+  });
+}
+
+// "en riesgo" = sectores con menos de 2 personas totales (titulares + polivalentes) en nivel 3+ en alguna tarea propia
+function poliRenderRiesgo(){
+  const grid = document.getElementById('poliRiesgoGrid');
+  if(!grid) return;
+  grid.innerHTML = POLI_ALL_SECTOR_ORDER.map(secId=>{
+    const ops = poliState.operaciones[secId] || [];
+    if(!ops.length) return '';
+    const capaces = poliState.personas.filter(p=> ops.some(op=> poliNivelDe(p.id,op.id)>=3)).length;
+    const enRiesgo = capaces < 2;
+    return `<div class="poli-riesgo-card ${enRiesgo?'alerta':''}" data-sector="${secId}">
+      <div class="nombre">${poliSectorById(secId).name}</div>
+      <div class="cnt ${enRiesgo?'bad':'ok'}">${capaces}</div>
+      <div class="txt">${enRiesgo ? '⚠ menos de 2 personas cubren este sector' : 'personas en nivel autónomo o más'}</div>
+    </div>`;
+  }).join('');
+  grid.querySelectorAll('.poli-riesgo-card').forEach(card=>{
+    card.addEventListener('click', ()=> poliIrAAnalisisSector(card.dataset.sector));
+  });
+}
+
+function poliRenderTop10(){
+  const list = document.getElementById('poliTop10List');
+  if(!list) return;
+  const k = poliComputeKPIs();
+  const allOps = [];
+  Object.keys(poliState.operaciones).forEach(sec=> poliState.operaciones[sec].forEach(op=> allOps.push(op)));
+  const top10 = [...poliState.personas].sort((a,b)=>k.porPersona[b.id]-k.porPersona[a.id]).slice(0,10).filter(p=>k.porPersona[p.id]>0);
+  list.innerHTML = top10.map((p,i)=>`
+    <li data-persona="${p.id}">
+      <span class="rank">${i+1}</span>
+      <span class="nombre">${p.nombre} <span style="color:var(--ink-dim);font-size:11px;">(${poliSectorById(p.sectorTitular).name})</span></span>
+      <span class="cnt">${k.porPersona[p.id]}</span>
+    </li>`).join('') || '<li style="color:var(--ink-dim);cursor:default;">Todavía no hay niveles cargados</li>';
+  list.querySelectorAll('li[data-persona]').forEach(li=>{
+    li.addEventListener('click', ()=> poliAbrirFichaPersona(li.dataset.persona));
+  });
+}
+
+function poliRenderAnalisis(){
+  poliRenderAnalisisSelector();
+  poliRenderRiesgo();
+  poliRenderAnalisisDetail();
+  poliRenderTop10();
+}
+document.getElementById('poliAnalisisSector').addEventListener('change', poliRenderAnalisisDetail);
+
+/* ---------------- FICHA PERSONAL: qué sabe hacer cada uno, en todos los sectores ---------------- */
+function poliAbrirFichaPersona(personaId){
+  const p = poliState.personas.find(x=>x.id===personaId);
+  if(!p) return;
+  document.getElementById('poliModalNombre').textContent = p.nombre;
+  document.getElementById('poliModalSub').textContent = `Legajo ${p.legajo||'-'} · Titular de ${poliSectorById(p.sectorTitular).name}`;
+
+  const body = document.getElementById('poliModalBody');
+  let html = '';
+  let totalConNivel = 0;
+  POLI_ALL_SECTOR_ORDER.forEach(secId=>{
+    const ops = (poliState.operaciones[secId]||[]).filter(op=> poliNivelDe(p.id,op.id) > 0);
+    if(!ops.length) return;
+    totalConNivel += ops.length;
+    html += `<div class="poli-modal-sector-block">
+      <h4>${poliSectorById(secId).name}${secId===p.sectorTitular?' (su sector)':''}</h4>
+      ${ops.map(op=>{
+        const lvl = poliNivelDe(p.id, op.id);
+        return `<div class="poli-modal-op-row"><span>${op.nombre}</span><span class="poli-lvl" data-l="${lvl}">${lvl}</span></div>`;
+      }).join('')}
+    </div>`;
+  });
+  body.innerHTML = totalConNivel ? html : '<div class="poli-modal-empty">Todavía no tiene ningún nivel evaluado.</div>';
+  document.getElementById('poliPersonaOverlay').classList.add('show');
+}
+document.getElementById('poliClosePersonaModal').addEventListener('click', ()=>{
+  document.getElementById('poliPersonaOverlay').classList.remove('show');
+});
+document.getElementById('poliPersonaOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='poliPersonaOverlay') document.getElementById('poliPersonaOverlay').classList.remove('show');
+});
 </script>
 </body>
 </html>
