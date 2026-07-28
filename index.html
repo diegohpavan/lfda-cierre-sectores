@@ -733,6 +733,8 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 }
 .poli-matrix-wrap thead th.name-col{ text-align:left; position:sticky; left:0; z-index:3; background:var(--panel2); }
 .poli-matrix-wrap thead th .rm{ cursor:pointer; color:var(--red); margin-left:4px; font-weight:900; }
+.poli-matrix-wrap thead th .ed{ cursor:pointer; color:var(--ink-dim); margin-left:6px; }
+.poli-matrix-wrap thead th .ed:hover{ color:var(--amber); }
 .poli-matrix-wrap tbody td.name-col{ position:sticky; left:0; background:var(--panel); z-index:1; padding:7px 12px; border-bottom:1px solid var(--line); white-space:nowrap; color:var(--ink); }
 .poli-matrix-wrap tbody td.name-col .leg{ color:var(--ink-dim); font-size:11px; margin-left:6px; }
 .poli-matrix-wrap tbody tr.grp td{ background:var(--panel2); font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-dim); padding:6px 10px; }
@@ -11064,8 +11066,9 @@ function poliRenderMatrix(){
   const q = document.getElementById('poliSearch').value.trim().toLowerCase();
 
   const head = document.getElementById('poliHeadRow');
+  const puedeEditarTareas = esAdmin();
   head.innerHTML = '<th class="name-col">Persona</th>' + ops.map(op=>
-    `<th title="${op.nombre}">${op.nombre}<span class="rm" data-op="${op.id}" title="Quitar tarea">✕</span></th>`
+    `<th title="${op.nombre}">${op.nombre}${puedeEditarTareas ? `<span class="ed" data-op="${op.id}" title="Editar nombre">✎</span><span class="rm" data-op="${op.id}" title="Quitar tarea">✕</span>` : ''}</th>`
   ).join('') + (ops.length? '' : '<th style="color:var(--ink-dim);font-weight:400;">Sin tareas cargadas para este sector — agregá una arriba</th>');
 
   const body = document.getElementById('poliBodyRows');
@@ -11094,6 +11097,20 @@ function poliRenderMatrix(){
       el.dataset.l = next; el.textContent = next;
       poliGuardarNivel(el.dataset.persona, el.dataset.op, next);
       poliRenderKPIs(); poliRenderFlow();
+    });
+  });
+  head.querySelectorAll('.ed').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const opId = el.dataset.op;
+      const op = (poliState.operaciones[secId]||[]).find(o=>o.id===opId);
+      if(!op) return;
+      const nuevo = prompt('Nuevo nombre para esta tarea:', op.nombre);
+      if(nuevo===null) return;
+      const limpio = nuevo.trim();
+      if(!limpio || limpio===op.nombre) return;
+      op.nombre = limpio;
+      poliGuardarConfig(); poliRenderPolivalenciasView();
     });
   });
   head.querySelectorAll('.rm').forEach(el=>{
