@@ -728,10 +728,12 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 .poli-matrix-wrap{ background:var(--panel); border:1px solid var(--line); border-radius:10px; overflow:auto; max-height:58vh; }
 .poli-matrix-wrap table{ border-collapse:collapse; width:100%; font-size:13px; }
 .poli-matrix-wrap thead th{
-  position:sticky; top:0; background:var(--panel2); z-index:2; padding:8px 6px; text-align:center;
+  position:sticky; background:var(--panel2); z-index:2; padding:6px 6px; text-align:center;
   border-bottom:1px solid var(--line); font-size:11px; color:var(--ink-dim);
 }
-.poli-matrix-wrap thead th.name-col{ text-align:left; position:sticky; left:0; z-index:3; background:var(--panel2); }
+.poli-matrix-wrap thead tr#poliHeadRowCod th{ top:0; font-size:10px; color:var(--ink-faint); font-weight:600; letter-spacing:.03em; padding-bottom:2px; border-bottom:none; }
+.poli-matrix-wrap thead tr#poliHeadRow th{ top:22px; white-space:normal; max-width:130px; line-height:1.25; padding-top:2px; }
+.poli-matrix-wrap thead th.name-col{ text-align:left; position:sticky; left:0; z-index:3; background:var(--panel2); white-space:nowrap; max-width:none; }
 .poli-matrix-wrap thead th .rm{ cursor:pointer; color:var(--red); margin-left:4px; font-weight:900; }
 .poli-matrix-wrap thead th .ed{ cursor:pointer; color:var(--ink-dim); margin-left:6px; }
 .poli-matrix-wrap thead th .ed:hover{ color:var(--amber); }
@@ -1486,14 +1488,18 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
         <input type="text" id="poliSearch" placeholder="Buscar por nombre o legajo…">
         <button class="btn" id="poliBtnExcel">📥 Exportar a Excel</button>
         <div class="poli-add-op">
-          <input type="text" id="poliNewOpName" placeholder="Nueva operación para este sector…">
+          <input type="text" id="poliNewOpCodigo" placeholder="Código (ej: ALM-PVC Acces)" style="min-width:150px;">
+          <input type="text" id="poliNewOpName" placeholder="Proced nombre (Sector / Puesto)…">
           <button class="btn btn-primary" id="poliBtnAddOp">+ Agregar tarea</button>
         </div>
       </div>
 
       <div class="poli-matrix-wrap">
         <table>
-          <thead><tr id="poliHeadRow"></tr></thead>
+          <thead>
+            <tr id="poliHeadRowCod"></tr>
+            <tr id="poliHeadRow"></tr>
+          </thead>
           <tbody id="poliBodyRows"></tbody>
         </table>
       </div>
@@ -11065,10 +11071,14 @@ function poliRenderMatrix(){
   const ops = poliState.operaciones[secId] || [];
   const q = document.getElementById('poliSearch').value.trim().toLowerCase();
 
+  const headCod = document.getElementById('poliHeadRowCod');
   const head = document.getElementById('poliHeadRow');
   const puedeEditarTareas = esAdmin();
-  head.innerHTML = '<th class="name-col">Persona</th>' + ops.map(op=>
-    `<th title="${op.nombre}">${op.nombre}${puedeEditarTareas ? `<span class="ed" data-op="${op.id}" title="Editar nombre">✎</span><span class="rm" data-op="${op.id}" title="Quitar tarea">✕</span>` : ''}</th>`
+  headCod.innerHTML = '<th class="name-col" rowspan="2">Persona</th>' + ops.map(op=>
+    `<th>${op.codigo || '—'}</th>`
+  ).join('');
+  head.innerHTML = ops.map(op=>
+    `<th title="${op.nombre}">${op.nombre}${puedeEditarTareas ? `<span class="ed" data-op="${op.id}" title="Editar">✎</span><span class="rm" data-op="${op.id}" title="Quitar tarea">✕</span>` : ''}</th>`
   ).join('') + (ops.length? '' : '<th style="color:var(--ink-dim);font-weight:400;">Sin tareas cargadas para este sector — agregá una arriba</th>');
 
   const body = document.getElementById('poliBodyRows');
@@ -11105,11 +11115,14 @@ function poliRenderMatrix(){
       const opId = el.dataset.op;
       const op = (poliState.operaciones[secId]||[]).find(o=>o.id===opId);
       if(!op) return;
-      const nuevo = prompt('Nuevo nombre para esta tarea:', op.nombre);
-      if(nuevo===null) return;
-      const limpio = nuevo.trim();
-      if(!limpio || limpio===op.nombre) return;
-      op.nombre = limpio;
+      const nuevoCodigo = prompt('Código (ej: ALM-PVC Acces):', op.codigo || '');
+      if(nuevoCodigo===null) return;
+      const nuevoNombre = prompt('Proced nombre (Sector / Puesto):', op.nombre);
+      if(nuevoNombre===null) return;
+      const codLimpio = nuevoCodigo.trim(), nomLimpio = nuevoNombre.trim();
+      if(!nomLimpio) return;
+      op.codigo = codLimpio;
+      op.nombre = nomLimpio;
       poliGuardarConfig(); poliRenderPolivalenciasView();
     });
   });
@@ -11126,30 +11139,35 @@ function poliRenderMatrix(){
 
 document.getElementById('poliBtnAddOp').addEventListener('click', ()=>{
   const secId = document.getElementById('poliFilterSector').value;
-  const input = document.getElementById('poliNewOpName');
-  const nombre = input.value.trim();
+  const inputNombre = document.getElementById('poliNewOpName');
+  const inputCodigo = document.getElementById('poliNewOpCodigo');
+  const nombre = inputNombre.value.trim();
+  const codigo = inputCodigo.value.trim();
   if(!nombre) return;
   poliState.operaciones[secId] = poliState.operaciones[secId] || [];
-  poliState.operaciones[secId].push({id: secId+'-'+Date.now(), nombre, critica:false});
-  input.value='';
+  poliState.operaciones[secId].push({id: secId+'-'+Date.now(), codigo, nombre, critica:false});
+  inputNombre.value=''; inputCodigo.value='';
   poliGuardarConfig(); poliRenderPolivalenciasView();
 });
 document.getElementById('poliNewOpName').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('poliBtnAddOp').click(); });
+document.getElementById('poliNewOpCodigo').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('poliBtnAddOp').click(); });
 document.getElementById('poliFilterSector').addEventListener('change', ()=>{ poliRenderMatrix(); poliRenderFlow(); });
 document.getElementById('poliSearch').addEventListener('input', poliRenderMatrix);
 
 document.getElementById('poliBtnExcel').addEventListener('click', ()=>{
-  const rows = [];
-  poliState.personas.forEach(p=>{
-    const row = { Nombre:p.nombre, Legajo:p.legajo, 'Sector titular':poliSectorById(p.sectorTitular).name };
-    Object.keys(poliState.operaciones).forEach(sec=>{
-      poliState.operaciones[sec].forEach(op=>{
-        row[poliSectorById(sec).name+' · '+op.nombre] = poliNivelDe(p.id, op.id);
-      });
-    });
-    rows.push(row);
+  const columnas = []; // {sector, op}
+  Object.keys(poliState.operaciones).forEach(sec=>{
+    poliState.operaciones[sec].forEach(op=> columnas.push({sec, op}));
   });
-  const ws = XLSX.utils.json_to_sheet(rows);
+
+  const filaCodigo = ['', '', 'Código', ...columnas.map(c=>c.op.codigo || '')];
+  const filaNombre = ['Nombre','Legajo','Proced nombre (Sector / Puesto)', ...columnas.map(c=>poliSectorById(c.sec).name+' - '+c.op.nombre)];
+  const filasDatos = poliState.personas.map(p=>{
+    return [p.nombre, p.legajo, poliSectorById(p.sectorTitular).name, ...columnas.map(c=>poliNivelDe(p.id, c.op.id))];
+  });
+
+  const aoa = [filaCodigo, filaNombre, ...filasDatos];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Polivalencias');
   XLSX.writeFile(wb, 'polivalencias_lfda_'+new Date().toISOString().slice(0,10)+'.xlsx');
