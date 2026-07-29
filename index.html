@@ -809,6 +809,16 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 .poli-top10 .nombre{ flex:1; font-size:13px; }
 .poli-top10 .cnt{ font-weight:700; font-size:13px; color:var(--green); }
 
+.proy-kpis{ display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:12px; margin-bottom:14px; }
+.proy-kpi{ background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:12px 14px; }
+.proy-kpi .lbl{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-dim); }
+.proy-kpi .val{ font-size:22px; font-weight:800; margin-top:4px; color:var(--ink); }
+.proy-kpi .sub{ font-size:11px; color:var(--ink-dim); margin-top:2px; }
+.proy-table{ width:100%; border-collapse:collapse; font-size:13px; margin-top:10px; }
+.proy-table th, .proy-table td{ padding:8px 10px; text-align:left; border-bottom:1px solid var(--line); }
+.proy-table th{ color:var(--ink-dim); font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+.proy-nota{ font-size:12px; color:var(--ink-dim); margin-top:10px; }
+
 </style>
 </head>
 <body>
@@ -1017,7 +1027,9 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
       <div class="panel" id="panelColaProductiva" style="display:none;">
         <div class="panel-head">
           <h2>📦 Cola productiva — disponibilidad de cupo</h2>
+          <button class="btn btn-primary" id="btnProyM2Abrir" style="margin-left:auto;">📊 Proyección de m² (próximos meses)</button>
         </div>
+        <div id="proyM2Panel" style="display:none;margin-bottom:18px;"></div>
         <div class="hint" style="margin-bottom:16px;">
           Pegá acá la fila diaria de G-PRO con la cola de aberturas (Fecha + Uds/Sup Abe Pacto y Prod, tal como se copia de la hoja de planificación). Proyecta cuántas semanas de trabajo comprometido queda en cola, comparado contra la capacidad real de Fin de Línea.
         </div>
@@ -1278,6 +1290,7 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
             <div id="avClock"><span class="d">--:--</span>--/--/----</div>
             <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
             <button class="btn" id="avDirectorioBtn" style="display:none;">📊 Cola Productiva</button>
+            <button class="btn" id="avCapacidadBtn" style="display:none;">📊 Capacidad vs. Real</button>
             <button class="btn" id="avComercialBtn" style="display:none; background:linear-gradient(135deg,#E1432E,#ff6a52); color:#fff; border-color:#E1432E; font-weight:700;">🛒 Modo Comercial</button>
             <button class="btn icon" id="btnToggleTemaAvance" title="Cambiar tema claro/oscuro">🌙</button>
           </div>
@@ -4291,6 +4304,7 @@ function renderAvance(){
   document.getElementById('avMesLabel').textContent = `${monthNames[m-1]} ${y}`;
   document.getElementById('avDirectorioBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
   document.getElementById('avComercialBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
+  document.getElementById('avCapacidadBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
   document.getElementById('avDirectorioBtn').textContent = avModoDirectorio ? '← Volver al dashboard' : '📊 Cola Productiva';
 
   const hoyReal = fechaHoyLocal();
@@ -4960,6 +4974,7 @@ function avRenderColaProductiva(){
         <div style="font-size:9.5px;color:var(--av-muted);">Se queda sin cola (fecha productiva)</div>
         <div style="font-weight:700;font-size:13px;color:${semanaFinColaProd?'var(--av-bad)':'var(--av-good)'};">${semanaFinColaProd ? 'semana del '+fechaDMY(semanaFinColaProd) : 'no se agota en el horizonte cargado'}</div>
       </div>
+      ${avColaTarjetasProyM2()}
     </div>`;
 }
 
@@ -5605,10 +5620,18 @@ document.getElementById('btnColaProcesar').addEventListener('click', ()=>{
     // Uds Abe Fin Pacto, Sup Abe Pacto, [Sup Abe Pen Pacto], ... luego el mismo bloque para Prod
     const supAbePenPacto = colaParsearNumero(celdas[fechaIdx+5]);
     const supAbePenProd = colaParsearNumero(celdas[fechaIdx+14]);
+    const udsAbeProd = colaParsearNumero(celdas[fechaIdx+11]);
+    const supAbeProd = colaParsearNumero(celdas[fechaIdx+13]);
+    const udsAbePacto = colaParsearNumero(celdas[fechaIdx+2]);
+    const udsAbeFinPacto = colaParsearNumero(celdas[fechaIdx+3]);
     if(supAbePenPacto===null && supAbePenProd===null){ ignoradas++; return; }
     state.colaProductiva.dias[fecha] = {
       supAbePenPacto: supAbePenPacto||0,
-      supAbePenProd: supAbePenProd||0
+      supAbePenProd: supAbePenProd||0,
+      udsAbeProd: udsAbeProd||0,
+      supAbeProd: supAbeProd||0,
+      udsAbePacto: udsAbePacto||0,
+      udsAbeFinPacto: udsAbeFinPacto||0
     };
     cargados++;
   });
@@ -10218,6 +10241,84 @@ if('serviceWorker' in navigator){
      con prefijo "ccup-" en todo, para no pisar el resto de los estilos/JS.
      ============================================================ -->
 <style>
+  /* ============================================================
+     PANTALLA "CAPACIDAD VS. REAL" — autocontenida, prefijo "cap-"
+     para no pisar el resto de los estilos/JS.
+     ============================================================ */
+  #viewCapacidad{position:fixed; inset:0; z-index:610; overflow-y:auto; display:none;
+    background:#0d1117; color:#e8ecf1; font-family:'Segoe UI',system-ui,sans-serif;
+    padding:calc(14px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  }
+  #viewCapacidad *{box-sizing:border-box;}
+  .cap-topbar{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;}
+  .cap-eyebrow{color:#e8a33d; font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;}
+  .cap-h1{font-size:1.4rem; font-weight:800; margin-top:2px;}
+  .cap-h1 span{color:#e8a33d;}
+  .cap-volver{background:#1f2733; border:1px solid #2b3340; color:#e8ecf1; padding:9px 16px; border-radius:8px; cursor:pointer; font-size:.85rem;}
+  .cap-volver:hover{border-color:#e8a33d;}
+  .cap-body{max-width:1900px; margin:0 auto;}
+
+  .cap-kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:14px;}
+  .cap-kpi{background:#161b22; border:1px solid #2b3340; border-radius:10px; padding:10px 14px;}
+  .cap-kpi.accent{border-color:#e8a33d; box-shadow:0 0 16px rgba(232,163,61,.15);}
+  .cap-kpi .lbl{font-size:.66rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.05em;}
+  .cap-kpi .val{font-size:1.3rem; font-weight:800; margin-top:2px;}
+  .cap-kpi .hint{font-size:.64rem; color:#8b96a8; margin-top:4px; line-height:1.3;}
+
+  .cap-stage{
+    background:radial-gradient(ellipse at 50% 20%, #1a2230 0%, #0b0f16 70%);
+    border:1px solid #2b3340; border-radius:14px; padding:26px 20px 36px;
+    display:flex; justify-content:flex-start; align-items:flex-end; gap:22px; flex-wrap:nowrap;
+    overflow-x:auto; perspective:1200px;
+  }
+  .cap-grupo{display:flex; flex-direction:column; align-items:center; gap:14px; flex-shrink:0;}
+  .cap-grupo.hist{opacity:.75;}
+  .cap-barras{display:flex; align-items:flex-end; gap:12px; height:220px; transform:rotateX(6deg);}
+  .cap-barra3d{position:relative; width:44px; transform-style:preserve-3d;}
+  .cap-cara-top, .cap-cara-front, .cap-cara-side{position:absolute;}
+  .cap-cara-front{width:44px; left:0; bottom:0; border-radius:4px 4px 0 0;}
+  .cap-cara-top{width:44px; height:16px; top:-14px; left:0; transform:rotateX(70deg) translateZ(8px); transform-origin:bottom; border-radius:4px;}
+  .cap-cara-side{width:14px; right:-13px; bottom:0; transform:skewY(-40deg); transform-origin:bottom left; border-radius:0 0 3px 0;}
+  .cap-barra3d.capacidad .cap-cara-front{background:linear-gradient(180deg,#4f7cac,#2c4f74); box-shadow:0 0 22px rgba(79,124,172,.35);}
+  .cap-barra3d.capacidad .cap-cara-top{background:#6a97c9;}
+  .cap-barra3d.capacidad .cap-cara-side{background:#233c58;}
+  .cap-barra3d.real .cap-cara-front{background:linear-gradient(180deg,#e8a33d,#a86f1f); box-shadow:0 0 22px rgba(232,163,61,.4);}
+  .cap-barra3d.real .cap-cara-top{background:#f4c374;}
+  .cap-barra3d.real .cap-cara-side{background:#6b4813;}
+  .cap-barra3d.realvivo .cap-cara-front{background:linear-gradient(180deg,#1f9d8a,#146455); box-shadow:0 0 22px rgba(31,157,138,.45);}
+  .cap-barra3d.realvivo .cap-cara-top{background:#4fc9b3;}
+  .cap-barra3d.realvivo .cap-cara-side{background:#0d4a40;}
+  .cap-barra3d.hist .cap-cara-front{background:linear-gradient(180deg,#7d8590,#4a5058);}
+  .cap-barra3d.hist .cap-cara-top{background:#9aa2ac;}
+  .cap-barra3d.hist .cap-cara-side{background:#33383e;}
+  .cap-val-barra{position:absolute; top:-34px; left:0; width:44px; text-align:center; font-weight:800; font-size:.82rem;}
+  .cap-mes-label{font-weight:700; font-size:.9rem;}
+  .cap-mes-sub{color:#8b96a8; font-size:.7rem; text-align:center;}
+  .cap-divisor{display:flex; align-items:flex-end; height:220px; padding-bottom:8px;}
+  .cap-divisor span{writing-mode:vertical-rl; color:#e8a33d; font-size:.68rem; font-weight:700; border-left:1px dashed #e8a33d; padding-left:8px; height:180px; display:flex; align-items:flex-end;}
+
+  .cap-legend{display:flex; justify-content:center; gap:18px; margin-top:12px; font-size:.74rem; color:#8b96a8; flex-wrap:wrap;}
+  .cap-legend span{display:inline-flex; align-items:center; gap:6px;}
+  .cap-legend i{width:10px; height:10px; border-radius:3px; display:inline-block;}
+
+  .cap-tendencia{margin-top:12px; background:#161b22; border:1px solid #2b3340; border-radius:10px; padding:12px 10px;}
+  .cap-tendencia .titulo{font-size:.75rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;}
+  .cap-tendencia svg{width:100%; height:auto; display:block; max-height:220px;}
+  .cap-tendencia .nota{font-size:.72rem; color:#8b96a8; margin-top:6px;}
+
+  .cap-porque{margin-top:12px; background:#161b22; border-left:3px solid #e8a33d; border-radius:0 10px 10px 0; padding:10px 16px; font-size:.8rem; line-height:1.5;}
+  .cap-porque b{color:#e8a33d;}
+
+  .cap-sim{margin-top:12px; background:#161b22; border:1px solid #2b3340; border-radius:10px; padding:12px 18px;}
+  .cap-sim .titulo{font-size:.75rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px;}
+  .cap-sim-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+  .cap-sim-row select{background:#1f2733; border:1px solid #2b3340; color:#e8ecf1; padding:8px 12px; border-radius:8px; font-size:.85rem;}
+  .cap-sim-num{font-weight:800; font-size:1rem; min-width:110px; color:#e8a33d;}
+  .cap-sim-resultado{margin-top:12px; font-size:.95rem;}
+  .cap-sim-resultado b{color:#1f9d8a; font-size:1.2rem;}
+</style>
+
+<style>
   #viewColaCupos{position:fixed; inset:0; z-index:600; overflow-y:auto; display:none;
     background:#0A0B0D; color:#F2F3F5; font-family:'Inter',sans-serif;
     padding:calc(24px + env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) calc(40px + env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left));
@@ -10314,6 +10415,41 @@ if('serviceWorker' in navigator){
     .ccup-panel{max-width:100%; width:100%; max-height:100%; height:100%; border-radius:0; padding:calc(20px + env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom));}
   }
 </style>
+
+<div id="viewCapacidad" class="cap-screen">
+  <div class="cap-topbar">
+    <div>
+      <div class="cap-eyebrow">LFDA · Producción</div>
+      <div class="cap-h1">Capacidad productiva <span>vs. m² reales</span></div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <button class="cap-volver" id="capBtnSimAbrir" style="border-color:#e8a33d;">🎚 Simulador de dotación</button>
+      <button class="cap-volver" id="capBtnVolver">← Volver</button>
+    </div>
+  </div>
+
+  <div class="cap-body">
+    <div class="cap-kpis" id="capKpiRow"></div>
+    <div class="cap-stage" id="capStage"></div>
+    <div class="cap-legend" id="capLegend"></div>
+    <div class="cap-tendencia" id="capTendencia"></div>
+    <div class="cap-porque" id="capPorque"></div>
+
+    <div class="cap-sim" id="capSimPanel" style="display:none;">
+      <div class="titulo">🎚 Simulador de dotación</div>
+      <div class="cap-sim-row">
+        <span style="font-size:11px; color:#8b96a8;">Mes:</span>
+        <select id="capSimMes"></select>
+        <span style="font-size:11px; color:#8b96a8;">Operarios:</span>
+        <button class="btn icon" id="capSimMenos" style="padding:5px 10px;">−</button>
+        <span id="capSimNum" style="font-weight:700; font-size:13px; min-width:110px; text-align:center; display:inline-block;">— operarios</span>
+        <button class="btn icon" id="capSimMas" style="padding:5px 10px;">+</button>
+        <button class="btn" id="capSimReset" style="visibility:hidden; padding:5px 10px;">📍 Dotación base</button>
+      </div>
+      <div class="cap-sim-resultado" id="capSimResultado"></div>
+    </div>
+  </div>
+</div>
 
 <div id="viewColaCupos">
   <div class="ccup-topbar">
@@ -11302,6 +11438,528 @@ document.getElementById('poliClosePersonaModal').addEventListener('click', ()=>{
 document.getElementById('poliPersonaOverlay').addEventListener('click', (e)=>{
   if(e.target.id==='poliPersonaOverlay') document.getElementById('poliPersonaOverlay').classList.remove('show');
 });
+
+/* ============================================================
+   PROYECCIÓN DE M² — Cola Productiva vs Capacidad
+   Fórmula del "Analista M2 Futuros": capacidad diaria por operario =
+   CONSTANTE_BASE_M2 − dimensión promedio de lo pactado/pendiente PARA ESE MES
+   (Sup Abe Pen Pacto ÷ unidades pendientes = Uds Abe Pacto − Uds Abe Fin Pacto).
+   Si un mes todavía no tiene cola pactada cargada, usa el promedio general como respaldo.
+   Prefijo "proy" para no chocar con nada existente.
+   ============================================================ */
+let CONSTANTE_BASE_M2 = 5.83;
+
+function proyDimensionMes(ym){
+  const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
+  let sumaSup=0, sumaUds=0;
+  Object.keys(dias).forEach(fecha=>{
+    if(!fecha.startsWith(ym)) return;
+    const d = dias[fecha];
+    if(!d) return;
+    const pendUds = (d.udsAbePacto||0) - (d.udsAbeFinPacto||0);
+    if(pendUds<=0) return;
+    sumaSup += d.supAbePenPacto||0;
+    sumaUds += pendUds;
+  });
+  return sumaUds>0 ? {dimension: sumaSup/sumaUds, sup:sumaSup, uds:sumaUds} : null;
+}
+
+function proyDimensionGeneral(){
+  const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
+  let sumaSup=0, sumaUds=0;
+  Object.keys(dias).forEach(fecha=>{
+    const d = dias[fecha];
+    if(!d) return;
+    const pendUds = (d.udsAbePacto||0) - (d.udsAbeFinPacto||0);
+    if(pendUds<=0) return;
+    sumaSup += d.supAbePenPacto||0;
+    sumaUds += pendUds;
+  });
+  return sumaUds>0 ? {dimension: sumaSup/sumaUds, sup:sumaSup, uds:sumaUds} : null;
+}
+
+function proyDimensionParaMes(ym){
+  const especifica = proyDimensionMes(ym);
+  if(especifica) return {...especifica, fuente:'mes'};
+  const general = proyDimensionGeneral();
+  return general ? {...general, fuente:'general'} : null;
+}
+
+function proyDotacionTotal(){
+  const p = state.personalPorSector || {};
+  return Object.keys(p).reduce((acc,k)=> acc + (Number(p[k])||0), 0);
+}
+
+function proySumaPendienteActual(){
+  const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
+  const hoyStr = new Date().toISOString().slice(0,10);
+  const fechas = Object.keys(dias).filter(f=> f<=hoyStr).sort();
+  if(!fechas.length) return null;
+  // el último día cargado hasta hoy tiene el pendiente acumulado más reciente
+  // (si el último día tiene 0, puede ser que ese día no tuviera pegado — buscamos hacia atrás el último con datos)
+  for(let i=fechas.length-1; i>=0; i--){
+    const d = dias[fechas[i]];
+    if(d && (d.supAbePenProd>0 || d.udsAbeProd>0)) return d.supAbePenProd||0;
+  }
+  const ultima = dias[fechas[fechas.length-1]];
+  return ultima ? (ultima.supAbePenProd||0) : null;
+}
+
+function proyMesSiguiente(offsetMeses){
+  const base = new Date();
+  const d = new Date(base.getFullYear(), base.getMonth()+offsetMeses, 1);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function proyCalcularMes(ym, dotacion){
+  const info = proyDimensionParaMes(ym);
+  const diasHabiles = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
+  if(!info) return { ym, diasHabiles, dimension:null, capacidadDiariaOperario:null, m2Proyectados:null, fuente:null };
+  const capacidadDiariaOperario = Math.max(0, CONSTANTE_BASE_M2 - info.dimension);
+  const m2Proyectados = capacidadDiariaOperario * dotacion * diasHabiles;
+  return { ym, diasHabiles, dimension:info.dimension, sup:info.sup, uds:info.uds, capacidadDiariaOperario, m2Proyectados, fuente:info.fuente };
+}
+
+function proyRenderPanel(){
+  const panel = document.getElementById('proyM2Panel');
+  const dotacion = proyDotacionTotal();
+  const pendiente = proySumaPendienteActual();
+
+  const mes1 = proyCalcularMes(proyMesSiguiente(1), dotacion);
+  const mes2 = proyCalcularMes(proyMesSiguiente(2), dotacion);
+
+  if(mes1.dimension===null && mes2.dimension===null){
+    panel.innerHTML = `<div class="hint">Todavía no hay cola pactada cargada (Uds/Sup Abe Pacto) en Cola Productiva como para calcular la dimensión. Pegá la tabla de G-PRO primero.</div>`;
+    return;
+  }
+
+  const nombreMes = ym=>{
+    const [y,m] = ym.split('-').map(Number);
+    return new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  };
+  const filaMes = m => m.dimension===null
+    ? `<tr><td style="text-transform:capitalize;">${nombreMes(m.ym)}</td><td>${m.diasHabiles}</td><td colspan="3" style="color:var(--ink-dim);">Sin cola pactada cargada para este mes</td></tr>`
+    : `<tr>
+        <td style="text-transform:capitalize;">${nombreMes(m.ym)}</td>
+        <td>${m.diasHabiles}</td>
+        <td>${m.dimension.toFixed(2)} m²<br><span style="color:var(--ink-dim);font-size:11px;">${m.sup.toFixed(1)} m² ÷ ${m.uds} aberturas${m.fuente==='general'?' (general, sin cola propia)':''}</span></td>
+        <td>${m.capacidadDiariaOperario.toFixed(2)} m²</td>
+        <td><b>${m.m2Proyectados.toFixed(0)} m²</b></td>
+      </tr>`;
+
+  panel.innerHTML = `
+    <div class="proy-kpis">
+      <div class="proy-kpi"><div class="lbl">Constante base</div>
+        <div class="val"><input type="number" id="proyConstanteInput" step="0.01" value="${CONSTANTE_BASE_M2}" style="width:80px;background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:6px;padding:2px 6px;font-size:20px;font-weight:800;"> m²</div>
+        <div class="sub">editable — capacidad diaria = constante − dimensión</div></div>
+      <div class="proy-kpi"><div class="lbl">Dotación considerada</div><div class="val">${dotacion}</div><div class="sub">suma de Configuración → personal por sector</div></div>
+      <div class="proy-kpi"><div class="lbl">Cola pendiente actual</div><div class="val">${pendiente!==null ? pendiente.toFixed(1)+' m²' : '—'}</div><div class="sub">Sup Abe Pen Prod, último día cargado</div></div>
+    </div>
+    <table class="proy-table">
+      <thead><tr><th>Mes</th><th>Días hábiles</th><th>Dimensión prom.</th><th>Cap. por operario/día</th><th>m² proyectados</th></tr></thead>
+      <tbody>${filaMes(mes1)}${filaMes(mes2)}</tbody>
+    </table>
+    <div class="proy-nota">Dimensión = Sup Abe Pen Pacto ÷ unidades pendientes (Uds Abe Pacto − Uds Abe Fin Pacto) de ESE mes específico — no un promedio genérico. Si el mes todavía no tiene cola pactada cargada, usa el promedio general de toda la cola como respaldo.</div>
+    <button class="btn btn-ghost" id="proyToggleDetalle" style="margin-top:10px;">Ver detalle día por día (para cruzar contra la planilla)</button>
+    <div id="proyDetalleDias" style="display:none;margin-top:10px;"></div>
+  `;
+
+  document.getElementById('proyToggleDetalle').addEventListener('click', ()=>{
+    const cont = document.getElementById('proyDetalleDias');
+    const abierto = cont.style.display !== 'none';
+    if(abierto){ cont.style.display='none'; return; }
+    cont.style.display='block';
+    const dias = (state.colaProductiva && state.colaProductiva.dias) || {};
+    const filas = [];
+    [mes1.ym, mes2.ym].forEach(ym=>{
+      Object.keys(dias).filter(f=>f.startsWith(ym)).sort().forEach(fecha=>{
+        const d = dias[fecha];
+        const pendUds = (d.udsAbePacto||0) - (d.udsAbeFinPacto||0);
+        if(pendUds<=0) return;
+        filas.push(`<tr><td>${fecha.split('-').reverse().join('/')}</td><td>${d.udsAbePacto||0}</td><td>${d.udsAbeFinPacto||0}</td><td>${pendUds}</td><td>${(d.supAbePenPacto||0).toFixed(2)} m²</td></tr>`);
+      });
+    });
+    cont.innerHTML = filas.length ? `
+      <table class="proy-table">
+        <thead><tr><th>Fecha</th><th>Uds Abe Pacto</th><th>Uds Abe Fin Pacto</th><th>Pendientes</th><th>Sup Abe Pen Pacto</th></tr></thead>
+        <tbody>${filas.join('')}</tbody>
+      </table>` : '<div class="hint">No hay días con unidades pendientes en estos dos meses.</div>';
+  });
+
+  document.getElementById('proyConstanteInput').addEventListener('change', (e)=>{
+    const v = parseFloat(e.target.value.replace(',','.'));
+    if(!isNaN(v) && v>0){ CONSTANTE_BASE_M2 = v; proyRenderPanel(); }
+  });
+}
+
+// tarjetas para el resumen del TV (avColaResumen), mismo estilo .cfg-field que las demás
+function avColaTarjetasProyM2(){
+  try{
+    const dotacion = proyDotacionTotal();
+    const mA = proyCalcularMes(proyMesSiguiente(1), dotacion);
+    const mB = proyCalcularMes(proyMesSiguiente(2), dotacion);
+    const nombreCorto = ym=>{
+      const [y,m] = ym.split('-').map(Number);
+      return new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
+    };
+    const tarjeta = m => `
+      <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-brand);padding:5px 10px;border-radius:7px;">
+        <div style="font-size:9.5px;color:var(--av-muted);">📊 Proyección ${nombreCorto(m.ym)} (dimensión real de la cola)</div>
+        <div style="font-weight:700;font-size:13px;color:var(--av-brand);">${m.m2Proyectados!==null ? fmt(m.m2Proyectados,0)+' m²' : 'sin datos'}</div>
+      </div>`;
+    return tarjeta(mA) + tarjeta(mB);
+  }catch(e){ return ''; }
+}
+
+document.getElementById('btnProyM2Abrir').addEventListener('click', ()=>{
+  const panel = document.getElementById('proyM2Panel');
+  const abierto = panel.style.display !== 'none';
+  panel.style.display = abierto ? 'none' : 'block';
+  if(!abierto) proyRenderPanel();
+});
+
+/* ============================================================
+   PANTALLA "CAPACIDAD VS. REAL" — pantalla aparte (como Cola de Cupos),
+   se abre con el botón del header. Todo prefijo "cap" para no chocar.
+   Los meses históricos se leen solos de Cierre Diario (state.dias),
+   nada de carga manual.
+   ============================================================ */
+
+// respaldo manual para meses que Cierre Diario no tiene cargados (antes de que empezara a usarse ahí).
+// Si algún día Cierre Diario SÍ tiene datos para uno de estos meses, se prefiere el dato en vivo.
+const CAP_HISTORICO_MANUAL = {
+  '2026-01': { m2: 2004, dimension: 4.0, abert: 502, presentes: 32 },
+  '2026-02': { m2: 1956, dimension: 3.6, abert: 549, presentes: 41 },
+  '2026-03': { m2: 2402, dimension: 3.3, abert: 727, presentes: 51 },
+  '2026-04': { m2: 1773, dimension: 3.8, abert: 461, presentes: 49 },
+  '2026-05': { m2: 1434, dimension: 4.2, abert: 339, presentes: 49 },
+  '2026-06': { m2: 1700, dimension: 3.7, abert: 455, presentes: 48 },
+};
+
+// pactado fijo para meses donde la cola pactada de G-PRO/Cola Productiva no es confiable
+// (ej. julio: Diego lo tiene anotado a mano porque el sistema no lo carga bien todavía)
+const CAP_PACTADO_MANUAL = {
+  '2026-07': 2580,
+};
+
+// cantidad de aberturas REALES cerradas en el mes en curso — para calcular la dimensión
+// de lo que YA se cerró (real ÷ aberturas), no de lo que está pendiente en la cola pactada
+const CAP_ABERTURAS_CERRADAS_MANUAL = {
+  '2026-07': 642,
+};
+
+function capM2RealesMes(ym){
+  // los meses de la tabla manual ya están cerrados y confirmados por Diego —
+  // van primero, para que datos parciales/incompletos de Cierre Diario (ej. si
+  // recién empezó a cargarse a mitad de mes) no los tapen con un número menor
+  if(CAP_HISTORICO_MANUAL[ym]) return CAP_HISTORICO_MANUAL[ym].m2;
+  const key = state.sectorFinLinea || '8-LI';
+  let suma = 0, tieneDatos = false;
+  Object.keys(state.dias||{}).forEach(fecha=>{
+    if(!fecha.startsWith(ym)) return;
+    const dia = state.dias[fecha];
+    const s = dia && dia.sectores ? dia.sectores[key] : null;
+    if(s && typeof s.cerrado==='number'){ suma += s.cerrado; tieneDatos = true; }
+  });
+  return tieneDatos ? suma : null;
+}
+
+function capDimensionMes(ym){
+  if(CAP_HISTORICO_MANUAL[ym]) return { dimension: CAP_HISTORICO_MANUAL[ym].dimension };
+  const deColaProductiva = proyDimensionMes(ym);
+  if(deColaProductiva) return deColaProductiva;
+  return null;
+}
+
+function capMesesHistoricosConDatos(){
+  const metotes = new Set();
+  Object.keys(state.dias||{}).forEach(fecha=> metotes.add(fecha.slice(0,7)));
+  Object.keys(CAP_HISTORICO_MANUAL).forEach(ym=> metotes.add(ym));
+  const hoyYm = new Date().toISOString().slice(0,7);
+  return [...metotes].filter(ym=> ym<hoyYm).sort(); // meses ya cerrados, sin el actual (ese va con los proyectados)
+}
+
+function capNombreMes(ym, corto){
+  const [y,m] = ym.split('-').map(Number);
+  return new Date(y,m-1,1).toLocaleDateString('es-AR',{month: corto?'short':'long', year: corto?'2-digit':'numeric'});
+}
+
+function capAbrir(){
+  document.getElementById('viewCapacidad').style.display = 'block';
+  capRender();
+}
+function capVolver(){
+  document.getElementById('viewCapacidad').style.display = 'none';
+}
+document.getElementById('capBtnVolver').addEventListener('click', capVolver);
+document.getElementById('avCapacidadBtn').addEventListener('click', capAbrir);
+
+function capBarraHTML(cls, valor, alturaPx, mostrarValor){
+  return `<div class="cap-barra3d ${cls}" style="height:${alturaPx}px;">
+    ${mostrarValor!==false ? `<div class="cap-val-barra">${fmt(valor,0)}</div>` : ''}
+    <div class="cap-cara-front" style="height:${alturaPx}px;"></div>
+    <div class="cap-cara-top"></div>
+    <div class="cap-cara-side" style="height:${alturaPx}px;"></div>
+  </div>`;
+}
+
+/* ---------------- Simulador de dotación (en memoria, no se guarda en Firestore) ---------------- */
+const capDotacionOverride = {}; // { '2026-07': 60, ... } — dotación real ajustada a mano para ese mes
+function capDotacionParaMes(ym){
+  return capDotacionOverride[ym]!==undefined ? capDotacionOverride[ym] : proyDotacionTotal();
+}
+
+function capRenderSimulador(){
+  const sel = document.getElementById('capSimMes');
+  const mesesSim = [proyMesSiguiente(0), proyMesSiguiente(1), proyMesSiguiente(2)];
+  const actual = sel.value;
+  sel.innerHTML = mesesSim.map(ym=>`<option value="${ym}">${capNombreMes(ym)}</option>`).join('');
+  sel.value = mesesSim.includes(actual) ? actual : mesesSim[0];
+  capSimActualizar();
+}
+
+function capSimActualizar(){
+  const ym = document.getElementById('capSimMes').value;
+  const dotBase = proyDotacionTotal();
+  const n = capDotacionParaMes(ym);
+  document.getElementById('capSimNum').textContent = n + ' operarios';
+  document.getElementById('capSimReset').style.visibility = capDotacionOverride[ym]!==undefined ? 'visible' : 'hidden';
+
+  const calc = proyCalcularMes(ym, n);
+  const calcBase = proyCalcularMes(ym, dotBase);
+  const diff = (calc.m2Proyectados||0) - (calcBase.m2Proyectados||0);
+  document.getElementById('capSimResultado').innerHTML = calc.m2Proyectados!==null
+    ? `Con <b>${n} operarios</b> en ${capNombreMes(ym)}, la capacidad proyectada sería de <b>${fmt(calc.m2Proyectados,0)} m²</b> (${diff>=0?'+':''}${fmt(diff,0)} m² vs. la dotación base de ${dotBase}).`
+    : `Sin cola pactada cargada para ${capNombreMes(ym)}, no se puede simular todavía.`;
+}
+
+document.getElementById('capBtnSimAbrir').addEventListener('click', ()=>{
+  const panel = document.getElementById('capSimPanel');
+  const abierto = panel.style.display !== 'none';
+  panel.style.display = abierto ? 'none' : 'block';
+  if(!abierto) capRenderSimulador();
+});
+document.getElementById('capSimMes').addEventListener('change', capSimActualizar);
+document.getElementById('capSimMenos').addEventListener('click', ()=>{
+  const ym = document.getElementById('capSimMes').value;
+  capDotacionOverride[ym] = Math.max(5, capDotacionParaMes(ym) - 1);
+  capSimActualizar();
+  capRender();
+});
+document.getElementById('capSimMas').addEventListener('click', ()=>{
+  const ym = document.getElementById('capSimMes').value;
+  capDotacionOverride[ym] = capDotacionParaMes(ym) + 1;
+  capSimActualizar();
+  capRender();
+});
+document.getElementById('capSimReset').addEventListener('click', ()=>{
+  const ym = document.getElementById('capSimMes').value;
+  delete capDotacionOverride[ym];
+  capSimActualizar();
+  capRender();
+});
+
+function capRender(){
+  const historicos = capMesesHistoricosConDatos().map(ym=>({
+    ym, m2: capM2RealesMes(ym), dimInfo: capDimensionMes(ym), presentes: CAP_HISTORICO_MANUAL[ym] ? CAP_HISTORICO_MANUAL[ym].presentes : null
+  })).filter(m=> m.m2!==null);
+
+  const dotacion = proyDotacionTotal();
+  const proyectados = [proyMesSiguiente(0), proyMesSiguiente(1), proyMesSiguiente(2)].map(ym=> proyCalcularMes(ym, capDotacionParaMes(ym)));
+
+  const hoyYm = new Date().toISOString().slice(0,7);
+  // para cada mes proyectado: si es el mes en curso, el "real" sale de Cierre Diario en vivo;
+  // si es un mes futuro que todavía no arrancó, no hay nada cerrado -> usa la cola pactada de G-PRO
+  proyectados.forEach(p=>{
+    if(p.ym===hoyYm){
+      const cerradoEnVivo = capM2RealesMes(p.ym);
+      p.realValor = cerradoEnVivo!==null ? cerradoEnVivo : 0;
+      p.realLabel = 'M² reales cerrados (Cierre Diario, en vivo)';
+      p.realSub = 'real cerrado hoy';
+
+      // si hay dato real de cuántas aberturas se cerraron, la dimensión real
+      // (real cerrado ÷ aberturas cerradas) reemplaza a la de la cola pactada,
+      // que mide lo pendiente y no necesariamente lo que ya se cerró
+      const abertCerradas = CAP_ABERTURAS_CERRADAS_MANUAL[p.ym];
+      if(abertCerradas && p.realValor>0){
+        p.dimension = p.realValor / abertCerradas;
+        p.capacidadDiariaOperario = Math.max(0, CONSTANTE_BASE_M2 - p.dimension);
+        p.m2Proyectados = p.capacidadDiariaOperario * capDotacionParaMes(p.ym) * p.diasHabiles;
+        p.dimensionFuente = 'real cerrado ÷ '+abertCerradas+' aberturas cerradas';
+      }
+    } else {
+      p.realValor = p.sup||0;
+      p.realLabel = 'M² reales de cola productiva';
+      p.realSub = 'cola pactada (G-PRO)';
+    }
+    p.pactadoFijo = CAP_PACTADO_MANUAL[p.ym] || null;
+  });
+
+  const maxAltura = 220;
+  const todosValores = [
+    ...historicos.map(h=>h.m2),
+    ...proyectados.flatMap(p=> p.m2Proyectados!==null ? [p.m2Proyectados, p.realValor, p.pactadoFijo||0] : [])
+  ];
+  const maxVal = Math.max(1, ...todosValores);
+  const escala = v=> Math.max(4, Math.round((v/maxVal)*maxAltura));
+
+  // ---- KPIs (con el primer mes proyectado = el mes en curso) ----
+  const m1 = proyectados[0];
+  const cobertura = (m1 && m1.m2Proyectados) ? Math.round((m1.realValor / m1.m2Proyectados) * 100) : null;
+  document.getElementById('capKpiRow').innerHTML = `
+    <div class="cap-kpi accent">
+      <div class="lbl">Capacidad proyectada ${capNombreMes(m1.ym,true)}</div>
+      <div class="val">${m1.m2Proyectados!==null ? fmt(m1.m2Proyectados,0)+' m²' : '—'}</div>
+      <div class="hint">días hábiles × dotación × (${CONSTANTE_BASE_M2} − dimensión)</div>
+    </div>
+    <div class="cap-kpi">
+      <div class="lbl">${m1.realLabel} — ${capNombreMes(m1.ym,true)}</div>
+      <div class="val">${fmt(m1.realValor,0)} m²</div>
+      <div class="hint">${m1.ym===hoyYm ? 'lo que ya cerró Cierre Diario este mes' : 'lo que ya está pactado y cargado en G-PRO'}</div>
+    </div>
+    <div class="cap-kpi">
+      <div class="lbl">Cobertura de la capacidad</div>
+      <div class="val" style="color:#1f9d8a;">${cobertura!==null ? cobertura+'%' : '—'}</div>
+      <div class="hint">de lo que podemos producir, cuánto ya está ${m1.ym===hoyYm?'cerrado':'cubierto por pedidos reales'}</div>
+    </div>
+    <div class="cap-kpi">
+      <div class="lbl">Dotación considerada — ${capNombreMes(m1.ym,true)}</div>
+      <div class="val">${capDotacionParaMes(m1.ym)}${capDotacionOverride[m1.ym]!==undefined ? ' *' : ''}</div>
+      <div class="hint">${capDotacionOverride[m1.ym]!==undefined ? 'ajustada a mano con el simulador' : 'suma de personal activo por sector (Configuración)'}</div>
+    </div>
+    <div class="cap-kpi">
+      <div class="lbl">Dotación base (Configuración)</div>
+      <div class="val">${dotacion}</div>
+      <div class="hint">suma de personal activo por sector, sin ajustes</div>
+    </div>
+  `;
+
+  // ---- barras ----
+  let stageHtml = '';
+  historicos.forEach(h=>{
+    stageHtml += `<div class="cap-grupo hist">
+      <div class="cap-barras">${capBarraHTML('hist', h.m2, escala(h.m2))}</div>
+      <div class="cap-mes-label">${capNombreMes(h.ym)}</div>
+      <div class="cap-mes-sub">real cerrado${h.dimInfo ? ' · dim. '+h.dimInfo.dimension.toFixed(1)+' m²' : ''}${h.presentes!==null ? '<br>👥 '+h.presentes+' presentes/día' : ''}</div>
+    </div>`;
+  });
+  if(historicos.length){
+    stageHtml += `<div class="cap-divisor"><span>hoy →</span></div>`;
+  }
+  proyectados.forEach(p=>{
+    if(p.m2Proyectados===null){
+      stageHtml += `<div class="cap-grupo">
+        <div class="cap-barras" style="align-items:center;color:#8b96a8;font-size:.75rem;">Sin cola pactada</div>
+        <div class="cap-mes-label">${capNombreMes(p.ym)}</div>
+      </div>`;
+      return;
+    }
+    stageHtml += `<div class="cap-grupo">
+      <div class="cap-barras">
+        ${capBarraHTML('capacidad', p.m2Proyectados, escala(p.m2Proyectados))}
+        ${capBarraHTML(p.ym===hoyYm?'realvivo':'real', p.realValor, escala(p.realValor))}
+        ${p.pactadoFijo ? capBarraHTML('real', p.pactadoFijo, escala(p.pactadoFijo)) : ''}
+      </div>
+      <div class="cap-mes-label">${capNombreMes(p.ym)}</div>
+      <div class="cap-mes-sub">dimensión prom. ${p.dimension.toFixed(2)} m²${p.dimensionFuente ? ' <span style="color:#8b96a8;font-size:.85em;">('+p.dimensionFuente+')</span>' : ''}<br><span style="color:${p.ym===hoyYm?'#4fc9b3':'#e8a33d'};">${p.realSub}</span>${p.pactadoFijo ? '<br><span style="color:#e8a33d;">pactado fijo '+fmt(p.pactadoFijo,0)+' m²</span>' : ''}</div>
+    </div>`;
+  });
+  document.getElementById('capStage').innerHTML = stageHtml;
+
+  document.getElementById('capLegend').innerHTML = `
+    <span><i style="background:#7d8590;"></i> Real cerrado (histórico)</span>
+    <span><i style="background:#4f7cac;"></i> Capacidad proyectada</span>
+    <span><i style="background:#1f9d8a;"></i> M² reales cerrados este mes (Cierre Diario, en vivo)</span>
+    <span><i style="background:#e8a33d;"></i> M² pactados / cola productiva (G-PRO o cargado a mano)</span>
+  `;
+
+  // ---- tendencia de dimensión vs. capacidad por operario (cualquier mes con cola pactada cargada, histórico o proyectado) ----
+  const mesesParaTendencia = [
+    ...historicos.map(h=> h.dimInfo ? { ym:h.ym, dimension:h.dimInfo.dimension, capacidadDiariaOperario: Math.max(0, CONSTANTE_BASE_M2-h.dimInfo.dimension) } : null),
+    ...proyectados.map(p=> p.dimension!==null ? { ym:p.ym, dimension:p.dimension, capacidadDiariaOperario:p.capacidadDiariaOperario } : null)
+  ].filter(Boolean);
+  const puntos = mesesParaTendencia;
+  if(puntos.length>=1){
+    const anchoSvg = 700, alto = 110;
+    const margenX = 14;
+    const paso = puntos.length>1 ? (anchoSvg-margenX*2)/(puntos.length-1) : 0;
+
+    const minDim = Math.min(...puntos.map(p=>p.dimension)), maxDim = Math.max(...puntos.map(p=>p.dimension));
+    const rangoDim = Math.max(0.3, maxDim-minDim);
+    const yDim = d=> 75 - ((d-minDim)/rangoDim)*45;
+
+    const minCap = Math.min(...puntos.map(p=>p.capacidadDiariaOperario)), maxCap = Math.max(...puntos.map(p=>p.capacidadDiariaOperario));
+    const rangoCap = Math.max(0.2, maxCap-minCap);
+    const yCap = c=> 75 - ((c-minCap)/rangoCap)*45;
+
+    const coordsDim = puntos.map((p,i)=>({x:margenX+i*paso, y:yDim(p.dimension), p}));
+    const coordsCap = puntos.map((p,i)=>({x:margenX+i*paso, y:yCap(p.capacidadDiariaOperario), p}));
+    const lineaDim = coordsDim.map(c=>`${c.x},${c.y}`).join(' ');
+    const lineaCap = coordsCap.map(c=>`${c.x},${c.y}`).join(' ');
+    const xMin = coordsDim[0].x, xMax = coordsDim[coordsDim.length-1].x;
+    const areaDim = `${xMin},${alto} ${lineaDim} ${xMax},${alto}`;
+    const areaCap = `${xMin},${alto} ${lineaCap} ${xMax},${alto}`;
+
+    const etiquetasDim = coordsDim.map(c=>`
+      <circle cx="${c.x}" cy="${c.y}" r="4" fill="#e8a33d"/>
+      <text x="${c.x}" y="${c.y-10}" text-anchor="middle" font-size="11" fill="#e8a33d" font-family="Segoe UI,sans-serif">${c.p.dimension.toFixed(2)}</text>
+    `).join('');
+    const etiquetasCap = coordsCap.map(c=>`
+      <circle cx="${c.x}" cy="${c.y}" r="4" fill="#4f7cac"/>
+      <text x="${c.x}" y="${c.y+18}" text-anchor="middle" font-size="11" fill="#4f7cac" font-family="Segoe UI,sans-serif">${c.p.capacidadDiariaOperario.toFixed(2)}</text>
+    `).join('');
+    const etiquetasMes = coordsDim.map(c=>`
+      <text x="${c.x}" y="102" text-anchor="middle" font-size="11" fill="#8b96a8" font-family="Segoe UI,sans-serif">${capNombreMes(c.p.ym,true)}</text>
+    `).join('');
+
+    document.getElementById('capTendencia').innerHTML = `
+      <div class="titulo">Dimensión promedio vs. capacidad por operario/día</div>
+      <svg viewBox="0 0 ${anchoSvg} ${alto}">
+        <defs>
+          <linearGradient id="capGradDim" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#e8a33d" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#e8a33d" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="capGradCap" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#4f7cac" stop-opacity="0.3"/>
+            <stop offset="100%" stop-color="#4f7cac" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        <polygon points="${areaDim}" fill="url(#capGradDim)"/>
+        <polygon points="${areaCap}" fill="url(#capGradCap)"/>
+        <polyline points="${lineaDim}" fill="none" stroke="#e8a33d" stroke-width="2.5"/>
+        <polyline points="${lineaCap}" fill="none" stroke="#4f7cac" stroke-width="2.5" stroke-dasharray="5,4"/>
+        ${etiquetasDim}${etiquetasCap}${etiquetasMes}
+      </svg>
+      <div class="cap-legend" style="margin-top:0;">
+        <span><i style="background:#e8a33d;"></i> Dimensión promedio (m²)</span>
+        <span><i style="background:#4f7cac;"></i> Capacidad por operario/día (m²) — línea punteada</span>
+      </div>
+      <div class="nota">Cuando la dimensión sube, la capacidad por operario baja (y al revés) — son las dos caras de la misma cuenta. Solo entran acá los meses con cola pactada cargada en G-PRO — si a algún mes histórico le falta, es porque no tiene Uds/Sup Abe Pacto cargados en Cola Productiva.</div>
+    `;
+  } else {
+    document.getElementById('capTendencia').innerHTML = '';
+  }
+
+  // ---- por qué ----
+  let porque = '';
+  const conDatos = proyectados.filter(p=>p.m2Proyectados!==null);
+  if(conDatos.length>=2){
+    const a = conDatos[conDatos.length-2], b = conDatos[conDatos.length-1];
+    const subeBaja = b.m2Proyectados>a.m2Proyectados ? 'más' : 'menos';
+    porque += `💡 <b>Por qué ${capNombreMes(b.ym,true)} proyecta ${subeBaja} que ${capNombreMes(a.ym,true)}:</b> la dimensión promedio de las aberturas pactadas ${b.dimension<a.dimension?'baja':'sube'} de ${a.dimension.toFixed(2)} m² a ${b.dimension.toFixed(2)} m². `;
+    porque += b.dimension<a.dimension
+      ? `Aberturas más chicas rinden más m² por operario/día con la misma dotación (${a.capacidadDiariaOperario.toFixed(2)} → ${b.capacidadDiariaOperario.toFixed(2)} m²/operario/día). `
+      : `Aberturas más grandes rinden menos m² por operario/día con la misma dotación (${a.capacidadDiariaOperario.toFixed(2)} → ${b.capacidadDiariaOperario.toFixed(2)} m²/operario/día). `;
+  }
+  if(cobertura!==null){
+    const verbo = m1.ym===hoyYm ? 'cerrado' : 'con pedido real en cola';
+    porque += `En ${capNombreMes(m1.ym,true)}, del total que podemos producir (${fmt(m1.m2Proyectados,0)} m²) ya hay ${fmt(m1.realValor,0)} m² ${verbo} — ${cobertura<100 ? 'el '+(100-cobertura)+'% restante es capacidad libre, todavía sin pedidos que la llenen.' : 'la capacidad ya está totalmente cubierta.'}`;
+  }
+  document.getElementById('capPorque').innerHTML = porque || '<span style="color:#8b96a8;">Todavía no hay suficientes datos cargados para explicar la proyección.</span>';
+
+  capRenderSimulador();
+}
 </script>
 </body>
 </html>
