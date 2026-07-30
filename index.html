@@ -4718,8 +4718,7 @@ function avRenderClaro(){
           const faltaOpt = Math.max(0, tOptHoy - st.sum);
           let dot='bad';
           if(st.sum>=tOptHoy) dot='good'; else if(st.sum>=tMinHoy) dot='warn';
-          return `<div class="acl-flow-card ${isLI?'kpi':''}">
-            <div class="name-row">
+          return `<div class="acl-flow-card ${isLI?'kpi':''}" data-sector-key="${key}" style="cursor:pointer;">            <div class="name-row">
               <div class="name">${AV_SECTOR_SHORT[key]}${isLI?' <span style="color:#3B82F6;">KPI</span>':''} <span class="acl-check">✓</span></div>
               <div class="acl-status-dot ${dot}"></div>
             </div>
@@ -4762,6 +4761,10 @@ function avRenderClaro(){
       </div>
     </div>
   `;
+
+  root.querySelectorAll('[data-sector-key]').forEach(el=>{
+    el.addEventListener('click', ()=> avAbrirPanoramaSector(el.dataset.sectorKey));
+  });
 
   avClaroDrawLine(liKey, li, liObj, dh);
   avClaroDrawBar(statsPorSector, objMensualPorSector, liKey);
