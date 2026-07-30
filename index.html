@@ -4181,7 +4181,7 @@ function avCausasSector(key){
   });
   return Object.entries(totales).sort((a,b)=>b[1]-a[1]).slice(0,8);
 }
-function avProduccionActoresSector(key){
+function avProduccionActoresSector(key, unidadIdx){
   if(!state.produccionDetalle || !state.produccionDetalle.config || !state.produccionDetalle.config[key]) return null;
   const cfg = state.produccionDetalle.config[key];
   const actores = cfg.actores || [];
@@ -4189,14 +4189,38 @@ function avProduccionActoresSector(key){
   const fechas = avFechasDelMes();
   const totales = actores.map(actor=>{
     let total = 0;
-    fechas.forEach(f=>{ const v = totalActorEnFecha(key, actor, f, 0); if(typeof v==='number') total += v; });
+    fechas.forEach(f=>{ const v = totalActorEnFecha(key, actor, f, unidadIdx||0); if(typeof v==='number') total += v; });
     return [actor, total];
   }).filter(([,t])=>t>0).sort((a,b)=>b[1]-a[1]);
   return totales.length ? totales : null;
 }
 
+// desglose por nivel de complejidad (Normal/Jumbo/Evolution) y unidad elegida — solo para
+// sectores simple + complejidad (ej. Armado). Devuelve null si el sector no distingue complejidad.
+function avProduccionActoresSectorNivel(key, unidadIdx){
+  const cfg = state.produccionDetalle && state.produccionDetalle.config && state.produccionDetalle.config[key];
+  if(!cfg || cfg.tipo!=='simple' || !cfg.complejidad) return null;
+  const actores = cfg.actores || [];
+  if(!actores.length) return null;
+  const uKey = cfg.unidades[unidadIdx||0].key;
+  const fechas = avFechasDelMes();
+  const resultado = actores.map(actor=>{
+    const totales = {normal:0, jumbo:0, evolution:0};
+    fechas.forEach(f=>{
+      const reg = (state.produccionDetalle.registros[key] && state.produccionDetalle.registros[key][actor] && state.produccionDetalle.registros[key][actor][f]) || null;
+      if(!reg) return;
+      DETALLE_NIVELES.forEach(n=>{ totales[n] += (reg[n] && reg[n][uKey]) || 0; });
+    });
+    const total = totales.normal + totales.jumbo + totales.evolution;
+    return { actor, ...totales, total };
+  }).filter(a=>a.total>0).sort((a,b)=>b.total-a.total);
+  return resultado.length ? resultado : null;
+}
+
 let panSecCharts = {};
+let panSecUnidadIdx = 0;
 function avAbrirPanoramaSector(key){
+  panSecUnidadIdx = 0;
   document.getElementById('panSecOverlay').classList.add('show');
   avRenderPanoramaSector(key);
 }
@@ -4227,7 +4251,18 @@ function avRenderPanoramaSector(key){
       <div class="pansec-chart-box"><h4>📈 m² acumulados del mes</h4><div class="canvas-wrap" id="panSecM2Wrap"><canvas id="panSecChartM2"></canvas></div></div>
       <div class="pansec-chart-box"><h4>🫁 Evolución del pulmón</h4><div class="canvas-wrap" id="panSecPulmonWrap"><canvas id="panSecChartPulmon"></canvas></div></div>
       <div class="pansec-chart-box"><h4>⚠ Causas más frecuentes (5M)</h4><div class="canvas-wrap" id="panSecCausasWrap"><canvas id="panSecChartCausas"></canvas></div></div>
-      <div class="pansec-chart-box"><h4>👷 Producción por operario/máquina</h4><div class="canvas-wrap" id="panSecActoresWrap"><canvas id="panSecChartActores"></canvas></div></div>
+      <div class="pansec-chart-box">
+        <h4 style="display:flex; align-items:center; justify-content:space-between;">
+          <span>👷 Producción por operario/máquina</span>
+          <span id="panSecUnidadSelectWrap"></span>
+        </h4>
+        <div id="panSecNivelLegend" style="display:none; gap:12px; font-size:11px; color:#8b96a8; margin-bottom:6px;">
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#8d9199;margin-right:4px;"></i>Normal</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#e8a33d;margin-right:4px;"></i>Jumbo</span>
+          <span><i style="display:inline-block;width:9px;height:9px;border-radius:2px;background:#5b8def;margin-right:4px;"></i>Evolution</span>
+        </div>
+        <div class="canvas-wrap" id="panSecActoresWrap"><canvas id="panSecChartActores"></canvas></div>
+      </div>
     </div>
   `;
 
@@ -4285,18 +4320,63 @@ function avRenderPanoramaSector(key){
     document.getElementById('panSecCausasWrap').innerHTML = '<div class="pansec-empty">Sin causas declaradas este mes 🎉</div>';
   }
 
-  // ---- producción por operario/máquina ----
-  const actores = avProduccionActoresSector(key);
-  if(actores){
-    panSecCharts.actores = new Chart(document.getElementById('panSecChartActores'), {
-      type:'bar',
-      data:{labels:actores.map(a=>a[0]), datasets:[{label:'Producción del mes', data:actores.map(a=>a[1]), backgroundColor:'#1f9d8a'}]},
-      options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, datalabels:{
-        color:'#1f9d8a', anchor:'end', align:'right', font:{weight:'700', size:11}, formatter:(v)=>fmt(v,0)
-      }}, scales:{x:ejeStyle, y:ejeSinGrid}}
-    });
+  // ---- producción por operario/máquina (unidad siempre visible; desglose Normal/Jumbo/Evolution si el sector lo distingue) ----
+  const cfgProd = state.produccionDetalle && state.produccionDetalle.config && state.produccionDetalle.config[key];
+  const selectorWrap = document.getElementById('panSecUnidadSelectWrap');
+  const leyendaNiveles = document.getElementById('panSecNivelLegend');
+
+  if(cfgProd && cfgProd.unidades && cfgProd.unidades.length){
+    if(cfgProd.unidades.length>1){
+      selectorWrap.innerHTML = `<select id="panSecUnidadSel" style="background:var(--panel);border:1px solid var(--line2);color:var(--ink);padding:3px 8px;border-radius:6px;font-size:11px;">
+        ${cfgProd.unidades.map((u,i)=>`<option value="${i}" ${i===panSecUnidadIdx?'selected':''}>${esc(u.label)}</option>`).join('')}
+      </select>`;
+      document.getElementById('panSecUnidadSel').addEventListener('change', (e)=>{
+        panSecUnidadIdx = Number(e.target.value);
+        avRenderPanoramaSector(key);
+      });
+    } else {
+      selectorWrap.innerHTML = `<span style="font-size:11px; color:#8b96a8; text-transform:uppercase; letter-spacing:.04em;">${esc(cfgProd.unidades[0].label)}</span>`;
+    }
   } else {
-    document.getElementById('panSecActoresWrap').innerHTML = '<div class="pansec-empty">Este sector no tiene producción por operario/máquina configurada.</div>';
+    selectorWrap.innerHTML = '';
+  }
+
+  if(cfgProd && cfgProd.tipo==='simple' && cfgProd.complejidad){
+    const porNivel = avProduccionActoresSectorNivel(key, panSecUnidadIdx);
+    if(porNivel){
+      leyendaNiveles.style.display = 'flex';
+      const nivelColor = {normal:'#8d9199', jumbo:'#e8a33d', evolution:'#5b8def'};
+      const nivelLabel = {normal:'Normal', jumbo:'Jumbo', evolution:'Evolution'};
+      panSecCharts.actores = new Chart(document.getElementById('panSecChartActores'), {
+        type:'bar',
+        data:{
+          labels: porNivel.map(a=>a.actor),
+          datasets: DETALLE_NIVELES.map(n=>({
+            label: nivelLabel[n], data: porNivel.map(a=>a[n]), backgroundColor: nivelColor[n], stack:'s'
+          }))
+        },
+        options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, datalabels:{
+          display:(ctx)=> ctx.dataset.data[ctx.dataIndex]>0, color:'#0d1117', font:{weight:'700', size:9.5}
+        }}, scales:{x:{...ejeStyle, stacked:true}, y:{...ejeSinGrid, stacked:true}}}
+      });
+    } else {
+      leyendaNiveles.style.display = 'none';
+      document.getElementById('panSecActoresWrap').innerHTML = '<div class="pansec-empty">Sin producción cargada este mes.</div>';
+    }
+  } else {
+    leyendaNiveles.style.display = 'none';
+    const actores = avProduccionActoresSector(key, panSecUnidadIdx);
+    if(actores){
+      panSecCharts.actores = new Chart(document.getElementById('panSecChartActores'), {
+        type:'bar',
+        data:{labels:actores.map(a=>a[0]), datasets:[{label:'Producción del mes', data:actores.map(a=>a[1]), backgroundColor:'#1f9d8a'}]},
+        options:{indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, datalabels:{
+          color:'#1f9d8a', anchor:'end', align:'right', font:{weight:'700', size:11}, formatter:(v)=>fmt(v,0)
+        }}, scales:{x:ejeStyle, y:ejeSinGrid}}
+      });
+    } else {
+      document.getElementById('panSecActoresWrap').innerHTML = '<div class="pansec-empty">Este sector no tiene producción por operario/máquina configurada.</div>';
+    }
   }
 }
 document.getElementById('panSecClose').addEventListener('click', ()=>{
