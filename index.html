@@ -4063,6 +4063,19 @@ function avFmt(n, dec){
   return n.toLocaleString('es-AR', {minimumFractionDigits:dec||0, maximumFractionDigits:dec||0});
 }
 function avUltimoPulmon(key){
+  // 1) si estamos parados en "hoy" y ya se calculó el cierre (fin de turno), ese es el
+  //    valor más fresco que hay — pulmones{} solo guarda lo pegado en INICIO de turno,
+  //    así que quedarse ahí mostraba un número viejo apenas se cargaba el fin de turno.
+  if(state.actual && state.actual.fecha===avDiaSeleccionado && state.actual.resultado && state.actual.resultado[key]
+     && typeof state.actual.resultado[key].pulmon==='number'){
+    return state.actual.resultado[key].pulmon;
+  }
+  // 2) si ese día ya está confirmado en el historial, el valor guardado ahí es el definitivo
+  const diaConfirmado = state.dias[avDiaSeleccionado];
+  if(diaConfirmado && diaConfirmado.sectores && diaConfirmado.sectores[key] && typeof diaConfirmado.sectores[key].pulmon==='number'){
+    return diaConfirmado.sectores[key].pulmon;
+  }
+  // 3) si no, el último inicio de turno pegado hasta la fecha (mejor que nada)
   const fechas = Object.keys(state.pulmones||{}).filter(f=>f<=avDiaSeleccionado).sort();
   for(let i=fechas.length-1; i>=0; i--){
     const v = state.pulmones[fechas[i]] ? state.pulmones[fechas[i]][key] : undefined;
