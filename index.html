@@ -5549,7 +5549,11 @@ function avDrawChart(){
   const svg = document.getElementById('avChartSvg');
   const W=1200, H=240, padL=64, padR=24, padT=16, padB=30;
   const liKey = state.sectorFinLinea || '8-LI';
-  const totalDias = avDiasHabilesActuales();
+  // eje X en DÍAS CALENDARIO del mes (no días hábiles ni posición en la lista) --
+  // series puede tener más entradas que días hábiles si hubo sábados con datos
+  // cargados, y ubicar por posición corría los puntos fuera de escala. Ubicando
+  // por el número de día real de cada fecha, todo queda alineado siempre.
+  const totalDias = avDaysInMonth(avMesActual);
   const series = avLiDailySeries();
   const li = avSectorStats(liKey);
   const liObj = avSectorObjetivosMensual(liKey);
@@ -5582,7 +5586,7 @@ function avDrawChart(){
   svgContent += `<path d="${toPath(optPts)}" stroke="${cOpt}" stroke-width="2" stroke-dasharray="6 5" fill="none"/>`;
 
   if(series.length){
-    const realPts = series.map((s,i)=>[i+1, s.cum]);
+    const realPts = series.map(s=>[Number(s.date.slice(8,10)), s.cum]);
     svgContent += `<path class="avRealPath" d="${toPath(realPts)}" stroke="${cReal}" stroke-width="3" fill="none"/>`;
     const last = realPts[realPts.length-1];
     const projPts = [last, [totalDias, li.estimacion]];
