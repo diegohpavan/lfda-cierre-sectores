@@ -436,13 +436,14 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
     --av-text:#F2F3F5; --av-muted:#8A8E94; --av-muted-2:#54585D;
     --av-brand:#E1432E; --av-brand-dim:#4A1D17;
     --av-good:#4FAE7C; --av-warn:#D9A23E; --av-bad:#E1432E;
-  
+    --av-real-line:#29B6F6;
 }
 body.tema-claro #view-avance{
     --av-bg:#F4F6F9; --av-panel:#FFFFFF; --av-panel-2:#F1F3F7; --av-line:#E7EAF0;
     --av-text:#171A21; --av-muted:#6B7280; --av-muted-2:#9CA3AF;
     --av-brand:#3B82F6; --av-brand-dim:#EFF6FF;
     --av-good:#10B981; --av-warn:#F59E0B; --av-bad:#EF4444;
+    --av-real-line:#3B82F6;
 }
 body.tema-claro #view-avance .av-widget,
 body.tema-claro #view-avance .hero,
@@ -1468,7 +1469,7 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
             <div class="legend">
               <span><i style="background:var(--av-bad);"></i>Mínimo</span>
               <span><i style="background:var(--av-warn);"></i>Óptimo</span>
-              <span><i style="background:var(--av-brand);"></i>Real</span>
+              <span><i style="background:var(--av-real-line);"></i>Real</span>
             </div>
           </div>
           <svg id="avChartSvg" viewBox="0 0 1200 240" preserveAspectRatio="none" style="width:100%; height:calc(100% - 26px); display:block;"></svg>
@@ -4789,9 +4790,10 @@ function renderAvance(){
 }
 
 function avSectorObjetivosMensual(key){
-  const o = avSectorObjetivos(key);
-  const dh = avDiasHabilesActuales();
-  return { min: o.min*dh, opt: o.opt*dh };
+  // fijo para todas las áreas (pedido explícito de Diego) — antes se calculaba
+  // por sector (o.min*dh / o.opt*dh), lo que daba techos distintos entre sectores
+  // y hacía difícil comparar de un vistazo si la producción pasaba el mínimo.
+  return { min: 2400, opt: 3300 };
 }
 
 // ============================================================
@@ -5556,7 +5558,7 @@ function avDrawChart(){
   const cTick = claro ? '#9CA3AF' : '#8792A2';
   const cMin = claro ? '#EF4444' : '#E1432E';
   const cOpt = claro ? '#F59E0B' : '#D9A23E';
-  const cReal = claro ? '#3B82F6' : '#E1432E';
+  const cReal = claro ? '#3B82F6' : '#29B6F6';
 
   const maxY = Math.max(liObj.opt, li.estimacion, series.length ? series[series.length-1].cum : 0, 1) * 1.08;
   const x = i => padL + (W-padL-padR) * (i/totalDias);
