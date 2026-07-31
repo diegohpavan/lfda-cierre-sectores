@@ -766,6 +766,38 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 .poli-chip.poli{ border-color:var(--green); color:var(--ink); }
 .poli-chip small{ display:block; color:var(--ink-dim); font-size:10.5px; margin-top:1px; }
 .poli-analisis-card{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:16px; }
+
+.poli-sab-header{ display:flex; align-items:flex-end; gap:20px; flex-wrap:wrap; margin-bottom:6px; }
+.poli-sab-fecha{ background:var(--panel2); border:1px solid var(--line); color:var(--ink); padding:8px 12px; border-radius:8px; font-size:.85rem; margin-top:4px; }
+.poli-sab-resumen{ font-size:1.1rem; font-weight:800; margin-left:auto; }
+.poli-sab-resumen small{ display:block; font-size:.68rem; font-weight:600; color:var(--ink-dim); text-transform:uppercase; letter-spacing:.04em; }
+.poli-sab-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:14px; }
+.poli-sab-card{ background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+.poli-sab-card-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:2px; }
+.poli-sab-card-head h4{ margin:0; font-size:.9rem; }
+.poli-sab-card-head .ed{ cursor:pointer; color:var(--ink-dim); font-size:.8rem; }
+.poli-sab-card-head .ed:hover{ color:var(--amber); }
+.poli-sab-card .cnt{ font-size:.72rem; color:var(--ink-dim); margin-bottom:10px; }
+.poli-sab-slot{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  background:var(--panel2); border:1px dashed var(--line); border-radius:8px;
+  padding:8px 10px; margin-bottom:6px; font-size:.78rem; cursor:pointer;
+}
+.poli-sab-slot.vacio{ color:var(--ink-dim); justify-content:center; }
+.poli-sab-slot.vacio:hover{ border-color:var(--amber); color:var(--amber); }
+.poli-sab-slot.lleno{ border-style:solid; border-color:var(--steel); background:#1c2938; cursor:default; }
+.poli-sab-slot.lleno.poli{ border-color:var(--teal); background:#132824; }
+.poli-sab-slot .nm{ flex:1; }
+.poli-sab-slot .quitar{ color:var(--ink-dim); cursor:pointer; font-weight:900; }
+.poli-sab-slot .quitar:hover{ color:#e05a5a; }
+
+.poli-sab-pick-item{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:9px 12px; border-radius:8px; cursor:pointer; margin-bottom:4px; font-size:.85rem;
+}
+.poli-sab-pick-item:hover{ background:var(--panel2); }
+.poli-sab-pick-item.ocupado{ opacity:.4; cursor:not-allowed; }
+.poli-sab-pick-item small{ color:var(--ink-dim); font-size:.72rem; }
 .poli-analisis-card h3{ margin:0 0 4px; font-size:15px; }
 .poli-analisis-card .sub{ color:var(--ink-dim); font-size:12px; margin-bottom:12px; }
 
@@ -948,6 +980,7 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
     <div class="sidebar-subnav" id="sidebarPoliSubnav" style="display:none;">
       <button class="poli-subnav-btn active" data-nav-sub="carga">Carga</button>
       <button class="poli-subnav-btn" data-nav-sub="analisis">Análisis</button>
+      <button class="poli-subnav-btn" data-nav-sub="sabado">🗓 Sábado</button>
     </div>
     <div class="app-sidebar-filtro" id="sidebarFiltroCausas" style="display:none;">
       <label>Desde</label>
@@ -1612,6 +1645,31 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
         <div class="sub" id="poliTop10Sub"></div>
         <ol class="poli-top10" id="poliTop10List"></ol>
       </div>
+    </div>
+
+    <div class="cfg-tabpage" id="poliTab-sabado">
+      <div class="poli-sab-header">
+        <div>
+          <div class="section-title" style="margin:0;">Sábado del</div>
+          <input type="date" id="poliSabFecha" class="poli-sab-fecha">
+        </div>
+        <div class="poli-sab-resumen" id="poliSabResumen"></div>
+        <button class="btn" id="poliSabExportar">📋 Copiar lista</button>
+      </div>
+      <p class="help-txt" style="margin:6px 0 16px;">
+        Tocá un casillero vacío para asignar a alguien. Los "puestos" de cada sector son un número fijo — para cambiarlo, tocá el lápiz al lado del nombre del sector (solo admin).
+      </p>
+      <div class="poli-sab-grid" id="poliSabGrid"></div>
+    </div>
+  </div>
+
+  <div class="poli-modal-overlay" id="poliSabPickerOverlay">
+    <div class="poli-modal-panel">
+      <button class="poli-modal-close" id="poliSabPickerClose">✕</button>
+      <h2 id="poliSabPickerTitulo"></h2>
+      <div class="sub" style="margin-bottom:14px;">Elegí quién cubre este puesto el sábado</div>
+      <input type="text" id="poliSabPickerBuscar" placeholder="Buscar por nombre…" style="width:100%;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);margin-bottom:12px;">
+      <div id="poliSabPickerLista"></div>
     </div>
   </div>
 
@@ -4153,7 +4211,7 @@ function avDiasTranscurridos(){
 }
 function avLiDailySeries(){
   const key = state.sectorFinLinea || '8-LI';
-  const fechas = avFechasDelMes();
+  const fechas = avFechasDelMes().filter(f=>f<=avDiaSeleccionado);
   const out = []; let cum=0;
   for(const f of fechas){
     const dia = state.dias[f];
@@ -5444,7 +5502,7 @@ function avDrawBarChart(){
   for(let g=0; g<=gridSteps; g++){
     const val = maxY/gridSteps*g;
     svgContent += `<line x1="${padL}" y1="${y(val)}" x2="${W-padR}" y2="${y(val)}" stroke="${cGrid}" stroke-width="1"/>`;
-    svgContent += `<text x="${padL-10}" y="${y(val)+4}" text-anchor="end" font-size="11" fill="${cTick}" font-family="Inter, sans-serif">${avFmt(val,0)}</text>`;
+    svgContent += `<text x="${padL-10}" y="${y(val)+4}" text-anchor="end" font-size="13" fill="${cTick}" font-family="Inter, sans-serif">${avFmt(val,0)}</text>`;
   }
 
   const liKey = state.sectorFinLinea || '8-LI';
@@ -5475,11 +5533,11 @@ function avDrawBarChart(){
     svgContent += `<rect x="${bx}" y="${yAgua+3}" width="${barW}" height="${H}" fill="${colorBase}"/>`;
     svgContent += `<g class="avAguaOnda avAguaRapida" style="--w:${barW}px; animation-delay:${i*0.12}s"><path d="${avOndaPath(bx,barW,yAgua,2,2.4,H)}" fill="${colorClaro}" opacity="0.6"/></g>`;
     svgContent += `</g></g>`;
-    svgContent += `<text x="${bx+barW/2}" y="${H-padB-estH-8}" text-anchor="middle" font-size="12" font-weight="600" fill="${cLabelArriba}" font-family="Inter, sans-serif">${avFmt(st.estimacion,0)}</text>`;
+    svgContent += `<text x="${bx+barW/2}" y="${H-padB-estH-8}" text-anchor="middle" font-size="15" font-weight="700" fill="${cLabelArriba}" font-family="Inter, sans-serif">${avFmt(st.estimacion,0)}</text>`;
     const accLabelY = accH>18 ? H-padB-accH+14 : H-padB-accH-6;
     const accLabelColor = accH>18 ? '#ffffff' : cTick;
-    svgContent += `<text x="${bx+barW/2}" y="${accLabelY}" text-anchor="middle" font-size="10.5" fill="${accLabelColor}" font-family="Inter, sans-serif">${avFmt(st.sum,0)}</text>`;
-    svgContent += `<text x="${bx+barW/2}" y="${H-14}" text-anchor="middle" font-size="11" fill="${isLI?cMin:cTick}" font-family="Inter, sans-serif" font-weight="${isLI?600:400}">${AV_SECTOR_SHORT[key]}</text>`;
+    svgContent += `<text x="${bx+barW/2}" y="${accLabelY}" text-anchor="middle" font-size="13.5" font-weight="700" fill="${accLabelColor}" font-family="Inter, sans-serif">${avFmt(st.sum,0)}</text>`;
+    svgContent += `<text x="${bx+barW/2}" y="${H-14}" text-anchor="middle" font-size="12.5" fill="${isLI?cMin:cTick}" font-family="Inter, sans-serif" font-weight="${isLI?700:500}">${AV_SECTOR_SHORT[key]}</text>`;
   });
 
   svg.innerHTML = svgContent;
@@ -5509,11 +5567,11 @@ function avDrawChart(){
   for(let g=0; g<=gridSteps; g++){
     const val = maxY/gridSteps*g;
     svgContent += `<line x1="${padL}" y1="${y(val)}" x2="${W-padR}" y2="${y(val)}" stroke="${cGrid}" stroke-width="1"/>`;
-    svgContent += `<text x="${padL-10}" y="${y(val)+4}" text-anchor="end" font-size="11" fill="${cTick}" font-family="Inter, sans-serif">${avFmt(val,0)}</text>`;
+    svgContent += `<text x="${padL-10}" y="${y(val)+4}" text-anchor="end" font-size="13" fill="${cTick}" font-family="Inter, sans-serif">${avFmt(val,0)}</text>`;
   }
   const step = Math.max(Math.ceil(totalDias/12),1);
   for(let d=0; d<=totalDias; d+=step){
-    svgContent += `<text x="${x(d)}" y="${H-10}" text-anchor="middle" font-size="10.5" fill="${cTick}" font-family="Inter, sans-serif">${d}</text>`;
+    svgContent += `<text x="${x(d)}" y="${H-10}" text-anchor="middle" font-size="12" fill="${cTick}" font-family="Inter, sans-serif">${d}</text>`;
   }
 
   const minPts=[[0,0],[totalDias, liObj.min]], optPts=[[0,0],[totalDias, liObj.opt]];
@@ -5529,10 +5587,10 @@ function avDrawChart(){
     svgContent += `<path d="${toPath(projPts)}" stroke="${cReal}" stroke-width="2" stroke-dasharray="4 5" fill="none" opacity="0.65"/>`;
     svgContent += `<circle class="avPingHoy" cx="${x(last[0])}" cy="${y(last[1])}" r="5" fill="none" stroke="${cReal}" stroke-width="2"/>`;
     svgContent += `<circle cx="${x(last[0])}" cy="${y(last[1])}" r="5" fill="${cReal}"/>`;
-    svgContent += `<text x="${x(last[0])+8}" y="${y(last[1])-8}" font-size="11" fill="${cReal}" font-family="Inter, sans-serif">${avFmt(last[1],0)}</text>`;
+    svgContent += `<text x="${x(last[0])+8}" y="${y(last[1])-8}" font-size="15" font-weight="700" fill="${cReal}" font-family="Inter, sans-serif">${avFmt(last[1],0)}</text>`;
     const projEnd=[totalDias, li.estimacion];
     svgContent += `<circle cx="${x(projEnd[0])}" cy="${y(projEnd[1])}" r="4" fill="none" stroke="${cReal}" stroke-width="1.6"/>`;
-    svgContent += `<text x="${x(projEnd[0])-8}" y="${y(projEnd[1])-8}" text-anchor="end" font-size="11" fill="${cReal}" font-family="Inter, sans-serif">${avFmt(projEnd[1],0)} est.</text>`;
+    svgContent += `<text x="${x(projEnd[0])-8}" y="${y(projEnd[1])-8}" text-anchor="end" font-size="13" font-weight="600" fill="${cReal}" font-family="Inter, sans-serif">${avFmt(projEnd[1],0)} est.</text>`;
   }
   svg.innerHTML = svgContent;
   // "dibuja" la línea real progresivamente en vez de aparecer de golpe -- técnica
@@ -5660,6 +5718,7 @@ function irASeccion(nav, sub){
     });
     poliRenderPolivalenciasView();
     if(subFinal==='analisis') poliRenderAnalisis();
+    if(subFinal==='sabado') poliRenderSabado();
   }
   if(nav==='config') renderConfig();
   if(nav==='detalle') renderDetalle();
@@ -11285,6 +11344,7 @@ function ccupActualizarPendientes(){
 const POLI_COLLECTION = 'lfda_polivalencias';
 const POLI_CONFIG_DOC = 'config';
 const POLI_NIVELES_DOC = 'niveles';
+const POLI_SABADO_DOC = 'equipoSabado';
 
 const POLI_SECTORS = [
   { id:'0-Planificación', name:'Planificación', color:'#8a8fa3' },
@@ -11424,6 +11484,8 @@ function poliFreshState(){
     personas: POLI_PEOPLE.map(([nombre,legajo,sector])=>({ id: poliPersonaId(nombre,legajo), nombre, legajo, sectorTitular:sector })),
     operaciones,
     niveles: JSON.parse(JSON.stringify(POLI_NIVELES_INICIALES)),
+    puestosPorSector: {},
+    equipoSabado: { fecha: null, asignaciones: {} },
   };
 }
 
@@ -11454,9 +11516,10 @@ function poliIniciarSync(){
         const data = snap.data();
         if(data.personas) poliState.personas = data.personas;
         if(data.operaciones) poliState.operaciones = data.operaciones;
+        if(data.puestosPorSector) poliState.puestosPorSector = data.puestosPorSector;
       } else {
         firestoreDb.collection(POLI_COLLECTION).doc(POLI_CONFIG_DOC)
-          .set({ personas: poliState.personas, operaciones: poliState.operaciones });
+          .set({ personas: poliState.personas, operaciones: poliState.operaciones, puestosPorSector: poliState.puestosPorSector });
       }
       poliMostrarSync('on');
       if(document.getElementById('view-polivalencias').classList.contains('active')) poliRenderPolivalenciasView();
@@ -11472,6 +11535,18 @@ function poliIniciarSync(){
       }
       if(document.getElementById('view-polivalencias').classList.contains('active')){ poliRenderKPIs(); poliRenderMatrix(); poliRenderFlow(); }
     }, err=>{ console.error('Polivalencias: error leyendo niveles', err); });
+
+    // ---- doc del equipo de sábado: un único roster vigente, cualquiera con acceso lo ve ----
+    firestoreDb.collection(POLI_COLLECTION).doc(POLI_SABADO_DOC).onSnapshot(snap=>{
+      if(snap.exists){
+        const data = snap.data();
+        poliState.equipoSabado = { fecha: data.fecha || null, asignaciones: data.asignaciones || {} };
+      } else {
+        firestoreDb.collection(POLI_COLLECTION).doc(POLI_SABADO_DOC).set(poliState.equipoSabado);
+      }
+      const panel = document.getElementById('poliTab-sabado');
+      if(panel && panel.classList.contains('active')) poliRenderSabado();
+    }, err=>{ console.error('Polivalencias: error leyendo equipo de sábado', err); });
 
     poliListenersListos = true;
   });
@@ -11490,10 +11565,182 @@ function poliGuardarNivel(personaId, opId, val){
 function poliGuardarConfig(){
   if(typeof firestoreDb !== 'undefined' && firestoreDb){
     firestoreDb.collection(POLI_COLLECTION).doc(POLI_CONFIG_DOC)
-      .set({ personas: poliState.personas, operaciones: poliState.operaciones })
+      .set({ personas: poliState.personas, operaciones: poliState.operaciones, puestosPorSector: poliState.puestosPorSector })
       .catch(e=>console.error('No se pudo guardar la configuración', e));
   }
 }
+
+/* ---------------- ARMAR EQUIPO DE SÁBADO ---------------- */
+function poliProximoSabado(){
+  const hoy = new Date();
+  const dia = hoy.getDay(); // 0=domingo … 6=sábado
+  const add = (6 - dia + 7) % 7;
+  const prox = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()+add);
+  return `${prox.getFullYear()}-${String(prox.getMonth()+1).padStart(2,'0')}-${String(prox.getDate()).padStart(2,'0')}`;
+}
+
+function poliGuardarPuestos(sector, cantidad){
+  poliState.puestosPorSector[sector] = cantidad;
+  poliGuardarConfig();
+}
+
+function poliGuardarSabado(){
+  if(typeof firestoreDb !== 'undefined' && firestoreDb){
+    firestoreDb.collection(POLI_COLLECTION).doc(POLI_SABADO_DOC)
+      .set({ fecha: poliState.equipoSabado.fecha, asignaciones: poliState.equipoSabado.asignaciones })
+      .catch(e=>console.error('No se pudo guardar el equipo de sábado', e));
+  }
+}
+
+// personaId ya asignada a otro puesto (de cualquier sector) ese sábado
+function poliSabPersonaOcupada(personaId, sectorExcluir, slotExcluir){
+  const asign = poliState.equipoSabado.asignaciones || {};
+  for(const sec of Object.keys(asign)){
+    for(const slot of Object.keys(asign[sec])){
+      if(sec===sectorExcluir && slot===String(slotExcluir)) continue;
+      if(asign[sec][slot]===personaId) return sec;
+    }
+  }
+  return null;
+}
+
+function poliSabCandidatos(secId){
+  const { titulares, polivalentes } = poliCobertura(secId);
+  const cand = [
+    ...titulares.map(p=>({ persona:p, tag:'Titular' })),
+    ...polivalentes.map(x=>({ persona:x.persona, tag:'Desde '+poliSectorById(x.persona.sectorTitular).name }))
+  ];
+  return cand;
+}
+
+function poliRenderSabado(){
+  const fechaInput = document.getElementById('poliSabFecha');
+  if(!poliState.equipoSabado.fecha) poliState.equipoSabado.fecha = poliProximoSabado();
+  fechaInput.value = poliState.equipoSabado.fecha;
+
+  const grid = document.getElementById('poliSabGrid');
+  const puedeEditar = esAdmin();
+  let totalPuestos = 0, totalCubiertos = 0;
+
+  grid.innerHTML = POLI_ALL_SECTOR_ORDER.map(secId=>{
+    const puestos = poliState.puestosPorSector[secId] || 0;
+    const asign = (poliState.equipoSabado.asignaciones[secId]) || {};
+    totalPuestos += puestos;
+    totalCubiertos += Object.keys(asign).length;
+
+    const slots = [];
+    for(let i=0; i<puestos; i++){
+      const personaId = asign[i];
+      if(personaId){
+        const p = poliState.personas.find(x=>x.id===personaId);
+        const esTitular = p && p.sectorTitular===secId;
+        slots.push(`<div class="poli-sab-slot lleno ${esTitular?'':'poli'}" data-sector="${secId}" data-slot="${i}">
+          <span class="nm">${p ? p.nombre : '¿?'}</span>
+          <span class="quitar" data-quitar="${secId}|${i}">✕</span>
+        </div>`);
+      } else {
+        slots.push(`<div class="poli-sab-slot vacio" data-sector="${secId}" data-slot="${i}">+ Agregar</div>`);
+      }
+    }
+
+    return `<div class="poli-sab-card">
+      <div class="poli-sab-card-head">
+        <h4>${poliSectorById(secId).name}</h4>
+        ${puedeEditar ? `<span class="ed" data-editar-puestos="${secId}">✎ puestos</span>` : ''}
+      </div>
+      <div class="cnt">${Object.keys(asign).length}/${puestos} puestos cubiertos</div>
+      ${puestos>0 ? slots.join('') : '<div style="color:var(--ink-dim);font-size:.78rem;">Sin puestos cargados para este sector</div>'}
+    </div>`;
+  }).join('');
+
+  const pct = totalPuestos>0 ? Math.round(totalCubiertos/totalPuestos*100) : 0;
+  document.getElementById('poliSabResumen').innerHTML = `${totalCubiertos}/${totalPuestos} puestos<small>${pct}% de asistencia armada</small>`;
+
+  grid.querySelectorAll('.poli-sab-slot.vacio').forEach(el=>{
+    el.addEventListener('click', ()=> poliSabAbrirPicker(el.dataset.sector, Number(el.dataset.slot)));
+  });
+  grid.querySelectorAll('[data-quitar]').forEach(el=>{
+    el.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const [sec, slot] = el.dataset.quitar.split('|');
+      delete poliState.equipoSabado.asignaciones[sec][slot];
+      poliGuardarSabado();
+      poliRenderSabado();
+    });
+  });
+  if(puedeEditar){
+    grid.querySelectorAll('[data-editar-puestos]').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const sec = el.dataset.editarPuestos;
+        const actual = poliState.puestosPorSector[sec] || 0;
+        const nuevo = prompt(`¿Cuántos puestos tiene ${poliSectorById(sec).name} para el sábado?`, actual);
+        if(nuevo===null) return;
+        const n = Math.max(0, parseInt(nuevo,10)||0);
+        poliGuardarPuestos(sec, n);
+        poliRenderSabado();
+      });
+    });
+  }
+}
+
+document.getElementById('poliSabFecha').addEventListener('change', (e)=>{
+  poliState.equipoSabado.fecha = e.target.value;
+  poliGuardarSabado();
+  poliRenderSabado();
+});
+
+let poliSabSectorActivo = null, poliSabSlotActivo = null;
+function poliSabAbrirPicker(sector, slot){
+  poliSabSectorActivo = sector; poliSabSlotActivo = slot;
+  document.getElementById('poliSabPickerTitulo').textContent = `${poliSectorById(sector).name} — puesto ${slot+1}`;
+  document.getElementById('poliSabPickerBuscar').value = '';
+  poliSabRenderPickerLista('');
+  document.getElementById('poliSabPickerOverlay').classList.add('show');
+}
+function poliSabRenderPickerLista(filtro){
+  const lista = document.getElementById('poliSabPickerLista');
+  const q = filtro.trim().toLowerCase();
+  const candidatos = poliSabCandidatos(poliSabSectorActivo).filter(c=> !q || c.persona.nombre.toLowerCase().includes(q));
+  lista.innerHTML = candidatos.map(c=>{
+    const ocupadoEn = poliSabPersonaOcupada(c.persona.id, poliSabSectorActivo, poliSabSlotActivo);
+    return `<div class="poli-sab-pick-item ${ocupadoEn?'ocupado':''}" data-persona="${c.persona.id}">
+      <span>${c.persona.nombre}</span>
+      <small>${ocupadoEn ? 'ya asignado a '+poliSectorById(ocupadoEn).name : c.tag}</small>
+    </div>`;
+  }).join('') || '<div class="pansec-empty" style="padding:16px;color:var(--ink-dim);">Nadie disponible para este sector todavía.</div>';
+  lista.querySelectorAll('.poli-sab-pick-item:not(.ocupado)').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      if(!poliState.equipoSabado.asignaciones[poliSabSectorActivo]) poliState.equipoSabado.asignaciones[poliSabSectorActivo] = {};
+      poliState.equipoSabado.asignaciones[poliSabSectorActivo][poliSabSlotActivo] = el.dataset.persona;
+      poliGuardarSabado();
+      document.getElementById('poliSabPickerOverlay').classList.remove('show');
+      poliRenderSabado();
+    });
+  });
+}
+document.getElementById('poliSabPickerBuscar').addEventListener('input', (e)=> poliSabRenderPickerLista(e.target.value));
+document.getElementById('poliSabPickerClose').addEventListener('click', ()=>{
+  document.getElementById('poliSabPickerOverlay').classList.remove('show');
+});
+document.getElementById('poliSabPickerOverlay').addEventListener('click', (e)=>{
+  if(e.target.id==='poliSabPickerOverlay') document.getElementById('poliSabPickerOverlay').classList.remove('show');
+});
+
+document.getElementById('poliSabExportar').addEventListener('click', ()=>{
+  const fecha = poliState.equipoSabado.fecha;
+  let txt = `Equipo del sábado ${fecha ? fecha.split('-').reverse().join('/') : ''}\n\n`;
+  POLI_ALL_SECTOR_ORDER.forEach(secId=>{
+    const asign = poliState.equipoSabado.asignaciones[secId] || {};
+    const nombres = Object.values(asign).map(id=>{
+      const p = poliState.personas.find(x=>x.id===id);
+      return p ? p.nombre : null;
+    }).filter(Boolean);
+    if(nombres.length) txt += `${poliSectorById(secId).name}:\n` + nombres.map(n=>'- '+n).join('\n') + '\n\n';
+  });
+  navigator.clipboard.writeText(txt).then(()=>{
+    toast('Lista copiada al portapapeles');
+  }).catch(()=>{ alert(txt); });
+});
 
 /* ---------------- ORGANIGRAMA ---------------- */
 const POLI_LIDERES_CON_NOMBRE = POLI_ALL_SECTOR_ORDER.filter(id=>POLI_LIDERES[id]);
