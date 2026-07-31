@@ -1608,8 +1608,8 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
         Titulares del sector en un color, y en otro las personas de otros sectores que ya tienen nivel Autónomo (3) o Experto (4) en alguna tarea de este sector — a esas se les puede pedir que cubran acá si hace falta. Tocá cualquier nombre para ver su ficha completa.
       </p>
       <div class="poli-analisis-card">
-        <h3>🏆 Top 10 polivalentes de la planta</h3>
-        <div class="sub">Personas con más operaciones en nivel Autónomo o Experto, en cualquier sector</div>
+        <h3 id="poliTop10Titulo">🏆 Top 10 polivalentes</h3>
+        <div class="sub" id="poliTop10Sub"></div>
         <ol class="poli-top10" id="poliTop10List"></ol>
       </div>
     </div>
@@ -11784,14 +11784,18 @@ function poliRenderPolivalenciasView(){
 /* ---------------- ANÁLISIS: quién puede cubrir cada sector ---------------- */
 function poliCobertura(secId){
   const ops = poliState.operaciones[secId] || [];
-  const titulares = poliState.personas.filter(p=>p.sectorTitular===secId);
+  const k = poliComputeKPIs();
+  const titulares = poliState.personas
+    .filter(p=>p.sectorTitular===secId)
+    .sort((a,b)=> (k.porPersona[b.id]||0) - (k.porPersona[a.id]||0));
   const polivalentes = poliState.personas
     .filter(p=>p.sectorTitular!==secId)
     .map(p=>{
       const opsCapaz = ops.filter(op=> poliNivelDe(p.id,op.id) >= 3);
       return { persona:p, opsCapaz };
     })
-    .filter(x=>x.opsCapaz.length>0);
+    .filter(x=>x.opsCapaz.length>0)
+    .sort((a,b)=> b.opsCapaz.length - a.opsCapaz.length);
   return { titulares, polivalentes };
 }
 
@@ -11811,14 +11815,15 @@ function poliIrAAnalisisSector(secId){
 function poliRenderAnalisisDetail(){
   const secId = document.getElementById('poliAnalisisSector').value || POLI_ALL_SECTOR_ORDER[0];
   const { titulares, polivalentes } = poliCobertura(secId);
+  const k = poliComputeKPIs();
   const wrap = document.getElementById('poliAnalisisDetail');
   wrap.innerHTML = `
     <div class="poli-analisis-card">
       <h3>${poliSectorById(secId).name}${POLI_LIDERES[secId] ? ' · líder '+POLI_LIDERES[secId].nombre : ''}</h3>
-      <div class="sub">${titulares.length} titulares · ${polivalentes.length} personas de otros sectores pueden cubrir acá (nivel 3 o 4 en al menos una tarea)</div>
+      <div class="sub">${titulares.length} titulares · ${polivalentes.length} personas de otros sectores pueden cubrir acá (nivel 3 o 4 en al menos una tarea) · ordenado por polivalencia</div>
       <div class="poli-chips">
-        ${titulares.map(p=>`<button class="poli-chip titular" data-persona="${p.id}">${p.nombre}<small>Titular</small></button>`).join('')}
-        ${polivalentes.map(x=>`<button class="poli-chip poli" data-persona="${x.persona.id}">${x.persona.nombre}<small>Desde ${poliSectorById(x.persona.sectorTitular).name} · ${x.opsCapaz.map(o=>o.nombre).join(', ')}</small></button>`).join('')}
+        ${titulares.map(p=>`<button class="poli-chip titular" data-persona="${p.id}">${p.nombre}<small>Titular${k.porPersona[p.id]?' · '+k.porPersona[p.id]+' habilidades nivel 3+':''}</small></button>`).join('')}
+        ${polivalentes.map(x=>`<button class="poli-chip poli" data-persona="${x.persona.id}">${x.persona.nombre}<small>${x.opsCapaz.length} tarea${x.opsCapaz.length>1?'s':''} acá · desde ${poliSectorById(x.persona.sectorTitular).name} · ${x.opsCapaz.map(o=>o.nombre).join(', ')}</small></button>`).join('')}
       </div>
     </div>`;
   wrap.querySelectorAll('.poli-chip').forEach(btn=>{
@@ -11849,16 +11854,19 @@ function poliRenderRiesgo(){
 function poliRenderTop10(){
   const list = document.getElementById('poliTop10List');
   if(!list) return;
-  const k = poliComputeKPIs();
-  const allOps = [];
-  Object.keys(poliState.operaciones).forEach(sec=> poliState.operaciones[sec].forEach(op=> allOps.push(op)));
-  const top10 = [...poliState.personas].sort((a,b)=>k.porPersona[b.id]-k.porPersona[a.id]).slice(0,10).filter(p=>k.porPersona[p.id]>0);
-  list.innerHTML = top10.map((p,i)=>`
-    <li data-persona="${p.id}">
+  const secId = document.getElementById('poliAnalisisSector').value || POLI_ALL_SECTOR_ORDER[0];
+  const { polivalentes } = poliCobertura(secId);
+  const top10 = polivalentes.slice(0,10);
+
+  document.getElementById('poliTop10Titulo').textContent = `🏆 Top 10 que más podrían cubrir ${poliSectorById(secId).name}`;
+  document.getElementById('poliTop10Sub').textContent = 'Personas de otros sectores, ordenadas por cuántas tareas de este sector ya dominan (nivel 3 o 4)';
+
+  list.innerHTML = top10.map((x,i)=>`
+    <li data-persona="${x.persona.id}">
       <span class="rank">${i+1}</span>
-      <span class="nombre">${p.nombre} <span style="color:var(--ink-dim);font-size:11px;">(${poliSectorById(p.sectorTitular).name})</span></span>
-      <span class="cnt">${k.porPersona[p.id]}</span>
-    </li>`).join('') || '<li style="color:var(--ink-dim);cursor:default;">Todavía no hay niveles cargados</li>';
+      <span class="nombre">${x.persona.nombre} <span style="color:var(--ink-dim);font-size:11px;">(${poliSectorById(x.persona.sectorTitular).name})</span></span>
+      <span class="cnt">${x.opsCapaz.length}</span>
+    </li>`).join('') || '<li style="color:var(--ink-dim);cursor:default;">Nadie de otro sector cubre esto todavía</li>';
   list.querySelectorAll('li[data-persona]').forEach(li=>{
     li.addEventListener('click', ()=> poliAbrirFichaPersona(li.dataset.persona));
   });
@@ -11870,7 +11878,10 @@ function poliRenderAnalisis(){
   poliRenderAnalisisDetail();
   poliRenderTop10();
 }
-document.getElementById('poliAnalisisSector').addEventListener('change', poliRenderAnalisisDetail);
+document.getElementById('poliAnalisisSector').addEventListener('change', ()=>{
+  poliRenderAnalisisDetail();
+  poliRenderTop10();
+});
 
 /* ---------------- FICHA PERSONAL: qué sabe hacer cada uno, en todos los sectores ---------------- */
 function poliAbrirFichaPersona(personaId){
