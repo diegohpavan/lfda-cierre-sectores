@@ -12363,6 +12363,7 @@ const CAP_HISTORICO_MANUAL = {
   '2026-04': { m2: 1773, dimension: 3.8, abert: 461, presentes: 49, m2OpDia: 1.8 },
   '2026-05': { m2: 1434, dimension: 4.2, abert: 339, presentes: 49, m2OpDia: 1.5 },
   '2026-06': { m2: 1700, dimension: 3.7, abert: 455, presentes: 48, m2OpDia: 1.7 },
+  '2026-07': { m2: 2596, dimension: 2596/727, abert: 727 },
 };
 
 // pactado fijo para meses donde la cola pactada de G-PRO/Cola Productiva no es confiable
@@ -12374,7 +12375,6 @@ const CAP_PACTADO_MANUAL = {
 // cantidad de aberturas REALES cerradas en el mes en curso — para calcular la dimensión
 // de lo que YA se cerró (real ÷ aberturas), no de lo que está pendiente en la cola pactada
 const CAP_ABERTURAS_CERRADAS_MANUAL = {
-  '2026-07': 642,
 };
 
 function capM2RealesMes(ym){
@@ -12394,6 +12394,13 @@ function capM2RealesMes(ym){
 }
 
 function capDimensionMes(ym){
+  // real cerrado ÷ aberturas cerradas tiene prioridad siempre que tengamos el dato
+  // (antes solo se usaba mientras era "el mes en curso"; al pasar a histórico volvía
+  // a caer en el cálculo de la cola pendiente, que da un número distinto)
+  if(CAP_ABERTURAS_CERRADAS_MANUAL[ym]){
+    const real = capM2RealesMes(ym);
+    if(real>0) return { dimension: real / CAP_ABERTURAS_CERRADAS_MANUAL[ym] };
+  }
   if(CAP_HISTORICO_MANUAL[ym]) return { dimension: CAP_HISTORICO_MANUAL[ym].dimension };
   const deColaProductiva = proyDimensionMes(ym);
   if(deColaProductiva) return deColaProductiva;
