@@ -1496,13 +1496,13 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
       <div class="av-widget-body" style="display:flex; flex-direction:column; gap:5px;">
         <div id="avColaEmpty" class="empty-note" style="display:none; margin-bottom:0;">Todavía no se cargó la cola de G-PRO (se hace desde Cierre Diario → Hoy).</div>
         <div id="avColaWrap" style="display:flex; flex-direction:column; gap:5px; flex:1; min-height:0;">
-          <div class="row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px 14px; flex-shrink:0; overflow-x:auto; padding-bottom:2px;">
-            <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
-              <span style="font-size:11px; color:var(--av-muted); flex-shrink:0;">Simular ritmo diario:</span>
-              <button class="btn icon" id="avColaTasaMenos" style="padding:5px 10px; flex-shrink:0;">−</button>
-              <span id="avColaTasaLabel" style="font-weight:700; font-size:13px; min-width:100px; text-align:center; flex-shrink:0;">— m²/día</span>
-              <button class="btn icon" id="avColaTasaMas" style="padding:5px 10px; flex-shrink:0;">+</button>
-              <button class="btn" id="avColaTasaReset" style="visibility:hidden; padding:5px 10px; flex-shrink:0;">📍 Capacidad del mes</button>
+          <div class="row" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px 14px; flex-shrink:0;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:11px; color:var(--av-muted);">Simular ritmo diario:</span>
+              <button class="btn icon" id="avColaTasaMenos" style="padding:5px 10px;">−</button>
+              <span id="avColaTasaLabel" style="font-weight:700; font-size:13px; min-width:100px; text-align:center;">— m²/día</span>
+              <button class="btn icon" id="avColaTasaMas" style="padding:5px 10px;">+</button>
+              <button class="btn" id="avColaTasaReset" style="visibility:hidden; padding:5px 10px;">📍 M² real x día</button>
             </div>
             <div style="display:flex; align-items:center; gap:6px;">
               <span style="font-size:11px; color:var(--av-muted);">Escala eje:</span>
@@ -5351,7 +5351,7 @@ function avRenderColaProductiva(){
   document.getElementById('avColaResumen').innerHTML = `
     <div class="row" style="flex-wrap:wrap;gap:8px;">
       <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:5px 10px;border-radius:7px;">
-        <div style="font-size:9.5px;color:var(--av-muted);">Capacidad diaria usada (fórmula del mes, o real si no hay dimensión)</div>
+        <div style="font-size:9.5px;color:var(--av-muted);">Capacidad diaria usada (promedio real Fin de Línea)</div>
         <div style="font-weight:700;font-size:13px;">${fmt(proyPacto.tasaDiaria,1)} m²/día</div>
       </div>
       <div class="cfg-field" style="background:var(--av-panel-2);border:1px solid var(--av-line);padding:5px 10px;border-radius:7px;">
@@ -6058,21 +6058,7 @@ function colaSumarDias(fechaStr, n){
 }
 
 // capacidad diaria real: promedio de Fin de Línea sobre todos los días confirmados disponibles
-// ritmo diario "automático": misma fórmula que usa Capacidad vs Real
-// (constante base − dimensión promedio del mes) × dotación total. A diferencia del
-// promedio histórico (colaPromedioSectorReal), esto no depende de que ya haya días
-// confirmados este mes -- funciona desde el día 1, apenas hay cola pactada cargada.
-function colaTasaTeoricaCapacidad(){
-  const hoyYm = fechaHoyLocal().slice(0,7);
-  const dimInfo = proyDimensionMes(hoyYm);
-  if(!dimInfo) return null;
-  const dotacion = proyDotacionTotal();
-  return Math.max(0, CONSTANTE_BASE_M2 - dimInfo.dimension) * dotacion;
-}
 function colaTasaDiariaReal(){
-  const teorica = colaTasaTeoricaCapacidad();
-  if(teorica!==null) return teorica;
-  // respaldo si todavía no hay cola pactada cargada este mes: promedio real de Fin de Línea
   const liKey = state.sectorFinLinea || '8-LI';
   return colaPromedioSectorReal(liKey);
 }
@@ -6085,34 +6071,20 @@ function colaPromedioSectorReal(key){
   // fuera el mismo. "Hoy" real, no el mes que se esté navegando en el dashboard, para que
   // Cola Productiva no cambie si alguien deja el dashboard mirando un mes viejo.
   const hoy = fechaHoyLocal();
-  const calcularPromedioDelMes = (mesYm, hasta) => {
-    let suma=0, count=0;
-    Object.keys(state.dias||{}).filter(f=>f.startsWith(mesYm) && f<=hasta).forEach(f=>{
-      const s = state.dias[f].sectores && state.dias[f].sectores[key];
-      if(s && typeof s.cerrado==='number'){
-        suma+=s.cerrado;
-        // un sábado con datos cargados suma al total, pero no cuenta como un día más en el
-        // divisor del promedio -- si no, la tasa diaria quedaba inflada hacia abajo.
-        const [y,m,d] = f.split('-').map(Number);
-        const wd = new Date(y,m-1,d).getDay();
-        if(dObl.includes(wd) && !feriados.has(f)) count++;
-      }
-    });
-    return { suma, count };
-  };
-
   const mesActualReal = hoy.slice(0,7);
-  const actual = calcularPromedioDelMes(mesActualReal, hoy);
-  // recién arrancó el mes y todavía no hay (o casi no hay) días cargados -- usar el
-  // promedio del mes anterior como base mientras tanto, en vez de mostrar 0 (que
-  // rompía en cascada "Cupo productivo" y todo lo que depende de este ritmo)
-  if(actual.count < 3){
-    const [y,m] = mesActualReal.split('-').map(Number);
-    const mesAnteriorYm = `${m===1?y-1:y}-${String(m===1?12:m-1).padStart(2,'0')}`;
-    const anterior = calcularPromedioDelMes(mesAnteriorYm, `${mesAnteriorYm}-31`);
-    if(anterior.count>0) return anterior.suma/anterior.count;
-  }
-  return actual.count>0 ? actual.suma/actual.count : 0;
+  let suma=0, count=0;
+  Object.keys(state.dias||{}).filter(f=>f.startsWith(mesActualReal) && f<=hoy).forEach(f=>{
+    const s = state.dias[f].sectores && state.dias[f].sectores[key];
+    if(s && typeof s.cerrado==='number'){
+      suma+=s.cerrado;
+      // un sábado con datos cargados suma al total, pero no cuenta como un día más en el
+      // divisor del promedio -- si no, la tasa diaria quedaba inflada hacia abajo.
+      const [y,m,d] = f.split('-').map(Number);
+      const wd = new Date(y,m-1,d).getDay();
+      if(dObl.includes(wd) && !feriados.has(f)) count++;
+    }
+  });
+  return count>0 ? suma/count : 0;
 }
 
 let colaTasaOverride = null; // simulador de "qué pasaría si": null = usar el promedio real
@@ -6416,7 +6388,7 @@ function renderColaProductiva(){
   resumen.innerHTML = `
     <div class="row" style="flex-wrap:wrap;gap:12px;">
       <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
-        <div class="hint">Capacidad diaria usada (fórmula del mes, o real si no hay dimensión)</div>
+        <div class="hint">Capacidad diaria usada (promedio real Fin de Línea)</div>
         <div style="font-weight:700;font-size:16px;">${fmt(proy.tasaDiaria,1)} m²/día</div>
       </div>
       <div class="cfg-field" style="background:var(--panel2);padding:10px 14px;border-radius:8px;">
@@ -10821,9 +10793,9 @@ if('serviceWorker' in navigator){
 
   .cap-stage{
     background:radial-gradient(ellipse at 50% 20%, #1a2230 0%, #0b0f16 70%);
-    border:1px solid #2b3340; border-radius:14px; padding:52px 20px 36px;
+    border:1px solid #2b3340; border-radius:14px; padding:26px 20px 36px;
     display:flex; justify-content:flex-start; align-items:flex-end; gap:22px; flex-wrap:nowrap;
-    overflow-x:auto; overflow-y:visible; perspective:1200px;
+    overflow-x:auto; perspective:1200px;
   }
   .cap-grupo{display:flex; flex-direction:column; align-items:center; gap:14px; flex-shrink:0;}
   .cap-grupo.hist{opacity:.75;}
@@ -12391,7 +12363,6 @@ const CAP_HISTORICO_MANUAL = {
   '2026-04': { m2: 1773, dimension: 3.8, abert: 461, presentes: 49, m2OpDia: 1.8 },
   '2026-05': { m2: 1434, dimension: 4.2, abert: 339, presentes: 49, m2OpDia: 1.5 },
   '2026-06': { m2: 1700, dimension: 3.7, abert: 455, presentes: 48, m2OpDia: 1.7 },
-  '2026-07': { m2: 2596, dimension: 2596/727, abert: 727 },
 };
 
 // pactado fijo para meses donde la cola pactada de G-PRO/Cola Productiva no es confiable
@@ -12403,6 +12374,7 @@ const CAP_PACTADO_MANUAL = {
 // cantidad de aberturas REALES cerradas en el mes en curso — para calcular la dimensión
 // de lo que YA se cerró (real ÷ aberturas), no de lo que está pendiente en la cola pactada
 const CAP_ABERTURAS_CERRADAS_MANUAL = {
+  '2026-07': 642,
 };
 
 function capM2RealesMes(ym){
@@ -12422,13 +12394,6 @@ function capM2RealesMes(ym){
 }
 
 function capDimensionMes(ym){
-  // real cerrado ÷ aberturas cerradas tiene prioridad siempre que tengamos el dato
-  // (antes solo se usaba mientras era "el mes en curso"; al pasar a histórico volvía
-  // a caer en el cálculo de la cola pendiente, que da un número distinto)
-  if(CAP_ABERTURAS_CERRADAS_MANUAL[ym]){
-    const real = capM2RealesMes(ym);
-    if(real>0) return { dimension: real / CAP_ABERTURAS_CERRADAS_MANUAL[ym] };
-  }
   if(CAP_HISTORICO_MANUAL[ym]) return { dimension: CAP_HISTORICO_MANUAL[ym].dimension };
   const deColaProductiva = proyDimensionMes(ym);
   if(deColaProductiva) return deColaProductiva;
@@ -12695,48 +12660,17 @@ function capRender(){
     const xMin = coordsDim[0].x, xMax = coordsDim[coordsDim.length-1].x;
     const areaDim = `${xMin},${alto} ${lineaDim} ${xMax},${alto}`;
 
-    // apilado adaptativo de etiquetas: por cada columna (mes), juntamos los puntos
-    // visibles con su y real, los ordenamos de arriba a abajo y les garantizamos una
-    // separación mínima entre etiquetas -- así da igual cuántas de las 3 líneas estén
-    // prendidas o qué tan cerca caigan sus valores, nunca se pisan.
-    const MIN_GAP = 13;
-    const seriesActivas = [capVerDim, capVerReal, capVerFormula].filter(Boolean).length;
-    // con las 3 líneas prendidas a la vez, poner un número en cada punto de cada mes
-    // es demasiado texto (hasta 30 valores) -- aunque no se pisen entre sí, queda
-    // ilegible igual. Con 3 activas, mostramos el texto solo cada 2 meses (los puntos
-    // y las líneas siguen completos en todos los meses, solo se alivia el texto).
-    const mesesConTexto = seriesActivas>=3 ? puntos.map((p,i)=> i%2===0 || i===puntos.length-1) : puntos.map(()=>true);
-    const gruposEtiquetas = puntos.map((p,i)=>{
-      if(!mesesConTexto[i]) return [];
-      const items = [];
-      if(capVerDim) items.push({y:coordsDim[i].y, color:'#e8a33d', texto:p.dimension.toFixed(2), x:coordsDim[i].x});
-      const cReal = coordsReal.find(c=>c.p===p);
-      if(capVerReal && cReal) items.push({y:cReal.y, color:'#4f7cac', texto:p.capacidadReal.toFixed(2), x:cReal.x});
-      if(capVerFormula) items.push({y:coordsFormula[i].y, color:'#8b96a8', texto:p.capacidadFormula.toFixed(2), x:coordsFormula[i].x});
-      items.sort((a,b)=>a.y-b.y);
-      // arrancamos cada etiqueta pegada a su punto (arriba) y empujamos hacia arriba
-      // a las que quedan más abajo si no hay separación suficiente entre ellas
-      let prevLabelY = null;
-      items.forEach(it=>{
-        let labelY = it.y - 10;
-        if(prevLabelY!==null && labelY < prevLabelY + MIN_GAP) labelY = prevLabelY + MIN_GAP;
-        it.labelY = labelY;
-        prevLabelY = labelY;
-      });
-      return items;
-    });
-    const etiquetasTexto = gruposEtiquetas.flatMap(items => items.map(it=>`
-      <text x="${it.x}" y="${it.labelY}" text-anchor="middle" font-size="10.5" fill="${it.color}" font-family="Segoe UI,sans-serif">${it.texto}</text>
-    `)).join('');
-
     const etiquetasDim = capVerDim ? coordsDim.map((c,i)=>`
       <circle cx="${c.x}" cy="${c.y}" r="4" fill="#e8a33d"/>
+      <text x="${c.x}" y="${c.y-14}" text-anchor="middle" font-size="11" fill="#e8a33d" font-family="Segoe UI,sans-serif">${c.p.dimension.toFixed(2)}</text>
     `).join('') : '';
     const etiquetasReal = capVerReal ? coordsReal.map((c,i)=>`
       <circle cx="${c.x}" cy="${c.y}" r="4" fill="#4f7cac"/>
+      <text x="${c.x}" y="${c.y+22}" text-anchor="middle" font-size="11" fill="#4f7cac" font-family="Segoe UI,sans-serif">${c.p.capacidadReal.toFixed(2)}</text>
     `).join('') : '';
     const etiquetasFormula = capVerFormula ? coordsFormula.map((c,i)=>`
       <circle cx="${c.x}" cy="${c.y}" r="3.5" fill="#8b96a8"/>
+      <text x="${c.x}" y="${c.y+(capVerReal?36:22)}" text-anchor="middle" font-size="10" fill="#8b96a8" font-family="Segoe UI,sans-serif">${c.p.capacidadFormula.toFixed(2)}</text>
     `).join('') : '';
     const etiquetasMes = coordsDim.map(c=>`
       <text x="${c.x}" y="122" text-anchor="middle" font-size="11" fill="#8b96a8" font-family="Segoe UI,sans-serif">${capNombreMes(c.p.ym,true)}</text>
@@ -12756,7 +12690,7 @@ function capRender(){
         ${capVerDim ? `<polyline points="${lineaDim}" fill="none" stroke="#e8a33d" stroke-width="1.6"/>` : ''}
         ${capVerReal ? `<polyline points="${lineaReal}" fill="none" stroke="#4f7cac" stroke-width="1.6" stroke-dasharray="5,4"/>` : ''}
         ${capVerFormula ? `<polyline points="${lineaFormula}" fill="none" stroke="#8b96a8" stroke-width="1.3" stroke-dasharray="2,3"/>` : ''}
-        ${etiquetasDim}${etiquetasReal}${etiquetasFormula}${etiquetasTexto}${etiquetasMes}
+        ${etiquetasDim}${etiquetasReal}${etiquetasFormula}${etiquetasMes}
       </svg>
       <div class="nota">Cuando la dimensión sube, la capacidad por operario baja (y al revés). Solo entran acá los meses con cola pactada cargada en G-PRO.</div>
     `;
