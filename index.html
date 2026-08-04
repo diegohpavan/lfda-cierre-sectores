@@ -913,7 +913,17 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 /* ============================================================
    MI SECTOR — pestaña por sector para líderes, prefijo "mis-" / "mis"
    ============================================================ */
-#misSelectorWrap select{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:13px;}
+#misSelectorWrap{flex-wrap:wrap;gap:6px;}
+
+.mis-comparativo{width:100%;border-collapse:collapse;font-size:13px;}
+.mis-comparativo th{text-align:left;font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;padding:6px 10px;border-bottom:1px solid var(--line2);}
+.mis-comparativo td{padding:9px 10px;border-bottom:1px solid var(--line2);}
+.mis-comparativo tr:last-child td{border-bottom:none;}
+.mis-comparativo tr:hover td{background:var(--panel);}
+.mis-comparativo .sector-link{background:none;border:none;color:var(--ink);font-weight:700;cursor:pointer;padding:0;font-size:13px;text-align:left;}
+.mis-comparativo .sector-link:hover{color:var(--amber);}
+.mis-comparativo .ok{color:var(--green);font-weight:700;}
+.mis-comparativo .bad{color:var(--red);font-weight:700;}
 
 .mis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px;}
 .mis-card{background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:16px 18px;}
@@ -13057,17 +13067,23 @@ function renderMiSector(){
   if(!avDiaSeleccionado) avDiaSeleccionado = fechaHoyLocal();
 
   const esAdminOTodo = puedeVerTodo();
-  const misSectores = esAdminOTodo ? AV_SECTOR_ORDER : [(typeof sesion!=='undefined' && sesion && sesion.sector) || AV_SECTOR_ORDER[0]];
+  const misSectores = esAdminOTodo ? ['TODOS', ...AV_SECTOR_ORDER] : [(typeof sesion!=='undefined' && sesion && sesion.sector) || AV_SECTOR_ORDER[0]];
   if(!misSectorActual || !misSectores.includes(misSectorActual)) misSectorActual = misSectores[0];
   const key = misSectorActual;
 
   const selectorWrap = document.getElementById('misSelectorWrap');
   if(esAdminOTodo){
-    selectorWrap.innerHTML = `<select id="misSelectSector">${AV_SECTOR_ORDER.map(k=>`<option value="${k}" ${k===key?'selected':''}>${esc(AV_SECTOR_SHORT[k]||k)}</option>`).join('')}</select>`;
-    document.getElementById('misSelectSector').addEventListener('change', (e)=>{ misSectorActual = e.target.value; renderMiSector(); });
+    selectorWrap.innerHTML = misSectores.map(k=>
+      `<button type="button" class="btn btn-sm ${k===key?'btn-primary':'btn-ghost'}" data-mis-sector-btn="${k}">${k==='TODOS'?'📋 Todos':esc(AV_SECTOR_SHORT[k]||k)}</button>`
+    ).join('');
+    selectorWrap.querySelectorAll('[data-mis-sector-btn]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ misSectorActual = btn.dataset.misSectorBtn; renderMiSector(); });
+    });
   } else {
     selectorWrap.innerHTML = `<span style="font-weight:700;">${esc(AV_SECTOR_SHORT[key]||key)}</span>`;
   }
+
+  if(key==='TODOS'){ renderMiSectorTodos(); return; }
 
   const st = avSectorStats(key);
   const obj = avSectorObjetivosMensual(key);
@@ -13173,6 +13189,59 @@ function renderMiSector(){
     sel.addEventListener('change', (e)=> misSectorCambiarEstadoIdea(sel.dataset.misIdeaEstado, e.target.value));
   });
   document.getElementById('misBtnNuevaIdea').addEventListener('click', misAbrirModalIdea);
+}
+
+// Vista "Todos" (solo jefatura/gerencia/admin/presidencia vía puedeVerTodo()) -- KPIs
+// sumados entre sectores + tabla comparativa, en vez de las tarjetas de Racha/Equipo/
+// Foco/Ideas que no tienen sentido mezcladas entre sectores distintos.
+function renderMiSectorTodos(){
+  const filas = AV_SECTOR_ORDER.map(k=>{
+    const st = avSectorStats(k);
+    const obj = avSectorObjetivosMensual(k);
+    const pulmon = avUltimoPulmon(k);
+    const racha = misSectorRacha(k);
+    const pct = obj.min>0 ? Math.round(st.sum/obj.min*100) : null;
+    return {k, st, obj, pulmon, racha, pct};
+  });
+  const sumTotal = filas.reduce((a,f)=>a+f.st.sum,0);
+  const promTotal = filas.reduce((a,f)=>a+f.st.prom,0);
+  const estimTotal = filas.reduce((a,f)=>a+f.st.estimacion,0);
+  const objMinTotal = filas.reduce((a,f)=>a+f.obj.min,0);
+  const objOptTotal = filas.reduce((a,f)=>a+f.obj.opt,0);
+  const pulmonTotal = filas.reduce((a,f)=>a+(f.pulmon!==null?f.pulmon:0),0);
+
+  const body = document.getElementById('misBody');
+  body.innerHTML = `
+    <div class="mis-kpis">
+      <div class="mis-kpi"><div class="lbl">Acumulado total</div><div class="val">${avFmt(sumTotal,0)} m²</div></div>
+      <div class="mis-kpi"><div class="lbl">Prom./día (suma)</div><div class="val">${avFmt(promTotal,1)}</div></div>
+      <div class="mis-kpi"><div class="lbl">Estimación cierre</div><div class="val">${avFmt(estimTotal,0)} m²</div></div>
+      <div class="mis-kpi"><div class="lbl">Objetivo mín/ópt</div><div class="val">${avFmt(objMinTotal,0)} / ${avFmt(objOptTotal,0)}</div></div>
+      <div class="mis-kpi"><div class="lbl">Pulmón total</div><div class="val">${avFmt(pulmonTotal,0)}</div></div>
+    </div>
+
+    <div class="mis-card">
+      <h3>📋 Comparativo por sector</h3>
+      <div class="sub">Tocá un sector para ver su detalle completo (racha, equipo, foco, ideas)</div>
+      <table class="mis-comparativo">
+        <thead><tr><th>Sector</th><th>Acumulado</th><th>% objetivo mín.</th><th>Racha</th><th>Pulmón</th></tr></thead>
+        <tbody>
+          ${filas.map(f=>`
+            <tr>
+              <td><button type="button" class="sector-link" data-mis-ir-sector="${f.k}">${esc(AV_SECTOR_SHORT[f.k]||f.k)}</button></td>
+              <td>${avFmt(f.st.sum,0)} m²</td>
+              <td class="${f.pct===null?'':(f.pct>=100?'ok':'bad')}">${f.pct===null?'—':f.pct+'%'}</td>
+              <td>${f.racha}</td>
+              <td>${f.pulmon!==null?avFmt(f.pulmon,0):'—'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+  `;
+  body.querySelectorAll('[data-mis-ir-sector]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ misSectorActual = btn.dataset.misIrSector; renderMiSector(); });
+  });
 }
 
 function misAbrirModalIdea(){
