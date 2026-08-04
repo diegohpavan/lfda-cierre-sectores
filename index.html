@@ -910,6 +910,64 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 .pansec-empty{color:var(--ink-faint);font-size:12.5px;text-align:center;padding:40px 10px;}
 @media(max-width:900px){ .pansec-grid{grid-template-columns:1fr;} }
 
+/* ============================================================
+   MI SECTOR — pestaña por sector para líderes, prefijo "mis-" / "mis"
+   ============================================================ */
+#misSelectorWrap select{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);padding:8px 12px;border-radius:8px;font-size:13px;}
+
+.mis-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-bottom:18px;}
+.mis-card{background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:16px 18px;}
+.mis-card h3{margin:0 0 4px;font-size:14px;display:flex;align-items:center;gap:8px;}
+.mis-card .sub{font-size:11.5px;color:var(--ink-dim);margin-bottom:10px;}
+
+.mis-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;}
+.mis-kpi{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:10px 12px;}
+.mis-kpi .lbl{font-size:10px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;}
+.mis-kpi .val{font-size:19px;font-weight:800;margin-top:2px;}
+
+.mis-racha{display:flex;align-items:center;gap:14px;}
+.mis-racha .num{font-size:38px;font-weight:900;color:var(--amber);line-height:1;}
+.mis-racha .txt{font-size:12.5px;color:var(--ink-dim);}
+
+.mis-pend-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+.mis-pend-item:last-child{border-bottom:none;}
+.mis-pend-item button{flex-shrink:0;}
+
+.mis-equipo-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:12.5px;}
+.mis-equipo-item .bar-wrap{flex:1;height:6px;background:var(--line);border-radius:3px;margin:0 10px;overflow:hidden;}
+.mis-equipo-item .bar{height:100%;background:var(--amber);border-radius:3px;}
+
+.mis-foco textarea{width:100%;background:var(--panel);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:10px;font-size:13px;font-family:inherit;resize:vertical;min-height:70px;}
+.mis-foco .meta{font-size:10.5px;color:var(--ink-faint);margin-top:6px;}
+
+.mis-ideas-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.mis-idea-card{background:var(--panel2);border:1px solid var(--line2);border-left:3px solid var(--amber);border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:10px;}
+.mis-idea-card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}
+.mis-idea-card h4{margin:0;font-size:13.5px;}
+.mis-idea-card .autor{font-size:11px;color:var(--ink-dim);margin-top:2px;}
+.mis-idea-card .desc{font-size:12.5px;margin:8px 0;color:var(--ink);line-height:1.5;}
+.mis-idea-card .beneficio{font-size:11.5px;color:var(--good);background:var(--green-dim);padding:6px 10px;border-radius:6px;margin-bottom:8px;}
+.mis-idea-card .archivo{font-size:11.5px;}
+.mis-idea-card .archivo img{max-width:160px;border-radius:6px;margin-top:6px;display:block;}
+.mis-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0;}
+.mis-badge.nueva{background:var(--blue-dim);color:#3B82F6;}
+.mis-badge.evaluacion{background:var(--amber-dim);color:var(--amber);}
+.mis-badge.aprobada{background:var(--green-dim);color:var(--good);}
+.mis-badge.rechazada{background:var(--red-dim);color:var(--red);}
+.mis-badge.implementada{background:var(--green-dim);color:var(--good);}
+.mis-idea-card select{margin-top:8px;background:var(--panel);border:1px solid var(--line2);color:var(--ink);padding:5px 8px;border-radius:6px;font-size:11.5px;}
+
+.mis-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:950;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto;}
+.mis-modal-overlay.show{display:flex;}
+.mis-modal-panel{background:var(--bg);border:1px solid var(--line2);border-radius:12px;max-width:560px;width:100%;padding:22px;position:relative;}
+.mis-modal-close{position:absolute;top:14px;right:14px;background:var(--panel2);border:1px solid var(--line2);color:var(--ink);width:30px;height:30px;border-radius:8px;cursor:pointer;}
+.mis-form{display:flex;flex-direction:column;gap:4px;margin-top:14px;}
+.mis-form label{font-size:11.5px;color:var(--ink-dim);margin-top:10px;}
+.mis-form input[type=text], .mis-form textarea{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);border-radius:8px;padding:9px 11px;font-size:13px;font-family:inherit;}
+.mis-form input[type=file]{font-size:12px;color:var(--ink-dim);}
+.mis-form-preview img{max-width:120px;border-radius:6px;margin-top:6px;}
+.mis-form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+
 </style>
 </head>
 <body>
@@ -983,6 +1041,7 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
       <button class="poli-subnav-btn" data-nav-sub="analisis">Análisis</button>
       <button class="poli-subnav-btn" data-nav-sub="sabado">🗓 Sábado</button>
     </div>
+    <button class="sidebar-nav-btn" data-nav="misector">👤 Mi Sector</button>
     <div class="app-sidebar-filtro" id="sidebarFiltroCausas" style="display:none;">
       <label>Desde</label>
       <input type="date" id="inputFiltroGraficosDesde">
@@ -1680,6 +1739,41 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
       <h2 id="poliModalNombre"></h2>
       <div class="sub" id="poliModalSub"></div>
       <div id="poliModalBody"></div>
+    </div>
+  </div>
+
+  <!-- ===================== VISTA MI SECTOR ===================== -->
+  <div class="view" id="view-misector">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>👤 Mi Sector</h2>
+        <div class="row" id="misSelectorWrap"></div>
+      </div>
+      <div id="misBody"></div>
+    </div>
+  </div>
+
+  <div class="mis-modal-overlay" id="misIdeaModalOverlay">
+    <div class="mis-modal-panel">
+      <button class="mis-modal-close" id="misIdeaModalClose">✕</button>
+      <h2>💡 Nueva idea</h2>
+      <div class="mis-form">
+        <label>¿Quién tuvo la idea?</label>
+        <input type="text" id="misIdeaAutor" placeholder="Nombre del operario o quien la propuso">
+        <label>Título corto</label>
+        <input type="text" id="misIdeaTitulo" placeholder="Ej: Carro de transporte con ruedas más grandes">
+        <label>Contá la idea</label>
+        <textarea id="misIdeaDescripcion" rows="4" placeholder="Explicá cómo funcionaría, qué problema resuelve..."></textarea>
+        <label>¿Qué beneficio le trae a la empresa?</label>
+        <textarea id="misIdeaBeneficio" rows="2" placeholder="Ej: menos tiempo de traslado, menos golpes en aberturas, menos esfuerzo físico..."></textarea>
+        <label>Plano o foto (opcional)</label>
+        <input type="file" id="misIdeaArchivo" accept="image/*,.pdf">
+        <div class="mis-form-preview" id="misIdeaArchivoPreview"></div>
+        <div class="mis-form-actions">
+          <button class="btn btn-ghost" id="misIdeaCancelar">Cancelar</button>
+          <button class="btn btn-primary" id="misIdeaGuardar">Guardar idea</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -5735,6 +5829,7 @@ function irASeccion(nav, sub){
   if(nav==='detalle') renderDetalle();
   if(nav==='avance') renderAvance();
   if(nav==='organigrama') poliRenderOrganigramaView();
+  if(nav==='misector') renderMiSector();
 }
 
 document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
@@ -12868,6 +12963,269 @@ function capRender(){
 
   capRenderSimulador();
 }
+
+/* ============================================================
+   MI SECTOR — pestaña por líder: estado en vivo, racha, pendientes,
+   equipo, foco de la semana, y buzón de ideas. Prefijo "mis".
+   ============================================================ */
+const MIS_COLLECTION = 'lfda_mi_sector';
+const MIS_FOCOS_DOC = 'focos';
+const IDEAS_COLLECTION = 'lfda_ideas';
+const MIS_ESTADOS = ['nueva','evaluacion','aprobada','rechazada','implementada'];
+const MIS_ESTADO_LABEL = {nueva:'Nueva', evaluacion:'En evaluación', aprobada:'Aprobada', rechazada:'Rechazada', implementada:'Implementada'};
+
+let misSectorState = { focos:{}, ideas:[] };
+let misSectorActual = null;
+let misIdeaArchivoData = null; // {nombre, base64} del archivo elegido en el form, antes de guardar
+
+function misSectorIniciarSync(){
+  poliEsperarFirestore(()=>{
+    firestoreDb.collection(MIS_COLLECTION).doc(MIS_FOCOS_DOC).onSnapshot(snap=>{
+      misSectorState.focos = snap.exists ? (snap.data()||{}) : {};
+      if(document.getElementById('view-misector').classList.contains('active')) renderMiSector();
+    }, err=>console.error('Mi Sector: error leyendo focos', err));
+
+    firestoreDb.collection(IDEAS_COLLECTION).onSnapshot(snap=>{
+      misSectorState.ideas = snap.docs.map(d=>({id:d.id, ...d.data()}));
+      if(document.getElementById('view-misector').classList.contains('active')) renderMiSector();
+    }, err=>console.error('Mi Sector: error leyendo ideas', err));
+  });
+}
+misSectorIniciarSync();
+
+// ---- cálculos ----
+function misSectorRacha(key){
+  const fechas = Object.keys(state.dias||{}).filter(f=>{
+    const s = state.dias[f].sectores && state.dias[f].sectores[key];
+    return s && typeof s.cerrado==='number' && typeof s.objetivoMin==='number';
+  }).sort().reverse();
+  let racha = 0;
+  for(const f of fechas){
+    const s = state.dias[f].sectores[key];
+    if(s.cerrado >= s.objetivoMin) racha++;
+    else break;
+  }
+  return racha;
+}
+function misSectorPendientes(key){
+  const out = [];
+  Object.keys(state.dias||{}).sort().reverse().slice(0,30).forEach(f=>{
+    const dia = state.dias[f];
+    const pend = (dia.sectoresPendientesCausa||[]).includes(key);
+    const s = dia.sectores && dia.sectores[key];
+    if(pend && s && (!s.motivoCausa || s.motivoCausa.length===0)){
+      out.push({fecha:f, cerrado:s.cerrado, objetivoMin:s.objetivoMin});
+    }
+  });
+  return out;
+}
+function misSectorEquipo(key){
+  if(typeof poliCobertura!=='function' || typeof poliComputeKPIs!=='function') return [];
+  try{
+    const {titulares} = poliCobertura(key);
+    const k = poliComputeKPIs();
+    return titulares.map(p=>({nombre:p.nombre, habilidades:k.porPersona[p.id]||0})).sort((a,b)=>b.habilidades-a.habilidades);
+  }catch(e){ return []; }
+}
+function misSectorGuardarFoco(key, texto){
+  misSectorState.focos = misSectorState.focos || {};
+  misSectorState.focos[key] = { texto, fecha: fechaHoyLocal(), autor: (typeof sesion!=='undefined' && sesion && sesion.nombre) || '—' };
+  firestoreDb.collection(MIS_COLLECTION).doc(MIS_FOCOS_DOC).set(misSectorState.focos, {merge:true});
+}
+function misSectorCrearIdea(idea){
+  firestoreDb.collection(IDEAS_COLLECTION).add({
+    ...idea,
+    estado: 'nueva',
+    fechaCreacion: fechaHoyLocal(),
+    historial: [{estado:'nueva', fecha: fechaHoyLocal()}]
+  });
+}
+function misSectorCambiarEstadoIdea(id, nuevoEstado){
+  const idea = misSectorState.ideas.find(i=>i.id===id);
+  const historial = ((idea && idea.historial) || []).concat([{estado:nuevoEstado, fecha:fechaHoyLocal()}]);
+  firestoreDb.collection(IDEAS_COLLECTION).doc(id).update({estado:nuevoEstado, historial});
+}
+
+// ---- render ----
+function renderMiSector(){
+  // por si se entra acá sin haber abierto nunca "Avance por Sector (TV)" -- esas
+  // variables las inicializa esa pantalla, y sin ellas avSectorStats se rompe.
+  if(!avMesActual){
+    const now0 = new Date();
+    avMesActual = `${now0.getFullYear()}-${String(now0.getMonth()+1).padStart(2,'0')}`;
+  }
+  if(!avDiaSeleccionado) avDiaSeleccionado = fechaHoyLocal();
+
+  const esAdminOTodo = puedeVerTodo();
+  const misSectores = esAdminOTodo ? AV_SECTOR_ORDER : [(typeof sesion!=='undefined' && sesion && sesion.sector) || AV_SECTOR_ORDER[0]];
+  if(!misSectorActual || !misSectores.includes(misSectorActual)) misSectorActual = misSectores[0];
+  const key = misSectorActual;
+
+  const selectorWrap = document.getElementById('misSelectorWrap');
+  if(esAdminOTodo){
+    selectorWrap.innerHTML = `<select id="misSelectSector">${AV_SECTOR_ORDER.map(k=>`<option value="${k}" ${k===key?'selected':''}>${esc(AV_SECTOR_SHORT[k]||k)}</option>`).join('')}</select>`;
+    document.getElementById('misSelectSector').addEventListener('change', (e)=>{ misSectorActual = e.target.value; renderMiSector(); });
+  } else {
+    selectorWrap.innerHTML = `<span style="font-weight:700;">${esc(AV_SECTOR_SHORT[key]||key)}</span>`;
+  }
+
+  const st = avSectorStats(key);
+  const obj = avSectorObjetivosMensual(key);
+  const pulmon = avUltimoPulmon(key);
+  const racha = misSectorRacha(key);
+  const pendientes = misSectorPendientes(key);
+  const equipo = misSectorEquipo(key);
+  const foco = (misSectorState.focos||{})[key];
+  const ideasSector = misSectorState.ideas.filter(i=>i.sector===key).sort((a,b)=>(b.fechaCreacion||'').localeCompare(a.fechaCreacion||''));
+
+  const body = document.getElementById('misBody');
+  body.innerHTML = `
+    <div class="mis-kpis">
+      <div class="mis-kpi"><div class="lbl">Acumulado</div><div class="val">${avFmt(st.sum,0)} m²</div></div>
+      <div class="mis-kpi"><div class="lbl">Prom./día</div><div class="val">${avFmt(st.prom,1)}</div></div>
+      <div class="mis-kpi"><div class="lbl">Estimación cierre</div><div class="val">${avFmt(st.estimacion,0)} m²</div></div>
+      <div class="mis-kpi"><div class="lbl">Objetivo mín/ópt</div><div class="val">${avFmt(obj.min,0)} / ${avFmt(obj.opt,0)}</div></div>
+      <div class="mis-kpi"><div class="lbl">Pulmón actual</div><div class="val">${pulmon!==null?avFmt(pulmon,0):'—'}</div></div>
+    </div>
+
+    <div class="mis-grid">
+      <div class="mis-card">
+        <h3>🔥 Racha</h3>
+        <div class="sub">Días seguidos en objetivo mínimo cumplido</div>
+        <div class="mis-racha">
+          <div class="num">${racha}</div>
+          <div class="txt">${racha===0 ? 'Todavía sin racha activa — el próximo día en objetivo la arranca.' : racha===1 ? 'día en objetivo' : 'días seguidos en objetivo'}</div>
+        </div>
+      </div>
+
+      <div class="mis-card">
+        <h3>✅ Pendientes</h3>
+        <div class="sub">Causas sin declarar</div>
+        ${pendientes.length ? pendientes.map(p=>`
+          <div class="mis-pend-item">
+            <span>${fechaDMY(p.fecha)} · ${avFmt(p.cerrado,0)}/${avFmt(p.objetivoMin,0)} m²</span>
+            <button class="btn btn-ghost btn-sm" data-mis-declarar="${p.fecha}">Declarar causa</button>
+          </div>
+        `).join('') : '<div class="sub" style="margin:0;">Sin pendientes 🎉</div>'}
+      </div>
+
+      <div class="mis-card">
+        <h3>👥 Mi equipo</h3>
+        <div class="sub">Habilidades nivel 3+ por persona</div>
+        ${equipo.length ? equipo.map(p=>{
+          const maxH = Math.max(1, ...equipo.map(x=>x.habilidades));
+          return `<div class="mis-equipo-item">
+            <span>${esc(p.nombre)}</span>
+            <div class="bar-wrap"><div class="bar" style="width:${Math.round(p.habilidades/maxH*100)}%;"></div></div>
+            <span>${p.habilidades}</span>
+          </div>`;
+        }).join('') : '<div class="sub" style="margin:0;">Cargá Polivalencias para ver el equipo acá.</div>'}
+      </div>
+
+      <div class="mis-card mis-foco">
+        <h3>📝 Foco de la semana</h3>
+        <div class="sub">¿En qué se está enfocando el sector esta semana?</div>
+        <textarea id="misFocoTexto" placeholder="Ej: bajar el atraso en jumbo, ordenar el pulmón...">${esc((foco&&foco.texto)||'')}</textarea>
+        <div class="mis-form-actions" style="margin-top:8px;">
+          <button class="btn btn-primary btn-sm" id="misFocoGuardar">Guardar</button>
+        </div>
+        ${foco ? `<div class="meta">Última actualización: ${esc(foco.autor)} · ${fechaDMY(foco.fecha)}</div>` : ''}
+      </div>
+    </div>
+
+    <div class="mis-card">
+      <div class="mis-ideas-toolbar">
+        <div>
+          <h3 style="margin:0;">💡 Buzón de ideas</h3>
+          <div class="sub" style="margin:0;">${ideasSector.length} idea${ideasSector.length===1?'':'s'} de este sector</div>
+        </div>
+        <button class="btn btn-primary btn-sm" id="misBtnNuevaIdea">+ Nueva idea</button>
+      </div>
+      ${ideasSector.length ? ideasSector.map(idea=>`
+        <div class="mis-idea-card">
+          <div class="top">
+            <div>
+              <h4>${esc(idea.titulo)}</h4>
+              <div class="autor">Idea de ${esc(idea.autor)}${idea.cargadoPor && idea.cargadoPor!==idea.autor ? ' · cargada por '+esc(idea.cargadoPor) : ''} · ${fechaDMY(idea.fechaCreacion)}</div>
+            </div>
+            <span class="mis-badge ${idea.estado}">${MIS_ESTADO_LABEL[idea.estado]||idea.estado}</span>
+          </div>
+          <div class="desc">${esc(idea.descripcion)}</div>
+          ${idea.beneficio ? `<div class="beneficio">💰 ${esc(idea.beneficio)}</div>` : ''}
+          ${idea.archivoBase64 ? (idea.archivoBase64.startsWith('data:image')
+              ? `<div class="archivo"><img src="${idea.archivoBase64}"></div>`
+              : `<div class="archivo"><a href="${idea.archivoBase64}" download="${esc(idea.archivoNombre||'adjunto')}">📎 ${esc(idea.archivoNombre||'Ver adjunto')}</a></div>`) : ''}
+          ${esAdminOTodo ? `<select data-mis-idea-estado="${idea.id}">${MIS_ESTADOS.map(e=>`<option value="${e}" ${e===idea.estado?'selected':''}>${MIS_ESTADO_LABEL[e]}</option>`).join('')}</select>` : ''}
+        </div>
+      `).join('') : '<div class="sub" style="margin:0;">Todavía no hay ideas cargadas para este sector.</div>'}
+    </div>
+  `;
+
+  document.getElementById('misFocoGuardar').addEventListener('click', ()=>{
+    misSectorGuardarFoco(key, document.getElementById('misFocoTexto').value.trim());
+  });
+  body.querySelectorAll('[data-mis-declarar]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      abrirModalCausa(key, btn.dataset.misDeclarar);
+    });
+  });
+  body.querySelectorAll('[data-mis-idea-estado]').forEach(sel=>{
+    sel.addEventListener('change', (e)=> misSectorCambiarEstadoIdea(sel.dataset.misIdeaEstado, e.target.value));
+  });
+  document.getElementById('misBtnNuevaIdea').addEventListener('click', misAbrirModalIdea);
+}
+
+function misAbrirModalIdea(){
+  document.getElementById('misIdeaAutor').value = '';
+  document.getElementById('misIdeaTitulo').value = '';
+  document.getElementById('misIdeaDescripcion').value = '';
+  document.getElementById('misIdeaBeneficio').value = '';
+  document.getElementById('misIdeaArchivo').value = '';
+  document.getElementById('misIdeaArchivoPreview').innerHTML = '';
+  misIdeaArchivoData = null;
+  document.getElementById('misIdeaModalOverlay').classList.add('show');
+}
+document.getElementById('misIdeaModalClose').addEventListener('click', ()=>{
+  document.getElementById('misIdeaModalOverlay').classList.remove('show');
+});
+document.getElementById('misIdeaCancelar').addEventListener('click', ()=>{
+  document.getElementById('misIdeaModalOverlay').classList.remove('show');
+});
+document.getElementById('misIdeaArchivo').addEventListener('change', (e)=>{
+  const file = e.target.files[0];
+  const preview = document.getElementById('misIdeaArchivoPreview');
+  if(!file){ misIdeaArchivoData=null; preview.innerHTML=''; return; }
+  if(file.size > 3*1024*1024){
+    preview.innerHTML = '<span style="color:var(--red);">El archivo pesa más de 3MB, elegí uno más liviano.</span>';
+    misIdeaArchivoData = null;
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    misIdeaArchivoData = { nombre: file.name, base64: reader.result };
+    preview.innerHTML = file.type.startsWith('image/') ? `<img src="${reader.result}">` : `<span>📎 ${esc(file.name)}</span>`;
+  };
+  reader.readAsDataURL(file);
+});
+document.getElementById('misIdeaGuardar').addEventListener('click', ()=>{
+  const autor = document.getElementById('misIdeaAutor').value.trim();
+  const titulo = document.getElementById('misIdeaTitulo').value.trim();
+  const descripcion = document.getElementById('misIdeaDescripcion').value.trim();
+  const beneficio = document.getElementById('misIdeaBeneficio').value.trim();
+  if(!autor || !titulo || !descripcion){
+    alert('Completá al menos quién tuvo la idea, el título y la descripción.');
+    return;
+  }
+  misSectorCrearIdea({
+    sector: misSectorActual,
+    autor,
+    cargadoPor: (typeof sesion!=='undefined' && sesion && sesion.nombre) || autor,
+    titulo, descripcion, beneficio,
+    archivoBase64: misIdeaArchivoData ? misIdeaArchivoData.base64 : null,
+    archivoNombre: misIdeaArchivoData ? misIdeaArchivoData.nombre : null,
+  });
+  document.getElementById('misIdeaModalOverlay').classList.remove('show');
+});
 </script>
 </body>
 </html>
