@@ -4182,7 +4182,7 @@ function avSectorStats(key){
       // (ej. 134 ayer + 0 hoy ÷ 2 días = 67, cuando en realidad el ritmo real es 134).
       const [y,m,d] = f.split('-').map(Number);
       const wd = new Date(y,m-1,d).getDay();
-      if(dObl.includes(wd) && !feriados.has(f) && f!==hoy) count++;
+      if(dObl.includes(wd) && !feriados.has(f) && !(f===hoy && s.cerrado===0)) count++;
       if(f===avDiaSeleccionado) valorSeleccionado = s.cerrado;
     }
   }
@@ -6103,7 +6103,7 @@ function colaPromedioSectorReal(key){
         // parcial que diluye el promedio de forma engañosa).
         const [y,m,d] = f.split('-').map(Number);
         const wd = new Date(y,m-1,d).getDay();
-        if(dObl.includes(wd) && !feriados.has(f) && f!==hoyParaPromedio) count++;
+        if(dObl.includes(wd) && !feriados.has(f) && !(f===hoyParaPromedio && s.cerrado===0)) count++;
       }
     });
     return { suma, count };
