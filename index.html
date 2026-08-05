@@ -13014,16 +13014,36 @@ function misSectorIniciarSync(){
 misSectorIniciarSync();
 
 // ---- cálculos ----
+function misSectorRachaSumarDias(fechaISO, delta){
+  const [y,m,d] = fechaISO.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  dt.setDate(dt.getDate()+delta);
+  return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+}
 function misSectorRacha(key){
-  const fechas = Object.keys(state.dias||{}).filter(f=>{
-    const s = state.dias[f].sectores && state.dias[f].sectores[key];
-    return s && typeof s.cerrado==='number' && typeof s.objetivoMin==='number';
-  }).sort().reverse();
+  // camina día por día hacia atrás desde HOY (no solo entre los días ya confirmados en
+  // state.dias) para poder: 1) incluir el día de hoy si ya viene arriba del objetivo aunque
+  // todavía no se haya confirmado el cierre, sin que "todavía no llegó" corte la racha de
+  // días anteriores porque el día sigue en curso; y 2) saltear días no obligatorios (ej.
+  // sábados) sin cortar la racha, en vez de solo mirar qué fechas quedaron guardadas.
   let racha = 0;
-  for(const f of fechas){
-    const s = state.dias[f].sectores[key];
-    if(s.cerrado >= s.objetivoMin) racha++;
-    else break;
+  let fecha = state.actual.fecha;
+  let esHoy = true;
+  for(let i=0; i<60; i++){
+    if(fechaCuentaParaPareto(fecha)){
+      const s = esHoy
+        ? (obtenerResultadoVigente()||{})[key]
+        : (state.dias[fecha] && state.dias[fecha].sectores && state.dias[fecha].sectores[key]);
+      if(s && typeof s.cerrado==='number' && typeof s.objetivoMin==='number'){
+        const cumplio = s.tipo==='planificacion' ? !!s.sostenido : (s.cerrado >= s.objetivoMin);
+        if(cumplio) racha++;
+        else if(!esHoy) break;
+      } else if(!esHoy){
+        break; // día obligatorio pasado sin datos guardados -- no se puede asumir que cumplió
+      }
+    }
+    fecha = misSectorRachaSumarDias(fecha, -1);
+    esHoy = false;
   }
   return racha;
 }
