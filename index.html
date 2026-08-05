@@ -7453,11 +7453,15 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   const diaGuardado = !esEnCurso ? state.dias[fecha] : null;
   const pendientesGuardados = diaGuardado ? (diaGuardado.sectoresPendientesCausa || []) : [];
   // recalculamos contra el estado actual, por si ya se completaron causas después de confirmar,
-  // y filtramos por rol: un líder solo debe ver los pendientes de SU sector, no los de toda la planta
+  // filtramos por rol (un líder solo debe ver los pendientes de SU sector) y también re-chequeamos
+  // si el sector sigue "en falta" con los números de hoy -- si el día se confirmó con el cierre
+  // sin terminar y después se corrigió/completó (ej. nueva data de G-PRO) y ya superó el objetivo,
+  // no tiene que seguir pidiendo causa aunque nunca se haya declarado ninguna.
   const pendientesVigentes = pendientesGuardados.filter(nombre => {
     if(!puedeVerSector(nombre)) return false;
     const s = sectoresObj[nombre];
-    return s && (s.motivoCausa||[]).length===0;
+    if(!s || (s.motivoCausa||[]).length>0) return false;
+    return s.tipo==='planificacion' ? !s.sostenido : (s.cerrado < s.objetivoMin);
   });
 
   const contexto = esEnCurso ? 'hoy' : fecha;
@@ -7670,7 +7674,8 @@ function calObtenerDatosDia(fecha, esEnCurso){
   const pendientesVigentes = pendientesGuardados.filter(nombre=>{
     if(!puedeVerSector(nombre)) return false;
     const s = sectoresObj[nombre];
-    return s && (s.motivoCausa||[]).length===0;
+    if(!s || (s.motivoCausa||[]).length>0) return false;
+    return s.tipo==='planificacion' ? !s.sostenido : (s.cerrado < s.objetivoMin);
   });
 
   return { estadoGlobalDia, estadoFinLinea, m2FinLinea, nombreSeccion, sectoresEnRojo: sectoresEnRojo.length, pendientes: pendientesVigentes.length };
