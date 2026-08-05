@@ -13087,7 +13087,7 @@ function misSectorGuardarFoco(key, texto){
   firestoreDb.collection(MIS_COLLECTION).doc(MIS_FOCOS_DOC).set(misSectorState.focos, {merge:true});
 }
 function misSectorCrearIdea(idea){
-  firestoreDb.collection(IDEAS_COLLECTION).add({
+  return firestoreDb.collection(IDEAS_COLLECTION).add({
     ...idea,
     estado: 'nueva',
     fechaCreacion: fechaHoyLocal(),
@@ -13308,8 +13308,8 @@ document.getElementById('misIdeaArchivo').addEventListener('change', (e)=>{
   const file = e.target.files[0];
   const preview = document.getElementById('misIdeaArchivoPreview');
   if(!file){ misIdeaArchivoData=null; preview.innerHTML=''; return; }
-  if(file.size > 3*1024*1024){
-    preview.innerHTML = '<span style="color:var(--red);">El archivo pesa más de 3MB, elegí uno más liviano.</span>';
+  if(file.size > 650*1024){
+    preview.innerHTML = '<span style="color:var(--red);">El archivo pesa más de 650KB, elegí uno más liviano (Firestore no admite documentos de más de 1MB en total).</span>';
     misIdeaArchivoData = null;
     return;
   }
@@ -13329,6 +13329,9 @@ document.getElementById('misIdeaGuardar').addEventListener('click', ()=>{
     alert('Completá al menos quién tuvo la idea, el título y la descripción.');
     return;
   }
+  const btnGuardar = document.getElementById('misIdeaGuardar');
+  btnGuardar.disabled = true;
+  btnGuardar.textContent = 'Guardando…';
   misSectorCrearIdea({
     sector: misSectorActual,
     autor,
@@ -13336,8 +13339,16 @@ document.getElementById('misIdeaGuardar').addEventListener('click', ()=>{
     titulo, descripcion, beneficio,
     archivoBase64: misIdeaArchivoData ? misIdeaArchivoData.base64 : null,
     archivoNombre: misIdeaArchivoData ? misIdeaArchivoData.nombre : null,
+  }).then(()=>{
+    document.getElementById('misIdeaModalOverlay').classList.remove('show');
+    toast('Idea guardada 💡');
+  }).catch(err=>{
+    console.error('No se pudo guardar la idea', err);
+    alert('No se pudo guardar la idea: ' + (err && err.message ? err.message : err));
+  }).finally(()=>{
+    btnGuardar.disabled = false;
+    btnGuardar.textContent = 'Guardar idea';
   });
-  document.getElementById('misIdeaModalOverlay').classList.remove('show');
 });
 </script>
 </body>
