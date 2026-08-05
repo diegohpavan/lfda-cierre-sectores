@@ -11670,12 +11670,16 @@ function poliIniciarSync(){
         if(data.operaciones) poliState.operaciones = data.operaciones;
         if(data.puestosPorSector) poliState.puestosPorSector = data.puestosPorSector;
       } else {
-        firestoreDb.collection(POLI_COLLECTION).doc(POLI_CONFIG_DOC)
-          .set({ personas: poliState.personas, operaciones: poliState.operaciones, puestosPorSector: poliState.puestosPorSector });
+        // NUNCA auto-sembrar: si Firestore reporta "no existe" (puede ser un problema
+        // transitorio de conexión/permisos, no necesariamente que el doc se haya borrado
+        // de verdad) no queremos pisar datos reales con la data de arranque vieja del código.
+        // Si hace falta sembrar el doc por primera vez, se hace a mano desde la consola de Firebase.
+        console.error('Polivalencias: el doc "config" no existe en Firestore — NO se sobrescribe automáticamente. Si es la primera vez que se usa, cargarlo a mano.');
       }
       poliMostrarSync('on');
       if(document.getElementById('view-polivalencias').classList.contains('active')) poliRenderPolivalenciasView();
       if(document.getElementById('view-organigrama').classList.contains('active')) poliRenderOrganigramaView();
+      if(document.getElementById('view-misector').classList.contains('active')) renderMiSector();
     }, err=>{ console.error('Polivalencias: error leyendo config', err); poliMostrarSync('off'); });
 
     // ---- doc de niveles: cada líder escribe con set(...,{merge:true}) sobre su propia rama ----
@@ -11683,9 +11687,10 @@ function poliIniciarSync(){
       if(snap.exists){
         poliState.niveles = snap.data() || {};
       } else {
-        firestoreDb.collection(POLI_COLLECTION).doc(POLI_NIVELES_DOC).set(poliState.niveles);
+        console.error('Polivalencias: el doc "niveles" no existe en Firestore — NO se sobrescribe automáticamente.');
       }
       if(document.getElementById('view-polivalencias').classList.contains('active')){ poliRenderKPIs(); poliRenderMatrix(); poliRenderFlow(); }
+      if(document.getElementById('view-misector').classList.contains('active')) renderMiSector();
     }, err=>{ console.error('Polivalencias: error leyendo niveles', err); });
 
     // ---- doc del equipo de sábado: un único roster vigente, cualquiera con acceso lo ve ----
@@ -11694,7 +11699,7 @@ function poliIniciarSync(){
         const data = snap.data();
         poliState.equipoSabado = { fecha: data.fecha || null, asignaciones: data.asignaciones || {} };
       } else {
-        firestoreDb.collection(POLI_COLLECTION).doc(POLI_SABADO_DOC).set(poliState.equipoSabado);
+        console.error('Polivalencias: el doc "equipoSabado" no existe en Firestore — NO se sobrescribe automáticamente.');
       }
       const panel = document.getElementById('poliTab-sabado');
       if(panel && panel.classList.contains('active')) poliRenderSabado();
@@ -13040,8 +13045,19 @@ function misSectorEquipo(key){
     const {titulares} = poliCobertura(key);
     const ops = poliState.operaciones[key] || [];
     return titulares
-      .map(p=>({nombre:p.nombre, habilidades: ops.filter(op=>poliNivelDe(p.id,op.id)>=3).length}))
-      .sort((a,b)=>b.habilidades-a.habilidades);
+      .map(p=>{
+        let puntaje=0, domina=0;
+        ops.forEach(op=>{
+          const n = poliNivelDe(p.id, op.id);
+          puntaje += n;
+          if(n>=3) domina++;
+        });
+        return {nombre:p.nombre, puntaje, maxPuntaje: ops.length*4, domina, totalTareas: ops.length};
+      })
+      // ranking por puntaje general (suma de niveles) y no solo por cantidad de tareas dominadas:
+      // dos personas pueden dominar las mismas 4 tareas (nivel 3+) pero una las tiene todas en
+      // nivel 4/Experto y la otra tiene alguna en nivel 3/Autónomo -- el puntaje las diferencia
+      .sort((a,b)=> b.puntaje-a.puntaje || b.domina-a.domina);
   }catch(e){ return []; }
 }
 function misSectorGuardarFoco(key, texto){
@@ -13134,13 +13150,13 @@ function renderMiSector(){
 
       <div class="mis-card">
         <h3>👥 Mi equipo</h3>
-        <div class="sub">Habilidades nivel 3+ en tareas de este sector</div>
+        <div class="sub">Ranking por puntaje general · dominada = nivel 3 (Autónomo) o 4 (Experto)</div>
         ${equipo.length ? equipo.map(p=>{
-          const maxH = Math.max(1, ...equipo.map(x=>x.habilidades));
+          const maxP = Math.max(1, p.maxPuntaje);
           return `<div class="mis-equipo-item">
             <span>${esc(p.nombre)}</span>
-            <div class="bar-wrap"><div class="bar" style="width:${Math.round(p.habilidades/maxH*100)}%;"></div></div>
-            <span>${p.habilidades}</span>
+            <div class="bar-wrap"><div class="bar" style="width:${Math.round(p.puntaje/maxP*100)}%;"></div></div>
+            <span>${p.puntaje}/${p.maxPuntaje} pts · ${p.domina}/${p.totalTareas} domina</span>
           </div>`;
         }).join('') : '<div class="sub" style="margin:0;">Cargá Polivalencias para ver el equipo acá.</div>'}
       </div>
