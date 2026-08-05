@@ -13035,11 +13035,13 @@ function misSectorPendientes(key){
   return out;
 }
 function misSectorEquipo(key){
-  if(typeof poliCobertura!=='function' || typeof poliComputeKPIs!=='function') return [];
+  if(typeof poliCobertura!=='function' || typeof poliNivelDe!=='function') return [];
   try{
     const {titulares} = poliCobertura(key);
-    const k = poliComputeKPIs();
-    return titulares.map(p=>({nombre:p.nombre, habilidades:k.porPersona[p.id]||0})).sort((a,b)=>b.habilidades-a.habilidades);
+    const ops = poliState.operaciones[key] || [];
+    return titulares
+      .map(p=>({nombre:p.nombre, habilidades: ops.filter(op=>poliNivelDe(p.id,op.id)>=3).length}))
+      .sort((a,b)=>b.habilidades-a.habilidades);
   }catch(e){ return []; }
 }
 function misSectorGuardarFoco(key, texto){
@@ -13132,7 +13134,7 @@ function renderMiSector(){
 
       <div class="mis-card">
         <h3>👥 Mi equipo</h3>
-        <div class="sub">Habilidades nivel 3+ por persona</div>
+        <div class="sub">Habilidades nivel 3+ en tareas de este sector</div>
         ${equipo.length ? equipo.map(p=>{
           const maxH = Math.max(1, ...equipo.map(x=>x.habilidades));
           return `<div class="mis-equipo-item">
