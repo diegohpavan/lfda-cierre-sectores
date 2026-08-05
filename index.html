@@ -971,6 +971,53 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 .mis-adjunto-body img{max-width:none;transition:width .08s ease-out;cursor:zoom-in;}
 .mis-adjunto-body iframe{width:100%;height:100%;border:none;}
 .mis-adjunto-hint{font-size:11px;color:var(--ink-dim);padding:6px 16px;border-top:1px solid var(--line2);flex-shrink:0;}
+
+/* ---- Panel de Ideas (jefatura/gerencia) ---- */
+#piFiltrosWrap select, #piFiltrosWrap input{background:var(--panel2);border:1px solid var(--line2);color:var(--ink);padding:7px 10px;border-radius:8px;font-size:12.5px;}
+#piFiltrosWrap input{min-width:220px;}
+.pi-kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:16px 0;}
+.pi-kpi{background:var(--panel2);border:1px solid var(--line2);border-radius:10px;padding:14px;}
+.pi-kpi .lbl{font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.04em;}
+.pi-kpi .val{font-size:24px;font-weight:800;margin-top:4px;}
+.pi-kpi .sub{font-size:11px;color:var(--ink-dim);margin-top:2px;}
+.pi-grid-top{display:grid;grid-template-columns:1fr 1.3fr;gap:16px;margin-bottom:16px;align-items:start;}
+@media (max-width:1100px){ .pi-grid-top{grid-template-columns:1fr;} .pi-kpis{grid-template-columns:repeat(2,1fr);} }
+
+.pi-embudo-row{display:flex;align-items:center;gap:10px;margin:10px 0;}
+.pi-embudo-row .nombre{width:100px;font-size:12px;color:var(--ink-dim);flex-shrink:0;}
+.pi-embudo-row .bar-wrap{flex:1;height:22px;background:var(--line);border-radius:5px;overflow:hidden;}
+.pi-embudo-row .bar{height:100%;display:flex;align-items:center;justify-content:flex-end;padding-right:8px;color:#111;font-weight:700;font-size:12px;border-radius:5px;transition:width .3s;}
+.pi-embudo-row .cant{width:26px;text-align:right;font-weight:700;font-size:13px;flex-shrink:0;}
+.pi-embudo-rechazadas{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line2);font-size:12px;color:var(--ink-dim);}
+
+.pi-matriz{display:grid;grid-template-columns:auto repeat(3,1fr);grid-template-rows:auto repeat(3,1fr);gap:4px;margin-top:8px;font-size:11px;}
+.pi-matriz .eje-label{display:flex;align-items:center;justify-content:center;color:var(--ink-faint);font-size:10px;text-align:center;}
+.pi-matriz .celda{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:6px;min-height:70px;}
+.pi-matriz .celda .titulo-celda{font-size:10px;color:var(--ink-dim);margin-bottom:4px;}
+.pi-matriz .celda.destacada{border-color:var(--amber);}
+.pi-chip{display:inline-block;background:var(--panel3,var(--bg2));border:1px solid var(--line2);border-radius:6px;padding:3px 6px;font-size:10.5px;margin:2px 2px 0 0;cursor:pointer;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pi-chip:hover{border-color:var(--amber);}
+
+.pi-kanban{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;}
+.pi-kanban-col{flex:0 0 220px;background:var(--panel2);border-radius:10px;padding:10px;}
+.pi-kanban-col h4{font-size:12px;margin:0 0 8px;display:flex;justify-content:space-between;color:var(--ink-dim);}
+.pi-kanban-card{background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:8px 9px;margin-bottom:8px;cursor:pointer;font-size:12px;}
+.pi-kanban-card:hover{border-color:var(--amber);}
+.pi-kanban-card .sector{font-size:10px;color:var(--amber);font-weight:700;}
+.pi-kanban-card .tit{font-weight:600;margin:2px 0;}
+.pi-kanban-card .meta{font-size:10.5px;color:var(--ink-dim);}
+.pi-badge-imp{display:inline-block;font-size:9.5px;padding:1px 5px;border-radius:4px;margin-top:4px;margin-right:3px;}
+.pi-badge-imp.alto{background:var(--green-dim);color:var(--green);}
+.pi-badge-imp.medio{background:var(--amber-dim);color:var(--amber);}
+.pi-badge-imp.bajo{background:var(--red-dim);color:var(--red);}
+
+.pi-ficha .row2{display:flex;gap:10px;}
+.pi-ficha .row2>div{flex:1;}
+.pi-ficha label{display:block;font-size:11px;color:var(--ink-dim);margin:10px 0 4px;}
+.pi-ficha select, .pi-ficha input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--line2);color:var(--ink);padding:7px 9px;border-radius:8px;font-size:12.5px;}
+.pi-timeline{margin-top:10px;border-left:2px solid var(--line2);padding-left:12px;}
+.pi-timeline .ev{font-size:11.5px;color:var(--ink-dim);margin-bottom:6px;position:relative;}
+.pi-timeline .ev::before{content:'';position:absolute;left:-16.5px;top:3px;width:8px;height:8px;border-radius:50%;background:var(--amber);}
 .mis-idea-card .archivo img{max-width:160px;border-radius:6px;margin-top:6px;display:block;}
 .mis-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0;}
 .mis-badge.nueva{background:var(--blue-dim);color:#3B82F6;}
@@ -1065,6 +1112,7 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
       <button class="poli-subnav-btn" data-nav-sub="sabado">🗓 Sábado</button>
     </div>
     <button class="sidebar-nav-btn" data-nav="misector">👤 Mi Sector</button>
+    <button class="sidebar-nav-btn" data-nav="panelideas" id="navBtnPanelIdeas">📋 Panel de Ideas</button>
     <div class="app-sidebar-filtro" id="sidebarFiltroCausas" style="display:none;">
       <label>Desde</label>
       <input type="date" id="inputFiltroGraficosDesde">
@@ -1776,6 +1824,42 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
     </div>
   </div>
 
+  <div class="view" id="view-panelideas">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>📋 Panel de Ideas</h2>
+        <div class="row" style="gap:8px;flex-wrap:wrap;" id="piFiltrosWrap">
+          <select id="piFiltroSector"></select>
+          <select id="piFiltroEstado"></select>
+          <input type="text" id="piFiltroBuscar" placeholder="Buscar por título, autor, sector...">
+        </div>
+      </div>
+      <div id="piKpis" class="pi-kpis"></div>
+      <div class="pi-grid-top">
+        <div class="mis-card">
+          <h3>🔻 Embudo de estados</h3>
+          <div id="piEmbudo"></div>
+        </div>
+        <div class="mis-card">
+          <h3>🎯 Impacto vs. Esfuerzo</h3>
+          <div class="sub">Para priorizar qué atacar primero — no incluye implementadas ni rechazadas</div>
+          <div id="piMatriz" class="pi-matriz"></div>
+        </div>
+      </div>
+      <div class="mis-card">
+        <h3>🗂 Tablero por estado</h3>
+        <div id="piKanban" class="pi-kanban"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mis-modal-overlay" id="piFichaModalOverlay">
+    <div class="mis-modal-panel" style="max-width:620px;">
+      <button class="mis-modal-close" id="piFichaCerrar">✕</button>
+      <div id="piFichaBody"></div>
+    </div>
+  </div>
+
   <div class="mis-modal-overlay" id="misIdeaModalOverlay">
     <div class="mis-modal-panel">
       <button class="mis-modal-close" id="misIdeaModalClose">✕</button>
@@ -1789,6 +1873,26 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
         <textarea id="misIdeaDescripcion" rows="4" placeholder="Explicá cómo funcionaría, qué problema resuelve..."></textarea>
         <label>¿Qué beneficio le trae a la empresa?</label>
         <textarea id="misIdeaBeneficio" rows="2" placeholder="Ej: menos tiempo de traslado, menos golpes en aberturas, menos esfuerzo físico..."></textarea>
+        <div class="row" style="gap:10px;">
+          <div style="flex:1;">
+            <label>Impacto estimado</label>
+            <select id="misIdeaImpacto">
+              <option value="">Elegir...</option>
+              <option value="alto">Alto — cambia bastante el día a día</option>
+              <option value="medio">Medio — ayuda, no es crítico</option>
+              <option value="bajo">Bajo — es una comodidad menor</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Esfuerzo para implementarla</label>
+            <select id="misIdeaEsfuerzo">
+              <option value="">Elegir...</option>
+              <option value="bajo">Bajo — se puede hacer ya, casi sin costo</option>
+              <option value="medio">Medio — necesita comprar algo o coordinar</option>
+              <option value="alto">Alto — obra, inversión grande o cambia el proceso</option>
+            </select>
+          </div>
+        </div>
         <label>Plano o foto (opcional)</label>
         <input type="file" id="misIdeaArchivo" accept="image/*,.pdf">
         <div class="mis-form-preview" id="misIdeaArchivoPreview"></div>
@@ -2952,6 +3056,10 @@ function aplicarRestriccionesDeRol(){
 
   // la solapa Configuración depende del permiso granular "entrarConfig"
   if(tabConfig) tabConfig.style.display = puedeEntrarConfig() ? '' : 'none';
+
+  // Panel de Ideas es exclusivo de jefatura/gerencia/admin/presidencia
+  const navPanelIdeas = document.getElementById('navBtnPanelIdeas');
+  if(navPanelIdeas) navPanelIdeas.style.display = puedeVerTodo() ? '' : 'none';
 }
 
 function chequearSesionAlCargar(){
@@ -5868,6 +5976,7 @@ function irASeccion(nav, sub){
   if(nav==='avance') renderAvance();
   if(nav==='organigrama') poliRenderOrganigramaView();
   if(nav==='misector') renderMiSector();
+  if(nav==='panelideas') renderPanelIdeas();
 }
 
 document.querySelectorAll('.sidebar-nav-btn[data-nav]').forEach(btn=>{
@@ -13036,6 +13145,7 @@ function misSectorIniciarSync(){
     firestoreDb.collection(IDEAS_COLLECTION).onSnapshot(snap=>{
       misSectorState.ideas = snap.docs.map(d=>({id:d.id, ...d.data()}));
       if(document.getElementById('view-misector').classList.contains('active')) renderMiSector();
+      if(document.getElementById('view-panelideas').classList.contains('active')) renderPanelIdeas();
     }, err=>console.error('Mi Sector: error leyendo ideas', err));
   });
 }
@@ -13126,6 +13236,227 @@ function misSectorCambiarEstadoIdea(id, nuevoEstado){
   const idea = misSectorState.ideas.find(i=>i.id===id);
   const historial = ((idea && idea.historial) || []).concat([{estado:nuevoEstado, fecha:fechaHoyLocal()}]);
   firestoreDb.collection(IDEAS_COLLECTION).doc(id).update({estado:nuevoEstado, historial});
+}
+
+/* ============================================================
+   PANEL DE IDEAS — vista para jefatura/gerencia/admin/presidencia:
+   todas las ideas de todos los sectores juntas, con KPIs, embudo de
+   estados, matriz de impacto/esfuerzo para priorizar, y un tablero
+   por estado. Prefijo "pi".
+   ============================================================ */
+const PI_IMPACTO_ORDEN = ['alto','medio','bajo'];
+const PI_ESFUERZO_ORDEN = ['bajo','medio','alto'];
+const PI_NIVEL_LABEL = {alto:'Alto', medio:'Medio', bajo:'Bajo'};
+let piIdeaAbierta = null;
+
+function piFmtMoneda(n){
+  if(n===null || n===undefined || isNaN(n)) return '—';
+  return '$' + Math.round(n).toLocaleString('es-AR');
+}
+
+function piRenderFiltros(){
+  const selSector = document.getElementById('piFiltroSector');
+  const selEstado = document.getElementById('piFiltroEstado');
+  if(!selSector.options.length){
+    selSector.innerHTML = '<option value="">Todos los sectores</option>' + AV_SECTOR_ORDER.map(k=>`<option value="${k}">${AV_SECTOR_SHORT[k]||k}</option>`).join('');
+    selEstado.innerHTML = '<option value="">Todos los estados</option>' + MIS_ESTADOS.map(e=>`<option value="${e}">${MIS_ESTADO_LABEL[e]}</option>`).join('');
+    selSector.addEventListener('change', renderPanelIdeas);
+    selEstado.addEventListener('change', renderPanelIdeas);
+    document.getElementById('piFiltroBuscar').addEventListener('input', ()=> renderPanelIdeas());
+  }
+}
+
+function piIdeasFiltradas(){
+  const fSector = document.getElementById('piFiltroSector').value;
+  const fEstado = document.getElementById('piFiltroEstado').value;
+  const q = document.getElementById('piFiltroBuscar').value.trim().toLowerCase();
+  return (misSectorState.ideas||[]).filter(i=>{
+    if(!puedeVerSector(i.sector)) return false;
+    if(fSector && i.sector!==fSector) return false;
+    if(fEstado && i.estado!==fEstado) return false;
+    if(q && !(`${i.titulo} ${i.autor} ${i.sector} ${i.descripcion}`.toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+
+function renderPanelIdeas(){
+  if(!puedeVerTodo()){
+    document.getElementById('view-panelideas').querySelector('.panel').innerHTML = '<div class="sub">Esta vista es solo para jefatura, gerencia y administración.</div>';
+    return;
+  }
+  piRenderFiltros();
+  const ideas = piIdeasFiltradas();
+  const todas = (misSectorState.ideas||[]).filter(i=>puedeVerSector(i.sector)); // KPIs/embudo sobre el total, no solo lo filtrado
+
+  // ---- KPIs ----
+  const total = todas.length;
+  const implementadas = todas.filter(i=>i.estado==='implementada');
+  const pctImplementadas = total ? Math.round(implementadas.length/total*100) : 0;
+  const ahorroTotal = todas.reduce((a,i)=> a + (typeof i.ahorroEstimado==='number' ? i.ahorroEstimado : 0), 0);
+  const porSector = {};
+  todas.forEach(i=> porSector[i.sector] = (porSector[i.sector]||0)+1);
+  const sectorTop = Object.entries(porSector).sort((a,b)=>b[1]-a[1])[0];
+  const porAutor = {};
+  todas.forEach(i=> porAutor[i.autor] = (porAutor[i.autor]||0)+1);
+  const autorTop = Object.entries(porAutor).sort((a,b)=>b[1]-a[1])[0];
+  const conTiempo = implementadas.filter(i=>i.historial && i.historial.length);
+  const diasProm = conTiempo.length ? Math.round(conTiempo.reduce((a,i)=>{
+    const ini = new Date(i.fechaCreacion), fin = new Date((i.historial.find(h=>h.estado==='implementada')||{}).fecha || i.fechaCreacion);
+    return a + Math.max(0, (fin-ini)/86400000);
+  },0) / conTiempo.length) : null;
+
+  document.getElementById('piKpis').innerHTML = `
+    <div class="pi-kpi"><div class="lbl">Total de ideas</div><div class="val">${total}</div></div>
+    <div class="pi-kpi"><div class="lbl">% Implementadas</div><div class="val">${pctImplementadas}%</div><div class="sub">${implementadas.length} de ${total}</div></div>
+    <div class="pi-kpi"><div class="lbl">Ahorro estimado</div><div class="val">${piFmtMoneda(ahorroTotal)}</div><div class="sub">suma de lo evaluado</div></div>
+    <div class="pi-kpi"><div class="lbl">Sector más activo</div><div class="val" style="font-size:16px;">${sectorTop ? (AV_SECTOR_SHORT[sectorTop[0]]||sectorTop[0]) : '—'}</div><div class="sub">${sectorTop ? sectorTop[1]+' idea(s)' : ''}</div></div>
+    <div class="pi-kpi"><div class="lbl">Más ideas aportadas</div><div class="val" style="font-size:15px;">${autorTop ? esc(autorTop[0]) : '—'}</div><div class="sub">${autorTop ? autorTop[1]+' idea(s)' : ''}${diasProm!==null ? ' · '+diasProm+'d prom. resolución' : ''}</div></div>
+  `;
+
+  // ---- Embudo ----
+  const colorEstadoBar = {nueva:'#8a8fa3', evaluacion:'var(--amber)', aprobada:'#3B82F6', implementada:'var(--green)'};
+  const embudoEstados = ['nueva','evaluacion','aprobada','implementada'];
+  const maxEmbudo = Math.max(1, ...embudoEstados.map(e=>todas.filter(i=>i.estado===e).length));
+  const rechazadas = todas.filter(i=>i.estado==='rechazada').length;
+  document.getElementById('piEmbudo').innerHTML = embudoEstados.map(e=>{
+    const c = todas.filter(i=>i.estado===e).length;
+    return `<div class="pi-embudo-row">
+      <div class="nombre">${MIS_ESTADO_LABEL[e]}</div>
+      <div class="bar-wrap"><div class="bar" style="width:${Math.max(6,Math.round(c/maxEmbudo*100))}%;background:${colorEstadoBar[e]};"></div></div>
+      <div class="cant">${c}</div>
+    </div>`;
+  }).join('') + `<div class="pi-embudo-rechazadas">🗑 ${rechazadas} descartada${rechazadas===1?'':'s'} en el camino</div>`;
+
+  // ---- Matriz impacto x esfuerzo (3x3), solo ideas activas (no implementada/rechazada) ----
+  const activas = todas.filter(i=> i.impacto && i.esfuerzo && i.estado!=='implementada' && i.estado!=='rechazada');
+  const celdaTitulo = (imp,esf)=>{
+    if(imp==='alto' && esf==='bajo') return '🚀 Hacer ya';
+    if(imp==='bajo' && esf==='alto') return '❌ Descartar';
+    if(imp==='alto' && (esf==='alto'||esf==='medio')) return '🏗 Evaluar en profundidad';
+    if(imp==='bajo' && esf==='bajo') return '🧹 Si sobra tiempo';
+    return '';
+  };
+  let matrizHtml = `<div></div>` + PI_ESFUERZO_ORDEN.map(esf=>`<div class="eje-label">Esfuerzo<br>${PI_NIVEL_LABEL[esf]}</div>`).join('');
+  PI_IMPACTO_ORDEN.forEach(imp=>{
+    matrizHtml += `<div class="eje-label">Impacto<br>${PI_NIVEL_LABEL[imp]}</div>`;
+    PI_ESFUERZO_ORDEN.forEach(esf=>{
+      const ideasCelda = activas.filter(i=>i.impacto===imp && i.esfuerzo===esf);
+      const dest = (imp==='alto'&&esf==='bajo');
+      matrizHtml += `<div class="celda ${dest?'destacada':''}">
+        <div class="titulo-celda">${celdaTitulo(imp,esf)}</div>
+        ${ideasCelda.map(i=>`<span class="pi-chip" data-pi-abrir="${i.id}" title="${esc(i.titulo)}">${esc(i.titulo)}</span>`).join('') || '<span style="color:var(--ink-faint);font-size:10px;">—</span>'}
+      </div>`;
+    });
+  });
+  document.getElementById('piMatriz').innerHTML = matrizHtml;
+
+  // ---- Kanban ----
+  document.getElementById('piKanban').innerHTML = MIS_ESTADOS.map(estado=>{
+    const col = ideas.filter(i=>i.estado===estado);
+    return `<div class="pi-kanban-col">
+      <h4>${MIS_ESTADO_LABEL[estado]} <span>${col.length}</span></h4>
+      ${col.map(i=>`
+        <div class="pi-kanban-card" data-pi-abrir="${i.id}">
+          <div class="sector">${AV_SECTOR_SHORT[i.sector]||i.sector}</div>
+          <div class="tit">${esc(i.titulo)}</div>
+          <div class="meta">${esc(i.autor)} · ${fechaDMY(i.fechaCreacion)}</div>
+          ${i.impacto ? `<span class="pi-badge-imp ${i.impacto}">Impacto ${PI_NIVEL_LABEL[i.impacto]}</span>` : ''}
+        </div>
+      `).join('') || '<div style="color:var(--ink-faint);font-size:11px;">Sin ideas acá</div>'}
+    </div>`;
+  }).join('');
+
+  document.querySelectorAll('[data-pi-abrir]').forEach(el=>{
+    el.addEventListener('click', ()=> piAbrirFicha(el.dataset.piAbrir));
+  });
+}
+
+function piAbrirFicha(id){
+  const idea = misSectorState.ideas.find(i=>i.id===id);
+  if(!idea) return;
+  piIdeaAbierta = id;
+  document.getElementById('piFichaBody').innerHTML = `
+    <div class="pi-ficha">
+      <h2 style="margin-bottom:2px;">${esc(idea.titulo)}</h2>
+      <div class="sub" style="margin:0;">${AV_SECTOR_SHORT[idea.sector]||idea.sector} · idea de ${esc(idea.autor)}${idea.cargadoPor && idea.cargadoPor!==idea.autor ? ' · cargada por '+esc(idea.cargadoPor) : ''} · ${fechaDMY(idea.fechaCreacion)}</div>
+      <label>Descripción</label>
+      <div style="font-size:13px;">${esc(idea.descripcion)}</div>
+      ${idea.beneficio ? `<label>Beneficio declarado</label><div style="font-size:13px;">${esc(idea.beneficio)}</div>` : ''}
+      ${idea.archivoBase64 ? `<label>Adjunto</label><button class="btn btn-sm btn-ghost" id="piVerAdjunto">📎 Ver ${esc(idea.archivoNombre||'adjunto')}</button>` : ''}
+
+      <div class="row2">
+        <div>
+          <label>Estado</label>
+          <select id="piEditEstado">${MIS_ESTADOS.map(e=>`<option value="${e}" ${e===idea.estado?'selected':''}>${MIS_ESTADO_LABEL[e]}</option>`).join('')}</select>
+        </div>
+        <div>
+          <label>Impacto</label>
+          <select id="piEditImpacto">
+            <option value="">—</option>
+            ${PI_IMPACTO_ORDEN.map(v=>`<option value="${v}" ${v===idea.impacto?'selected':''}>${PI_NIVEL_LABEL[v]}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div>
+          <label>Esfuerzo</label>
+          <select id="piEditEsfuerzo">
+            <option value="">—</option>
+            ${PI_ESFUERZO_ORDEN.map(v=>`<option value="${v}" ${v===idea.esfuerzo?'selected':''}>${PI_NIVEL_LABEL[v]}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>Ahorro estimado ($/mes, opcional)</label>
+          <input type="number" id="piEditAhorro" value="${typeof idea.ahorroEstimado==='number' ? idea.ahorroEstimado : ''}" placeholder="Ej: 50000">
+        </div>
+      </div>
+
+      <label>Historial</label>
+      <div class="pi-timeline">
+        ${(idea.historial||[]).map(h=>`<div class="ev">${fechaDMY(h.fecha)} — ${MIS_ESTADO_LABEL[h.estado]||h.estado}</div>`).join('') || '<div class="ev">Sin historial</div>'}
+      </div>
+
+      <div class="mis-form-actions" style="margin-top:16px;">
+        <button class="btn btn-primary" id="piGuardarFicha">Guardar cambios</button>
+      </div>
+    </div>
+  `;
+  const btnAdjunto = document.getElementById('piVerAdjunto');
+  if(btnAdjunto) btnAdjunto.addEventListener('click', ()=> misAbrirAdjunto(idea.archivoBase64, idea.archivoNombre));
+  document.getElementById('piGuardarFicha').addEventListener('click', piGuardarFicha);
+  document.getElementById('piFichaModalOverlay').classList.add('show');
+}
+document.getElementById('piFichaCerrar').addEventListener('click', ()=>{
+  document.getElementById('piFichaModalOverlay').classList.remove('show');
+  piIdeaAbierta = null;
+});
+
+function piGuardarFicha(){
+  const idea = misSectorState.ideas.find(i=>i.id===piIdeaAbierta);
+  if(!idea) return;
+  const nuevoEstado = document.getElementById('piEditEstado').value;
+  const impacto = document.getElementById('piEditImpacto').value || null;
+  const esfuerzo = document.getElementById('piEditEsfuerzo').value || null;
+  const ahorroVal = document.getElementById('piEditAhorro').value;
+  const ahorroEstimado = ahorroVal==='' ? null : Number(ahorroVal);
+
+  const cambios = { impacto, esfuerzo, ahorroEstimado };
+  if(nuevoEstado !== idea.estado){
+    cambios.estado = nuevoEstado;
+    cambios.historial = (idea.historial||[]).concat([{estado:nuevoEstado, fecha:fechaHoyLocal()}]);
+  }
+  const btn = document.getElementById('piGuardarFicha');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  firestoreDb.collection(IDEAS_COLLECTION).doc(piIdeaAbierta).update(cambios).then(()=>{
+    document.getElementById('piFichaModalOverlay').classList.remove('show');
+    piIdeaAbierta = null;
+    toast('Idea actualizada');
+  }).catch(err=>{
+    console.error('No se pudo actualizar la idea', err);
+    alert('No se pudo guardar: ' + (err && err.message ? err.message : err));
+  }).finally(()=>{
+    btn.disabled = false; btn.textContent = 'Guardar cambios';
+  });
 }
 
 // ---- render ----
@@ -13378,6 +13709,8 @@ function misAbrirModalIdea(){
   document.getElementById('misIdeaTitulo').value = '';
   document.getElementById('misIdeaDescripcion').value = '';
   document.getElementById('misIdeaBeneficio').value = '';
+  document.getElementById('misIdeaImpacto').value = '';
+  document.getElementById('misIdeaEsfuerzo').value = '';
   document.getElementById('misIdeaArchivo').value = '';
   document.getElementById('misIdeaArchivoPreview').innerHTML = '';
   misIdeaArchivoData = null;
@@ -13410,8 +13743,14 @@ document.getElementById('misIdeaGuardar').addEventListener('click', ()=>{
   const titulo = document.getElementById('misIdeaTitulo').value.trim();
   const descripcion = document.getElementById('misIdeaDescripcion').value.trim();
   const beneficio = document.getElementById('misIdeaBeneficio').value.trim();
+  const impacto = document.getElementById('misIdeaImpacto').value;
+  const esfuerzo = document.getElementById('misIdeaEsfuerzo').value;
   if(!autor || !titulo || !descripcion){
     alert('Completá al menos quién tuvo la idea, el título y la descripción.');
+    return;
+  }
+  if(!impacto || !esfuerzo){
+    alert('Elegí impacto estimado y esfuerzo para implementarla — con eso jefatura/gerencia puede priorizar mejor.');
     return;
   }
   const btnGuardar = document.getElementById('misIdeaGuardar');
@@ -13421,7 +13760,8 @@ document.getElementById('misIdeaGuardar').addEventListener('click', ()=>{
     sector: misSectorActual,
     autor,
     cargadoPor: (typeof sesion!=='undefined' && sesion && sesion.nombre) || autor,
-    titulo, descripcion, beneficio,
+    titulo, descripcion, beneficio, impacto, esfuerzo,
+    ahorroEstimado: null, // lo completa jefatura/gerencia al evaluar, desde el Panel de Ideas
     archivoBase64: misIdeaArchivoData ? misIdeaArchivoData.base64 : null,
     archivoNombre: misIdeaArchivoData ? misIdeaArchivoData.nombre : null,
   }).then(()=>{
