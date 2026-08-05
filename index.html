@@ -958,6 +958,17 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
 .mis-idea-card .desc{font-size:12.5px;margin:8px 0;color:var(--ink);line-height:1.5;}
 .mis-idea-card .beneficio{font-size:11.5px;color:var(--good);background:var(--green-dim);padding:6px 10px;border-radius:6px;margin-bottom:8px;}
 .mis-idea-card .archivo{font-size:11.5px;}
+.mis-idea-card .archivo a{cursor:pointer;}
+
+/* Visor de adjuntos de ideas: vista previa (con zoom en imágenes) antes de descargar */
+.mis-adjunto-panel{background:var(--bg);border:1px solid var(--line2);border-radius:12px;max-width:900px;width:100%;height:85vh;padding:0;position:relative;display:flex;flex-direction:column;overflow:hidden;}
+.mis-adjunto-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line2);flex-shrink:0;}
+.mis-adjunto-head .nombre{font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.mis-adjunto-head .acciones{display:flex;gap:8px;flex-shrink:0;}
+.mis-adjunto-body{flex:1;overflow:auto;background:var(--bg2);display:flex;align-items:flex-start;justify-content:center;}
+.mis-adjunto-body img{max-width:none;transition:width .08s ease-out;cursor:zoom-in;}
+.mis-adjunto-body iframe{width:100%;height:100%;border:none;}
+.mis-adjunto-hint{font-size:11px;color:var(--ink-dim);padding:6px 16px;border-top:1px solid var(--line2);flex-shrink:0;}
 .mis-idea-card .archivo img{max-width:160px;border-radius:6px;margin-top:6px;display:block;}
 .mis-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0;}
 .mis-badge.nueva{background:var(--blue-dim);color:#3B82F6;}
@@ -1784,6 +1795,20 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
           <button class="btn btn-primary" id="misIdeaGuardar">Guardar idea</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <div class="mis-modal-overlay" id="misAdjuntoModalOverlay">
+    <div class="mis-adjunto-panel">
+      <div class="mis-adjunto-head">
+        <span class="nombre" id="misAdjuntoNombre"></span>
+        <div class="acciones">
+          <a class="btn btn-sm btn-ghost" id="misAdjuntoDescargar" download>⬇ Descargar</a>
+          <button class="btn btn-sm btn-ghost" id="misAdjuntoCerrar">✕ Cerrar</button>
+        </div>
+      </div>
+      <div class="mis-adjunto-body" id="misAdjuntoBody"></div>
+      <div class="mis-adjunto-hint" id="misAdjuntoHint"></div>
     </div>
   </div>
 
@@ -13213,8 +13238,8 @@ function renderMiSector(){
           <div class="desc">${esc(idea.descripcion)}</div>
           ${idea.beneficio ? `<div class="beneficio">💰 ${esc(idea.beneficio)}</div>` : ''}
           ${idea.archivoBase64 ? (idea.archivoBase64.startsWith('data:image')
-              ? `<div class="archivo"><img src="${idea.archivoBase64}"></div>`
-              : `<div class="archivo"><a href="${idea.archivoBase64}" download="${esc(idea.archivoNombre||'adjunto')}">📎 ${esc(idea.archivoNombre||'Ver adjunto')}</a></div>`) : ''}
+              ? `<div class="archivo"><img src="${idea.archivoBase64}" data-mis-ver-adjunto="${idea.id}" style="cursor:zoom-in;"></div>`
+              : `<div class="archivo"><a data-mis-ver-adjunto="${idea.id}">📎 ${esc(idea.archivoNombre||'Ver adjunto')}</a></div>`) : ''}
           ${esAdminOTodo ? `<select data-mis-idea-estado="${idea.id}">${MIS_ESTADOS.map(e=>`<option value="${e}" ${e===idea.estado?'selected':''}>${MIS_ESTADO_LABEL[e]}</option>`).join('')}</select>` : ''}
         </div>
       `).join('') : '<div class="sub" style="margin:0;">Todavía no hay ideas cargadas para este sector.</div>'}
@@ -13231,6 +13256,12 @@ function renderMiSector(){
   });
   body.querySelectorAll('[data-mis-idea-estado]').forEach(sel=>{
     sel.addEventListener('change', (e)=> misSectorCambiarEstadoIdea(sel.dataset.misIdeaEstado, e.target.value));
+  });
+  body.querySelectorAll('[data-mis-ver-adjunto]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const idea = misSectorState.ideas.find(i=>i.id===el.dataset.misVerAdjunto);
+      if(idea) misAbrirAdjunto(idea.archivoBase64, idea.archivoNombre);
+    });
   });
   document.getElementById('misBtnNuevaIdea').addEventListener('click', misAbrirModalIdea);
 }
@@ -13287,6 +13318,43 @@ function renderMiSectorTodos(){
     btn.addEventListener('click', ()=>{ misSectorActual = btn.dataset.misIrSector; renderMiSector(); });
   });
 }
+
+function misAbrirAdjunto(base64, nombre){
+  if(!base64) return;
+  document.getElementById('misAdjuntoNombre').textContent = nombre || 'Adjunto';
+  document.getElementById('misAdjuntoDescargar').href = base64;
+  document.getElementById('misAdjuntoDescargar').setAttribute('download', nombre || 'adjunto');
+  const body = document.getElementById('misAdjuntoBody');
+  const hint = document.getElementById('misAdjuntoHint');
+  body.innerHTML = '';
+
+  if(base64.startsWith('data:image')){
+    const img = document.createElement('img');
+    img.src = base64;
+    img.style.width = '100%';
+    body.appendChild(img);
+    hint.textContent = '🔍 Rueda del mouse (o pellizcar en celular) para hacer zoom · arrastrá para recorrer la imagen';
+    let escala = 1;
+    body.addEventListener('wheel', (e)=>{
+      e.preventDefault();
+      escala = Math.min(6, Math.max(1, escala + (e.deltaY<0 ? 0.25 : -0.25)));
+      img.style.width = (100*escala) + '%';
+    }, {passive:false});
+  } else if(base64.startsWith('data:application/pdf')){
+    const iframe = document.createElement('iframe');
+    iframe.src = base64;
+    body.appendChild(iframe);
+    hint.textContent = 'Usá los controles del visor de PDF para hacer zoom, o el botón "Descargar" de arriba.';
+  } else {
+    body.innerHTML = '<div style="padding:30px;text-align:center;color:var(--ink-dim);">No hay vista previa disponible para este tipo de archivo — usá "Descargar" arriba.</div>';
+    hint.textContent = '';
+  }
+  document.getElementById('misAdjuntoModalOverlay').classList.add('show');
+}
+document.getElementById('misAdjuntoCerrar').addEventListener('click', ()=>{
+  document.getElementById('misAdjuntoModalOverlay').classList.remove('show');
+  document.getElementById('misAdjuntoBody').innerHTML = '';
+});
 
 function misAbrirModalIdea(){
   document.getElementById('misIdeaAutor').value = '';
