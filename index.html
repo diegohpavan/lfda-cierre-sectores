@@ -7033,8 +7033,9 @@ function renderResultado(resultadoExterno){
     btnConfirmar.style.display='none';
   } else {
     btnConfirmar.style.display='';
-    // las causas pueden declararse desde Hoy o desde Historial (no bloquea confirmar el día)
-    const sectoresSinCausa = Object.entries(resultado).filter(([,r]) => {
+    // las causas pueden declararse desde Hoy o desde Historial (no bloquea confirmar el día).
+    // en días no obligatorios (ej. sábados) no se pide declarar causa aunque no se llegue al objetivo.
+    const sectoresSinCausa = !fechaCuentaParaPareto(state.actual.fecha) ? [] : Object.entries(resultado).filter(([,r]) => {
       const enFalta = r.tipo==='planificacion' ? !r.sostenido : (r.cerrado < r.objetivoMin);
       return enFalta && r.motivoCausa.length===0;
     }).map(([nombre])=>nombre);
@@ -7453,11 +7454,10 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
   const diaGuardado = !esEnCurso ? state.dias[fecha] : null;
   const pendientesGuardados = diaGuardado ? (diaGuardado.sectoresPendientesCausa || []) : [];
   // recalculamos contra el estado actual, por si ya se completaron causas después de confirmar,
-  // filtramos por rol (un líder solo debe ver los pendientes de SU sector) y también re-chequeamos
-  // si el sector sigue "en falta" con los números de hoy -- si el día se confirmó con el cierre
-  // sin terminar y después se corrigió/completó (ej. nueva data de G-PRO) y ya superó el objetivo,
-  // no tiene que seguir pidiendo causa aunque nunca se haya declarado ninguna.
-  const pendientesVigentes = pendientesGuardados.filter(nombre => {
+  // filtramos por rol (un líder solo debe ver los pendientes de SU sector), re-chequeamos si el
+  // sector sigue "en falta" con los números de hoy (ver comentario más arriba) y además excluimos
+  // fechas que no cuentan como día obligatorio (ej. sábados) -- ahí no se pide declarar causa.
+  const pendientesVigentes = !fechaCuentaParaPareto(fecha) ? [] : pendientesGuardados.filter(nombre => {
     if(!puedeVerSector(nombre)) return false;
     const s = sectoresObj[nombre];
     if(!s || (s.motivoCausa||[]).length>0) return false;
@@ -7671,7 +7671,7 @@ function calObtenerDatosDia(fecha, esEnCurso){
 
   const diaGuardado = !esEnCurso ? state.dias[fecha] : null;
   const pendientesGuardados = diaGuardado ? (diaGuardado.sectoresPendientesCausa || []) : [];
-  const pendientesVigentes = pendientesGuardados.filter(nombre=>{
+  const pendientesVigentes = !fechaCuentaParaPareto(fecha) ? [] : pendientesGuardados.filter(nombre=>{
     if(!puedeVerSector(nombre)) return false;
     const s = sectoresObj[nombre];
     if(!s || (s.motivoCausa||[]).length>0) return false;
@@ -13030,10 +13030,11 @@ function misSectorRacha(key){
 function misSectorPendientes(key){
   const out = [];
   Object.keys(state.dias||{}).sort().reverse().slice(0,30).forEach(f=>{
+    if(!fechaCuentaParaPareto(f)) return; // no pedir causa en días no obligatorios (ej. sábados)
     const dia = state.dias[f];
     const pend = (dia.sectoresPendientesCausa||[]).includes(key);
     const s = dia.sectores && dia.sectores[key];
-    if(pend && s && (!s.motivoCausa || s.motivoCausa.length===0)){
+    if(pend && s && (!s.motivoCausa || s.motivoCausa.length===0) && (s.cerrado < s.objetivoMin)){
       out.push({fecha:f, cerrado:s.cerrado, objetivoMin:s.objetivoMin});
     }
   });
