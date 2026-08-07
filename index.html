@@ -2567,7 +2567,7 @@ function aplicarEstadoRemoto(data){
     migrarPermisosUsuarios(state);
     migrarHistoricoPulmones(state);
     avLimpiarHistoricoPromediado();
-    localStorage.setItem(LS_KEY, JSON.stringify(state));
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){ console.error('No se pudo guardar el caché local (localStorage lleno)', e); }
     // si la pantalla de login sigue visible (todavía no entró nadie), destrabamos
     // el cartel de "Sincronizando…" y mostramos la lista ya con los datos al día
     if(document.getElementById('loginScreen').style.display !== 'none'){
@@ -3290,10 +3290,25 @@ function migrarHistoricoPulmones(s){
   }
 }
 const RESPALDO_KEY = 'lfda_respaldos_v1';
-const MAX_RESPALDOS = 20;
+const MAX_RESPALDOS = 8; // bajado de 20 -- 20 copias completas del historial fue lo que llenó localStorage
 
 function saveState(){
-  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(state));
+  }catch(e){
+    console.error('No se pudo guardar el caché local (localStorage lleno)', e);
+    // si fue por falta de espacio, los respaldos locales (20 copias completas del estado)
+    // son casi seguro la causa -- Firestore ya tiene el dato real, esto es solo un caché
+    // de emergencia -- los liberamos y reintentamos una vez antes de rendirnos
+    if(e && (e.name==='QuotaExceededError' || e.code===22)){
+      try{
+        localStorage.removeItem(RESPALDO_KEY);
+        localStorage.setItem(LS_KEY, JSON.stringify(state));
+      }catch(e2){
+        console.error('localStorage sigue lleno después de liberar espacio -- se sigue funcionando solo con Firestore, sin caché local', e2);
+      }
+    }
+  }
   guardarRespaldoLocal();
   subirEstadoAFirestore();
 }
