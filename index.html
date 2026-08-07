@@ -1532,6 +1532,7 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
             <button class="btn cfg-toggle" id="avCfgToggle">⚙ Ajustes</button>
             <button class="btn" id="avDirectorioBtn" style="display:none;">📊 Cola Productiva</button>
             <button class="btn" id="avCapacidadBtn" style="display:none;">📊 Capacidad vs. Real</button>
+            <button class="btn" id="avSimulacionBtn" style="display:none;">🧪 Simulación por Sector</button>
             <button class="btn" id="avComercialBtn" style="display:none; background:linear-gradient(135deg,#E1432E,#ff6a52); color:#fff; border-color:#E1432E; font-weight:700;">🛒 Modo Comercial</button>
             <button class="btn icon" id="btnToggleTemaAvance" title="Cambiar tema claro/oscuro">🌙</button>
           </div>
@@ -4935,6 +4936,7 @@ function renderAvance(){
   document.getElementById('avDirectorioBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
   document.getElementById('avComercialBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
   document.getElementById('avCapacidadBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
+  document.getElementById('avSimulacionBtn').style.display = (esAdmin()||puedeVerTodo()) ? '' : 'none';
   document.getElementById('avDirectorioBtn').textContent = avModoDirectorio ? '← Volver al dashboard' : '📊 Cola Productiva';
 
   const hoyReal = fechaHoyLocal();
@@ -11059,6 +11061,11 @@ if('serviceWorker' in navigator){
     padding:calc(14px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
   }
   #viewCapacidad *{box-sizing:border-box;}
+  #viewSimulacion{position:fixed; inset:0; z-index:610; overflow-y:auto; display:none;
+    background:#0d1117; color:#e8ecf1; font-family:'Segoe UI',system-ui,sans-serif;
+    padding:calc(14px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) calc(18px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  }
+  #viewSimulacion *{box-sizing:border-box;}
   .cap-topbar{display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:14px;}
   .cap-eyebrow{color:#e8a33d; font-size:.75rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase;}
   .cap-h1{font-size:1.4rem; font-weight:800; margin-top:2px;}
@@ -11129,6 +11136,43 @@ if('serviceWorker' in navigator){
   .cap-sim-bar select{background:#1f2733; border:1px solid #2b3340; color:#e8ecf1; padding:7px 10px; border-radius:8px; font-size:.82rem;}
   .cap-sim-resultado-inline{font-size:.82rem; color:#8b96a8; margin-left:6px;}
   .cap-sim-resultado-inline b{color:#1f9d8a;}
+
+  /* ---- Simulación por Sector ---- */
+  .sim-sector-btns{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .sim-sector-btn{background:#161b22; border:1px solid #2b3340; color:#8b96a8; padding:8px 16px; border-radius:9px; font-size:.8rem; font-weight:700; cursor:pointer; transition:all .15s;}
+  .sim-sector-btn:hover{border-color:#e8a33d; color:#e8ecf1;}
+  .sim-sector-btn.active{background:linear-gradient(135deg,#e8a33d,#c47f1f); color:#161b22; border-color:#e8a33d; box-shadow:0 0 18px rgba(232,163,61,.4);}
+
+  .sim-ranking{background:#161b22; border:1px solid #2b3340; border-radius:10px; padding:14px 16px; margin-bottom:14px;}
+  .sim-ranking .titulo{font-size:.75rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px;}
+  .sim-ranking-row{display:flex; align-items:center; gap:10px; margin:8px 0; font-size:.78rem;}
+  .sim-ranking-row .nombre{width:130px; flex-shrink:0; font-weight:700; cursor:pointer;}
+  .sim-ranking-row .nombre:hover{color:#e8a33d;}
+  .sim-ranking-row .nombre.activo{color:#e8a33d;}
+  .sim-ranking-row .bar-wrap{flex:1; height:16px; background:#0d1015; border-radius:4px; overflow:hidden;}
+  .sim-ranking-row .bar{height:100%; background:linear-gradient(90deg,#1f9d8a,#4fc9b3); box-shadow:0 0 12px rgba(79,201,179,.5); border-radius:4px; transition:width .5s ease-out;}
+  .sim-ranking-row .val{width:76px; text-align:right; font-weight:800; flex-shrink:0;}
+
+  .sim-top-grid{display:grid; grid-template-columns:1fr auto; gap:16px; align-items:center; margin-bottom:14px;}
+  @media(max-width:900px){ .sim-top-grid{grid-template-columns:1fr;} }
+  .sim-gauge-wrap{display:flex; flex-direction:column; align-items:center; gap:6px; background:#161b22; border:1px solid #2b3340; border-radius:10px; padding:16px 22px;}
+  .sim-gauge{--pct:0; width:132px; height:132px; border-radius:50%; position:relative;
+    background:conic-gradient(#1f9d8a calc(var(--pct)*1%), #23272e 0);
+    filter:drop-shadow(0 0 14px rgba(31,157,138,.45));
+    display:flex; align-items:center; justify-content:center; transition:background .6s ease-out;}
+  .sim-gauge::before{content:''; position:absolute; width:100px; height:100px; border-radius:50%; background:#161b22;}
+  .sim-gauge .num{position:relative; font-size:1.5rem; font-weight:900;}
+  .sim-gauge-lbl{font-size:.7rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.05em;}
+
+  .sim-consejo{margin-top:12px; background:#161b22; border-left:3px solid #1f9d8a; border-radius:0 10px 10px 0; padding:12px 16px; font-size:.8rem; line-height:1.55;}
+  .sim-consejo b{color:#1f9d8a;}
+  .sim-consejo .badge-area{display:inline-block; background:#1f9d8a22; color:#4fc9b3; font-size:.68rem; font-weight:800; padding:2px 8px; border-radius:5px; margin-left:6px; text-transform:uppercase; letter-spacing:.03em;}
+  .sim-pareto-row{display:flex; align-items:center; gap:10px; margin:7px 0; font-size:.76rem;}
+  .sim-pareto-row .cat{width:150px; flex-shrink:0; color:#8b96a8;}
+  .sim-pareto-row .bar-wrap{flex:1; height:14px; background:#0d1015; border-radius:4px; overflow:hidden;}
+  .sim-pareto-row .bar{height:100%; background:linear-gradient(90deg,#e8584d,#c43d33); box-shadow:0 0 10px rgba(232,88,77,.4); border-radius:4px;}
+  .sim-pareto-row .val{width:70px; text-align:right; font-weight:700; flex-shrink:0;}
+  .sim-reporte-btns{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
 </style>
 
 <style>
@@ -11261,6 +11305,50 @@ if('serviceWorker' in navigator){
       <div class="cap-tendencia" id="capCobertura"></div>
     </div>
     <div class="cap-porque" id="capPorque"></div>
+  </div>
+</div>
+
+<div id="viewSimulacion" class="cap-screen">
+  <div class="cap-topbar">
+    <div>
+      <div class="cap-eyebrow">LFDA · Producción</div>
+      <div class="cap-h1">Simulación <span>por sector</span></div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <button class="cap-volver" id="simBtnIrCapacidad">📊 Capacidad vs. Real</button>
+      <button class="cap-volver" id="simBtnVolver">← Volver</button>
+    </div>
+  </div>
+
+  <div class="sim-sector-btns" id="simSectorBtns"></div>
+
+  <div class="cap-sim-bar">
+    <span style="font-size:11px; color:#8b96a8;">🎚 Simular dotación de</span>
+    <select id="simSimMes"></select>
+    <button class="btn icon" id="simSimMenos" style="padding:5px 10px;">−</button>
+    <span id="simSimNum" style="font-weight:700; font-size:13px; min-width:100px; text-align:center; display:inline-block;">— operarios</span>
+    <button class="btn icon" id="simSimMas" style="padding:5px 10px;">+</button>
+    <button class="btn" id="simSimReset" style="visibility:hidden; padding:5px 10px;">📍 Dotación base</button>
+    <span id="simSimResultado" class="cap-sim-resultado-inline"></span>
+  </div>
+
+  <div class="cap-body">
+    <div class="sim-top-grid">
+      <div class="cap-kpis" id="simKpiRow"></div>
+      <div class="sim-gauge-wrap">
+        <div class="sim-gauge" id="simGauge"><span class="num" id="simGaugeNum">—</span></div>
+        <div class="sim-gauge-lbl">Cobertura de la capacidad</div>
+      </div>
+    </div>
+    <div class="cap-stage" id="simStage"></div>
+    <div class="cap-legend" id="simLegend"></div>
+
+    <div class="sim-ranking">
+      <div class="titulo">🏁 m² por operario / día — todos los sectores (mes en curso)</div>
+      <div id="simRankingBody"></div>
+    </div>
+
+    <div class="sim-consejo" id="simConsejo"></div>
   </div>
 </div>
 
@@ -13119,6 +13207,340 @@ function capRender(){
   document.getElementById('capPorque').innerHTML = porque || '<span style="color:#8b96a8;">Todavía no hay suficientes datos cargados para explicar la proyección.</span>';
 
   capRenderSimulador();
+}
+
+/* ============================================================
+   SIMULACIÓN POR SECTOR — misma lógica que Capacidad vs Real, pero
+   escaneada sector por sector (en vez de solo Fin de línea): cerrado
+   real de CADA sector ÷ dotación de ESE sector = m²/operario/día
+   propio. Sirve para comparar sectores entre sí y simular dotación
+   futura sector por sector. Prefijo "sim".
+   ============================================================ */
+let simSectorActual = null;
+const simDotacionOverride = {}; // { '2-MEC': { '2026-09': 12 } } -- en memoria, no se guarda en Firestore
+
+function simStatsMes(key, ym){
+  const dObl = state.diasObligatorios||[1,2,3,4,5];
+  const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
+  let sum=0, diasConDatos=0;
+  Object.keys(state.dias||{}).forEach(f=>{
+    if(!f.startsWith(ym)) return;
+    const s = state.dias[f].sectores && state.dias[f].sectores[key];
+    if(s && typeof s.cerrado==='number'){
+      sum += s.cerrado;
+      const [y,m,d] = f.split('-').map(Number);
+      const wd = new Date(y,m-1,d).getDay();
+      if(dObl.includes(wd) && !feriados.has(f)) diasConDatos++;
+    }
+  });
+  return {sum, diasConDatos};
+}
+
+function simMesesConDatos(key){
+  const meses = new Set();
+  Object.keys(state.dias||{}).forEach(f=>{
+    const s = state.dias[f].sectores && state.dias[f].sectores[key];
+    if(s && typeof s.cerrado==='number') meses.add(f.slice(0,7));
+  });
+  return [...meses].sort();
+}
+
+// m²/operario/día histórico de un sector: promedio de los últimos 3 meses con datos
+// (usa la dotación ACTUAL de ese sector como divisor para toda la serie histórica,
+// misma simplificación que ya usa Capacidad vs Real con proyDotacionTotal)
+function simRatioHistorico(key){
+  const dotacionActual = (state.personalPorSector||{})[key] || 0;
+  if(!dotacionActual) return 0;
+  const meses = simMesesConDatos(key).slice(-3);
+  if(!meses.length) return 0;
+  let sumaRatios=0, n=0;
+  meses.forEach(ym=>{
+    const {sum, diasConDatos} = simStatsMes(key, ym);
+    if(diasConDatos>0){ sumaRatios += sum/(dotacionActual*diasConDatos); n++; }
+  });
+  return n>0 ? sumaRatios/n : 0;
+}
+
+function simDotacionParaMes(key, ym){
+  const o = simDotacionOverride[key];
+  if(o && o[ym]!==undefined) return o[ym];
+  return (state.personalPorSector||{})[key] || 0;
+}
+
+function simAbrir(){
+  document.getElementById('viewSimulacion').style.display = 'block';
+  if(!simSectorActual) simSectorActual = AV_SECTOR_ORDER[0];
+  simRenderSectorBtns();
+  simRenderSimulador();
+  simRender();
+}
+function simVolver(){ document.getElementById('viewSimulacion').style.display = 'none'; }
+document.getElementById('avSimulacionBtn').addEventListener('click', simAbrir);
+document.getElementById('simBtnVolver').addEventListener('click', simVolver);
+document.getElementById('simBtnIrCapacidad').addEventListener('click', ()=>{ simVolver(); capAbrir(); });
+
+function simRenderSectorBtns(){
+  document.getElementById('simSectorBtns').innerHTML = AV_SECTOR_ORDER.map(k=>
+    `<button type="button" class="sim-sector-btn ${k===simSectorActual?'active':''}" data-sim-sector-btn="${k}">${AV_SECTOR_SHORT[k]||k}</button>`
+  ).join('');
+  document.querySelectorAll('[data-sim-sector-btn]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      simSectorActual = btn.dataset.simSectorBtn;
+      simRenderSectorBtns();
+      simRenderSimulador();
+      simRender();
+    });
+  });
+}
+
+function simRenderSimulador(){
+  const sel = document.getElementById('simSimMes');
+  const mesesSim = [proyMesSiguiente(0), proyMesSiguiente(1), proyMesSiguiente(2)];
+  const actual = sel.value;
+  sel.innerHTML = mesesSim.map(ym=>`<option value="${ym}">${capNombreMes(ym)}</option>`).join('');
+  sel.value = mesesSim.includes(actual) ? actual : mesesSim[0];
+  simSimActualizar();
+}
+function simSimActualizar(){
+  const ym = document.getElementById('simSimMes').value;
+  const key = simSectorActual;
+  const dotBase = (state.personalPorSector||{})[key] || 0;
+  const n = simDotacionParaMes(key, ym);
+  document.getElementById('simSimNum').textContent = n + ' operarios';
+  document.getElementById('simSimReset').style.visibility = (simDotacionOverride[key] && simDotacionOverride[key][ym]!==undefined) ? 'visible' : 'hidden';
+  const ratio = simRatioHistorico(key);
+  const dh = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
+  const proyectado = ratio * n * dh;
+  document.getElementById('simSimResultado').innerHTML = `→ <b>${fmt(proyectado,0)} m²</b> proyectados en ${AV_SECTOR_SHORT[key]||key} (${n} op. × ${fmt(ratio,2)} m²/op/día × ${dh}d)`;
+  simRender();
+}
+document.getElementById('simSimMenos').addEventListener('click', ()=>{
+  const ym = document.getElementById('simSimMes').value, key = simSectorActual;
+  if(!simDotacionOverride[key]) simDotacionOverride[key] = {};
+  simDotacionOverride[key][ym] = Math.max(0, simDotacionParaMes(key,ym)-1);
+  simSimActualizar();
+});
+document.getElementById('simSimMas').addEventListener('click', ()=>{
+  const ym = document.getElementById('simSimMes').value, key = simSectorActual;
+  if(!simDotacionOverride[key]) simDotacionOverride[key] = {};
+  simDotacionOverride[key][ym] = simDotacionParaMes(key,ym)+1;
+  simSimActualizar();
+});
+document.getElementById('simSimReset').addEventListener('click', ()=>{
+  const ym = document.getElementById('simSimMes').value, key = simSectorActual;
+  if(simDotacionOverride[key]) delete simDotacionOverride[key][ym];
+  simSimActualizar();
+});
+
+function simCategoriaDeCausa(sectorKey, nombreCausa){
+  const cfgSector = state.sectores.find(s=>s.nombre===sectorKey);
+  const causas = (cfgSector && cfgSector.causas) || DEFAULT_CAUSAS;
+  for(const grupo of Object.keys(causas)){
+    if((causas[grupo]||[]).includes(nombreCausa)) return grupo;
+  }
+  return 'Otra';
+}
+function simAreaResponsable(categoria){
+  const c = (categoria||'').toLowerCase();
+  if(c.startsWith('mano de obra')) return 'RRHH';
+  if(c.startsWith('máquina')) return 'Mantenimiento';
+  if(c.startsWith('método')) return 'Producción / Ing. de Procesos';
+  if(c.startsWith('material')) return 'Abastecimiento / Compras';
+  if(c.startsWith('medio ambiente')) return 'Mantenimiento / SySO';
+  if(c==='ajeno a planificación') return 'Producción / Ing. de Procesos';
+  return 'Jefatura de Producción';
+}
+// desglose de m² perdidos por categoría 5M de un sector, últimos 3 meses con datos
+function simParetoSector(key){
+  const meses = simMesesConDatos(key).slice(-3);
+  const porCategoria = {}; // { 'Máquina': { m2:0, causas:{ 'Rotura...': {m2, veces} } } }
+  meses.forEach(ym=>{
+    Object.keys(state.dias||{}).forEach(f=>{
+      if(!f.startsWith(ym)) return;
+      const s = state.dias[f].sectores && state.dias[f].sectores[key];
+      if(!s || !(s.motivoCausa||[]).length) return;
+      s.motivoCausa.forEach(c=>{
+        const cat = simCategoriaDeCausa(key, c.causa);
+        if(!porCategoria[cat]) porCategoria[cat] = {m2:0, causas:{}};
+        const m2 = Number(c.m2)||0;
+        porCategoria[cat].m2 += m2;
+        if(!porCategoria[cat].causas[c.causa]) porCategoria[cat].causas[c.causa] = {m2:0, veces:0};
+        porCategoria[cat].causas[c.causa].m2 += m2;
+        porCategoria[cat].causas[c.causa].veces += 1;
+      });
+    });
+  });
+  return Object.entries(porCategoria).sort((a,b)=>b[1].m2-a[1].m2);
+}
+
+function simRender(){
+  const key = simSectorActual;
+  const mesActual = proyMesSiguiente(0);
+  const {sum:realVivo} = simStatsMes(key, mesActual);
+  const ratio = simRatioHistorico(key);
+  const dotConsiderada = simDotacionParaMes(key, mesActual);
+  const dotBase = (state.personalPorSector||{})[key] || 0;
+  const dh = avHabilCount(mesActual, avDaysInMonth(mesActual), state.diasObligatorios||[1,2,3,4,5]);
+  const capacidadProyectada = ratio * dotConsiderada * dh;
+  const cobertura = capacidadProyectada>0 ? Math.min(100, Math.round(realVivo/capacidadProyectada*100)) : 0;
+
+  document.getElementById('simKpiRow').innerHTML = `
+    <div class="cap-kpi accent"><div class="lbl">Capacidad proyectada ${capNombreMes(mesActual,true)}</div><div class="val">${fmt(capacidadProyectada,0)} m²</div><div class="hint">${fmt(ratio,2)} m²/op/día × ${dotConsiderada} op × ${dh}d hábiles</div></div>
+    <div class="cap-kpi"><div class="lbl">M² reales cerrados (en vivo)</div><div class="val">${fmt(realVivo,0)} m²</div><div class="hint">lo que ya cerró ${AV_SECTOR_SHORT[key]||key} este mes</div></div>
+    <div class="cap-kpi"><div class="lbl">Dotación considerada</div><div class="val">${dotConsiderada}</div><div class="hint">${dotConsiderada!==dotBase ? 'simulada — base real: '+dotBase : 'dotación base real del sector'}</div></div>
+    <div class="cap-kpi"><div class="lbl">m² / operario / día</div><div class="val">${fmt(ratio,2)}</div><div class="hint">promedio de los últimos meses con datos</div></div>
+  `;
+
+  // gauge de cobertura, animado por CSS var
+  const gauge = document.getElementById('simGauge');
+  requestAnimationFrame(()=> gauge.style.setProperty('--pct', cobertura));
+  document.getElementById('simGaugeNum').textContent = cobertura + '%';
+
+  // barras: últimos meses históricos + proyección próximos 2 meses con la dotación simulada
+  const historicos = simMesesConDatos(key).filter(ym=>ym<mesActual).slice(-6);
+  const futuros = [proyMesSiguiente(1), proyMesSiguiente(2)];
+  const todasLasBarras = [...historicos.map(ym=>({ym, tipo:'hist'})), {ym:mesActual, tipo:'actual'}, ...futuros.map(ym=>({ym, tipo:'futuro'}))];
+  const valores = todasLasBarras.map(b=>{
+    if(b.tipo==='hist'){ const {sum}=simStatsMes(key,b.ym); return sum; }
+    if(b.tipo==='actual') return Math.max(realVivo, capacidadProyectada);
+    const n = simDotacionParaMes(key,b.ym);
+    const dhF = avHabilCount(b.ym, avDaysInMonth(b.ym), state.diasObligatorios||[1,2,3,4,5]);
+    return ratio*n*dhF;
+  });
+  const maxVal = Math.max(1, ...valores);
+  const ALTO_MAX = 190;
+  document.getElementById('simStage').innerHTML = `<div style="display:flex; align-items:flex-end; justify-content:center; gap:22px; height:${ALTO_MAX+60}px; padding-top:40px;">` +
+    todasLasBarras.map((b,i)=>{
+      const v = valores[i];
+      const alto = Math.max(6, Math.round(v/maxVal*ALTO_MAX));
+      if(b.tipo==='hist'){
+        return `<div style="text-align:center;">${capBarraHTML('hist', v, alto)}<div class="cap-mes-label" style="margin-top:8px;">${capNombreMes(b.ym,true)}</div></div>`;
+      }
+      if(b.tipo==='actual'){
+        return `<div style="text-align:center;">
+          <div style="display:flex; gap:6px; align-items:flex-end;">
+            ${capBarraHTML('capacidad', capacidadProyectada, Math.max(6,Math.round(capacidadProyectada/maxVal*ALTO_MAX)))}
+            ${capBarraHTML('realvivo', realVivo, Math.max(6,Math.round(realVivo/maxVal*ALTO_MAX)))}
+          </div>
+          <div class="cap-mes-label" style="margin-top:8px;">${capNombreMes(b.ym,true)} · hoy</div>
+        </div>`;
+      }
+      return `<div style="text-align:center;">${capBarraHTML('capacidad', v, alto)}<div class="cap-mes-label" style="margin-top:8px;">${capNombreMes(b.ym,true)}</div><div class="cap-mes-sub">simulado</div></div>`;
+    }).join('') + `</div>`;
+
+  document.getElementById('simLegend').innerHTML = `
+    <span><i style="background:#7d8590;"></i>Real cerrado (histórico)</span>
+    <span><i style="background:#4f7cac;"></i>Capacidad proyectada</span>
+    <span><i style="background:#1f9d8a;"></i>Real cerrado en vivo (mes actual)</span>
+  `;
+
+  simRenderRanking();
+  simRenderConsejo();
+}
+
+function simRenderRanking(){
+  const ranking = AV_SECTOR_ORDER.map(k=>({k, ratio: simRatioHistorico(k)})).sort((a,b)=>b.ratio-a.ratio);
+  const maxR = Math.max(0.01, ...ranking.map(r=>r.ratio));
+  document.getElementById('simRankingBody').innerHTML = ranking.map(r=>`
+    <div class="sim-ranking-row">
+      <div class="nombre ${r.k===simSectorActual?'activo':''}" data-sim-ranking-click="${r.k}">${AV_SECTOR_SHORT[r.k]||r.k}</div>
+      <div class="bar-wrap"><div class="bar" style="width:${Math.round(r.ratio/maxR*100)}%;"></div></div>
+      <div class="val">${fmt(r.ratio,2)} m²/op/d</div>
+    </div>
+  `).join('');
+  document.querySelectorAll('[data-sim-ranking-click]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      simSectorActual = el.dataset.simRankingClick;
+      simRenderSectorBtns();
+      simRenderSimulador();
+      simRender();
+    });
+  });
+}
+
+function simRenderConsejo(){
+  const key = simSectorActual;
+  const pareto = simParetoSector(key);
+  if(!pareto.length){
+    document.getElementById('simConsejo').innerHTML = `<span style="color:#8b96a8;">Sin causas declaradas en los últimos meses para ${AV_SECTOR_SHORT[key]||key} — nada para recomendar todavía.</span>`;
+    return;
+  }
+  const totalM2 = pareto.reduce((a,[,v])=>a+v.m2,0);
+  const filas = pareto.map(([cat,v])=>`
+    <div class="sim-pareto-row">
+      <div class="cat">${esc(cat)}</div>
+      <div class="bar-wrap"><div class="bar" style="width:${Math.round(v.m2/pareto[0][1].m2*100)}%;"></div></div>
+      <div class="val">${fmt(v.m2,0)} m²</div>
+    </div>
+  `).join('');
+  const [catTop, vTop] = pareto[0];
+  const areaTop = simAreaResponsable(catTop);
+  const causaTopEntry = Object.entries(vTop.causas).sort((a,b)=>b[1].m2-a[1].m2)[0];
+  const pctTop = totalM2>0 ? Math.round(vTop.m2/totalM2*100) : 0;
+  // un botón por cada categoría del Pareto, no solo la que más pesa -- un sector puede
+  // tener que reportarle a varias áreas distintas al mismo tiempo (RRHH y Mantenimiento
+  // a la vez, por ejemplo), no una sola
+  const botones = pareto.map(([cat])=>{
+    const area = simAreaResponsable(cat);
+    return `<button class="btn btn-ghost btn-sm" data-sim-reporte-cat="${esc(cat)}">📄 ${esc(cat)} → ${esc(area)}</button>`;
+  }).join('');
+  document.getElementById('simConsejo').innerHTML = `
+    <b>🔎 Dónde perdió más m² ${AV_SECTOR_SHORT[key]||key}</b> (últimos meses con causas declaradas):
+    ${filas}
+    <div style="margin-top:10px;">
+      <b>${esc(catTop)}</b> explica el ${pctTop}% de lo perdido${causaTopEntry ? ` — principalmente por "${esc(causaTopEntry[0])}" (${fmt(causaTopEntry[1].m2,0)} m² en ${causaTopEntry[1].veces} declaración${causaTopEntry[1].veces===1?'':'es'})` : ''}.
+      Esto es un tema para <b>${esc(areaTop)}</b><span class="badge-area">${esc(areaTop)}</span>.
+    </div>
+    <div class="sub" style="margin:10px 0 0;">Elegí qué motivo reportar (podés mandar más de uno, a áreas distintas):</div>
+    <div class="sim-reporte-btns">${botones}</div>
+  `;
+  document.querySelectorAll('[data-sim-reporte-cat]').forEach(btn=>{
+    btn.addEventListener('click', ()=> simGenerarReportePdf(key, pareto, btn.dataset.simReporteCat));
+  });
+}
+
+function simGenerarReportePdf(key, pareto, categoriaFoco){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const W = doc.internal.pageSize.getWidth();
+  const entradaFoco = pareto.find(([cat])=>cat===categoriaFoco) || pareto[0];
+  const [catFoco, vFoco] = entradaFoco;
+  const area = simAreaResponsable(catFoco);
+  const totalM2 = pareto.reduce((a,[,v])=>a+v.m2,0);
+
+  dibujarHeaderPdf(doc, W, `Reporte de causas — ${AV_SECTOR_SHORT[key]||key} → para ${area}`, `últimos ${simMesesConDatos(key).slice(-3).length} meses con datos`);
+  let y = 54;
+
+  doc.setFillColor(...PDF_COLORS.panelBg);
+  doc.roundedRect(14,y,W-28,20,2,2,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...PDF_COLORS.amber);
+  doc.text(`Motivo: ${catFoco}`, 18, y+8);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_COLORS.inkDim);
+  doc.text(`${fmt(vFoco.m2,0)} m² perdidos por esta categoría, de un total de ${fmt(totalM2,0)} m² en el período analizado`, 18, y+15);
+  y += 28;
+
+  // tabla acotada solo a las causas de la categoría elegida -- reporte puntual para
+  // un área específica, no el desglose completo del sector
+  const filas = Object.entries(vFoco.causas).sort((a,b)=>b[1].m2-a[1].m2).map(([causa,d])=>
+    [causa, d.veces, fmt(d.m2,0)+' m²']
+  );
+  doc.autoTable({
+    startY: y,
+    head: [['Causa declarada','Veces','m² perdidos']],
+    body: filas,
+    theme: 'grid',
+    headStyles: {fillColor: PDF_COLORS.bgDark, textColor: 255, fontSize: 8},
+    bodyStyles: {fontSize: 8},
+    margin: {left:14, right:14}
+  });
+  let y2 = doc.lastAutoTable.finalY + 10;
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text('Recomendación', 14, y2);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  const texto = `El sector ${AV_SECTOR_SHORT[key]||key} viene perdiendo m² por "${catFoco}". Se sugiere que ${area} revise este punto — es lo declarado por el sector para esta categoría en el período analizado.`;
+  doc.text(doc.splitTextToSize(texto, W-28), 14, y2+6);
+
+  doc.save(`Reporte_${key}_${catFoco.replace(/[^a-zA-Z0-9]/g,'')}_${area.replace(/[^a-zA-Z0-9]/g,'')}_${fechaHoyLocal()}.pdf`);
 }
 
 /* ============================================================
