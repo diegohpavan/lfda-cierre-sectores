@@ -11158,7 +11158,15 @@ if('serviceWorker' in navigator){
   .sim-sector-btn:hover{border-color:#e8a33d; color:#e8ecf1;}
   .sim-sector-btn.active{background:linear-gradient(135deg,#e8a33d,#c47f1f); color:#161b22; border-color:#e8a33d; box-shadow:0 0 18px rgba(232,163,61,.4);}
 
-  .sim-ranking{background:#161b22; border:1px solid #2b3340; border-radius:10px; padding:14px 16px; margin-bottom:14px;}
+  .sim-bottom-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; align-items:start;}
+  @media(max-width:1100px){ .sim-bottom-grid{grid-template-columns:1fr;} }
+  .sim-ranking{background:#161b22; border:1px solid #2b3340; border-radius:10px; padding:14px 16px; margin-bottom:0; height:100%;}
+  #simStage{padding:30px 20px 20px;}
+  #viewSimulacion .cap-kpis{margin-bottom:10px;}
+  #viewSimulacion .sim-top-grid{margin-bottom:10px;}
+  #viewSimulacion .cap-legend{margin-top:6px;}
+  #viewSimulacion .cap-sim-bar{margin-bottom:10px;}
+  #viewSimulacion .sim-sector-btns{margin-bottom:10px;}
   .sim-ranking .titulo{font-size:.75rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.05em; margin-bottom:10px;}
   .sim-ranking-row{display:flex; align-items:center; gap:10px; margin:8px 0; font-size:.78rem;}
   .sim-ranking-row .nombre{width:130px; flex-shrink:0; font-weight:700; cursor:pointer;}
@@ -11179,7 +11187,7 @@ if('serviceWorker' in navigator){
   .sim-gauge .num{position:relative; font-size:1.5rem; font-weight:900;}
   .sim-gauge-lbl{font-size:.7rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.05em;}
 
-  .sim-consejo{margin-top:12px; background:#161b22; border-left:3px solid #1f9d8a; border-radius:0 10px 10px 0; padding:12px 16px; font-size:.8rem; line-height:1.55;}
+  .sim-consejo{margin-top:0; background:#161b22; border-left:3px solid #1f9d8a; border-radius:0 10px 10px 0; padding:12px 16px; font-size:.8rem; line-height:1.55; height:100%;}
   .sim-consejo b{color:#1f9d8a;}
   .sim-consejo .badge-area{display:inline-block; background:#1f9d8a22; color:#4fc9b3; font-size:.68rem; font-weight:800; padding:2px 8px; border-radius:5px; margin-left:6px; text-transform:uppercase; letter-spacing:.03em;}
   .sim-pareto-row{display:flex; align-items:center; gap:10px; margin:7px 0; font-size:.76rem;}
@@ -11358,12 +11366,13 @@ if('serviceWorker' in navigator){
     <div class="cap-stage" id="simStage"></div>
     <div class="cap-legend" id="simLegend"></div>
 
-    <div class="sim-ranking">
-      <div class="titulo">🏁 m² por operario / día — todos los sectores (mes en curso)</div>
-      <div id="simRankingBody"></div>
+    <div class="sim-bottom-grid">
+      <div class="sim-ranking">
+        <div class="titulo">🏁 m² por operario / día — todos los sectores (mes en curso)</div>
+        <div id="simRankingBody"></div>
+      </div>
+      <div class="sim-consejo" id="simConsejo"></div>
     </div>
-
-    <div class="sim-consejo" id="simConsejo"></div>
   </div>
 </div>
 
@@ -13234,7 +13243,29 @@ function capRender(){
 let simSectorActual = null;
 const simDotacionOverride = {}; // { '2-MEC': { '2026-09': 12 } } -- en memoria, no se guarda en Firestore
 
+// respaldo manual con los m² reales por sector, para los meses en que Cierre Diario
+// todavía no tenía datos (arranca junio 2026) -- mismo criterio que CAP_HISTORICO_MANUAL:
+// tiene prioridad sobre lo que haya en state.dias, porque son cifras ya cerradas y
+// confirmadas por Diego, no queremos que un mes parcial las tape con un número menor.
+// Fuente: planilla SUP FIN por sector (ene-jul 2026). La columna "ENT" de esa planilla
+// no tiene sector equivalente en AV_SECTOR_ORDER y se descarta.
+const SIM_HISTORICO_MANUAL = {
+  '1-ALM': {'2026-01':1815, '2026-02':1819, '2026-03':2376, '2026-04':1892, '2026-05':1509, '2026-06':1797, '2026-07':3099},
+  '2-MEC': {'2026-01':1905, '2026-02':1788, '2026-03':2150, '2026-04':2112, '2026-05':1629, '2026-06':1466, '2026-07':3191},
+  '3-SOL': {'2026-01':2085, '2026-02':1794, '2026-03':2116, '2026-04':2079, '2026-05':1750, '2026-06':1371, '2026-07':3183},
+  '4-VID': {'2026-01':1688, '2026-02':1709, '2026-03':1929, '2026-04':1260, '2026-05':1357, '2026-06':2194, '2026-07':2357},
+  '5-DVH': {'2026-01':1649, '2026-02':1552, '2026-03':1800, '2026-04':1103, '2026-05':1117, '2026-06':2039, '2026-07':2402},
+  '6-ARM': {'2026-01':2383, '2026-02':1811, '2026-03':2055, '2026-04':1945, '2026-05':1908, '2026-06':1374, '2026-07':3088},
+  '7-ACR': {'2026-01':1901, '2026-02':1636, '2026-03':1856, '2026-04':1268, '2026-05':1214, '2026-06':1536, '2026-07':2033},
+  '8-LI':  {'2026-01':2004, '2026-02':1956, '2026-03':2402, '2026-04':1773, '2026-05':1434, '2026-06':1717, '2026-07':2596},
+};
+
 function simStatsMes(key, ym){
+  const manual = SIM_HISTORICO_MANUAL[key] && SIM_HISTORICO_MANUAL[key][ym];
+  if(manual!==undefined){
+    const dh = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
+    return {sum: manual, diasConDatos: dh};
+  }
   const dObl = state.diasObligatorios||[1,2,3,4,5];
   const feriados = new Set((state.avanceFeriados||[]).map(f=>f.fecha));
   let sum=0, diasConDatos=0;
@@ -13252,7 +13283,7 @@ function simStatsMes(key, ym){
 }
 
 function simMesesConDatos(key){
-  const meses = new Set();
+  const meses = new Set(Object.keys(SIM_HISTORICO_MANUAL[key]||{}));
   Object.keys(state.dias||{}).forEach(f=>{
     const s = state.dias[f].sectores && state.dias[f].sectores[key];
     if(s && typeof s.cerrado==='number') meses.add(f.slice(0,7));
@@ -13423,8 +13454,8 @@ function simRender(){
     return ratio*n*dhF;
   });
   const maxVal = Math.max(1, ...valores);
-  const ALTO_MAX = 190;
-  document.getElementById('simStage').innerHTML = `<div style="display:flex; align-items:flex-end; justify-content:center; gap:22px; height:${ALTO_MAX+60}px; padding-top:40px;">` +
+  const ALTO_MAX = 145;
+  document.getElementById('simStage').innerHTML = `<div style="display:flex; align-items:flex-end; justify-content:space-evenly; width:100%; gap:22px; height:${ALTO_MAX+60}px; padding-top:40px;">` +
     todasLasBarras.map((b,i)=>{
       const v = valores[i];
       const alto = Math.max(6, Math.round(v/maxVal*ALTO_MAX));
@@ -13451,6 +13482,73 @@ function simRender(){
 
   simRenderRanking();
   simRenderConsejo();
+}
+
+// propuesta de mejora + tiempo estimado de ejecución por causa puntual del catálogo 5M.
+// "corta"/"media"/"larga" se usan también para ordenar/filtrar si hace falta a futuro.
+const SIM_PROPUESTA_MEJORA = {
+  'Ausentismo': {propuesta:'Revisar con RRHH si el ausentismo se concentra en días o personas puntuales, y reforzar el seguimiento.', tiempo:'Corta (1-2 semanas)'},
+  'Falta de personal': {propuesta:'Evaluar sumar personal al sector o cubrir con polivalencia de otros sectores mientras se resuelve.', tiempo:'Media (semanas a 1-2 meses)'},
+  'Capacitación insuficiente': {propuesta:'Programar una capacitación puntual en la tarea crítica (ver Polivalencias para saber a quién).', tiempo:'Corta-media (2-4 semanas)'},
+  'Bajo rendimiento': {propuesta:'Revisar si es un tema de método de trabajo o de carga — no siempre es falta de esfuerzo.', tiempo:'Corta (1-2 semanas)'},
+  'Rotura / falla mecánica': {propuesta:'Priorizar el correctivo de este equipo y evaluar pasarlo a mantenimiento preventivo.', tiempo:'Según gravedad — urgente si es recurrente'},
+  'Mantenimiento programado': {propuesta:'Coordinar mejor el horario del mantenimiento con producción para minimizar la parada.', tiempo:'Corta (coordinación, días)'},
+  'Falta de repuestos': {propuesta:'Definir un stock mínimo de los repuestos críticos de esta máquina.', tiempo:'Media (semanas)'},
+  'Setup / cambio de formato': {propuesta:'Estandarizar el procedimiento de cambio de formato para achicar el tiempo de parada.', tiempo:'Corta-media (2-3 semanas)'},
+  'Cambio de prioridad / urgencia': {propuesta:'Revisar con Planificación la frecuencia de cambios — cada uno tiene un costo real en productividad.', tiempo:'Corta (proceso, no inversión)'},
+  'Reproceso por error': {propuesta:'Identificar en qué paso se repite el error y reforzar el control ahí puntualmente.', tiempo:'Corta (1-2 semanas)'},
+  'Orden mal cargada': {propuesta:'Revisar el circuito de carga de la orden para corregir el error de raíz, no parche a parche.', tiempo:'Corta (1-2 semanas)'},
+  'Falta de instructivo': {propuesta:'Documentar el instructivo faltante — inversión chica con impacto directo e inmediato.', tiempo:'Corta (días)'},
+  'Falta de insumo': {propuesta:'Revisar el punto de pedido / stock mínimo de este insumo con Abastecimiento.', tiempo:'Media (semanas)'},
+  'Material no conforme': {propuesta:'Reforzar el control de calidad al recibir material de este proveedor puntual.', tiempo:'Corta-media (2-3 semanas)'},
+  'Demora de proveedor': {propuesta:'Evaluar tiempos de entrega y si conviene un proveedor alternativo o más stock de seguridad.', tiempo:'Media-larga (1-3 meses)'},
+  'Stock incorrecto': {propuesta:'Revisar el proceso de conteo/registro de stock de este insumo puntual.', tiempo:'Corta (1-2 semanas)'},
+  'Corte de energía': {propuesta:'Fuera del control directo del sector — evaluar con Mantenimiento medidas de mitigación (generador, UPS en puntos críticos).', tiempo:'Larga (inversión)'},
+  'Espacio / layout insuficiente': {propuesta:'Revisar el layout del sector con Producción/Ingeniería para liberar espacio de trabajo.', tiempo:'Media-larga (1-3 meses)'},
+  'Condiciones climáticas': {propuesta:'Factor externo — si es recurrente en la época, evaluar ventilación/climatización puntual.', tiempo:'Variable según la medida'},
+  'Orden y limpieza': {propuesta:'Reforzar las 5S del sector — impacto rápido con costo bajo.', tiempo:'Corta (días)'},
+};
+// si la causa es una que el sector agregó a mano (no está en el catálogo default), caemos
+// a una propuesta genérica por categoría en vez de dejar el campo vacío
+const SIM_PROPUESTA_DEFAULT_POR_CATEGORIA = {
+  'Mano de obra': {propuesta:'Revisar con RRHH la situación de personal del sector.', tiempo:'Media'},
+  'Máquina': {propuesta:'Coordinar con Mantenimiento una revisión del equipo.', tiempo:'Corta-media'},
+  'Método': {propuesta:'Revisar el proceso puntual con Producción / Ing. de Procesos.', tiempo:'Corta'},
+  'Material': {propuesta:'Revisar con Abastecimiento el insumo o proveedor en cuestión.', tiempo:'Media'},
+  'Medio ambiente': {propuesta:'Evaluar con Mantenimiento / SySO una solución puntual.', tiempo:'Variable'},
+};
+function simPropuestaPara(categoria, causa){
+  return SIM_PROPUESTA_MEJORA[causa] || SIM_PROPUESTA_DEFAULT_POR_CATEGORIA[categoria] || {propuesta:'Revisar el caso puntual con el área responsable.', tiempo:'A definir'};
+}
+
+// tendencia de una categoría: compara el total de m² de los últimos 3 meses con datos
+// contra los 3 meses anteriores a esos -- sirve para saber si un problema viene
+// empeorando o si ya se está resolviendo solo
+function simTendenciaCategoria(key, categoria){
+  const meses = simMesesConDatos(key);
+  if(meses.length < 4) return null; // no hay suficiente historia para comparar
+  const ultimos3 = meses.slice(-3);
+  const anteriores3 = meses.slice(-6,-3);
+  if(!anteriores3.length) return null;
+  const sumaCategoria = (listaMeses)=>{
+    let total=0;
+    listaMeses.forEach(ym=>{
+      Object.keys(state.dias||{}).forEach(f=>{
+        if(!f.startsWith(ym)) return;
+        const s = state.dias[f].sectores && state.dias[f].sectores[key];
+        if(!s || !(s.motivoCausa||[]).length) return;
+        s.motivoCausa.forEach(c=>{
+          if(simCategoriaDeCausa(key, c.causa)===categoria) total += Number(c.m2)||0;
+        });
+      });
+    });
+    return total;
+  };
+  const actual = sumaCategoria(ultimos3);
+  const previo = sumaCategoria(anteriores3);
+  if(previo===0) return null;
+  const variacion = Math.round((actual-previo)/previo*100);
+  return {actual, previo, variacion};
 }
 
 function simRenderRanking(){
@@ -13492,6 +13590,15 @@ function simRenderConsejo(){
   const areaTop = simAreaResponsable(catTop);
   const causaTopEntry = Object.entries(vTop.causas).sort((a,b)=>b[1].m2-a[1].m2)[0];
   const pctTop = totalM2>0 ? Math.round(vTop.m2/totalM2*100) : 0;
+  const propuestaTop = causaTopEntry ? simPropuestaPara(catTop, causaTopEntry[0]) : null;
+  const tendencia = simTendenciaCategoria(key, catTop);
+  const tendenciaHtml = tendencia
+    ? (tendencia.variacion>5
+        ? `<span style="color:#e8584d;">▲ ${tendencia.variacion}% peor que el período anterior</span>`
+        : tendencia.variacion<-5
+          ? `<span style="color:#1f9d8a;">▼ ${Math.abs(tendencia.variacion)}% mejor que el período anterior</span>`
+          : `<span style="color:#8b96a8;">≈ estable vs. el período anterior</span>`)
+    : '';
   // un botón por cada categoría del Pareto, no solo la que más pesa -- un sector puede
   // tener que reportarle a varias áreas distintas al mismo tiempo (RRHH y Mantenimiento
   // a la vez, por ejemplo), no una sola
@@ -13504,8 +13611,13 @@ function simRenderConsejo(){
     ${filas}
     <div style="margin-top:10px;">
       <b>${esc(catTop)}</b> explica el ${pctTop}% de lo perdido${causaTopEntry ? ` — principalmente por "${esc(causaTopEntry[0])}" (${fmt(causaTopEntry[1].m2,0)} m² en ${causaTopEntry[1].veces} declaración${causaTopEntry[1].veces===1?'':'es'})` : ''}.
-      Esto es un tema para <b>${esc(areaTop)}</b><span class="badge-area">${esc(areaTop)}</span>.
+      Esto es un tema para <b>${esc(areaTop)}</b><span class="badge-area">${esc(areaTop)}</span> ${tendenciaHtml}
     </div>
+    ${propuestaTop ? `
+    <div style="margin-top:8px; padding-top:8px; border-top:1px dashed #2b3340;">
+      <div><b style="color:#4fc9b3;">💡 Propuesta:</b> ${esc(propuestaTop.propuesta)}</div>
+      <div style="margin-top:3px;"><b style="color:#4fc9b3;">⏱ Tiempo estimado:</b> ${esc(propuestaTop.tiempo)}</div>
+    </div>` : ''}
     <div class="sub" style="margin:10px 0 0;">Elegí qué motivo reportar (podés mandar más de uno, a áreas distintas):</div>
     <div class="sim-reporte-btns">${botones}</div>
   `;
@@ -13522,6 +13634,7 @@ function simGenerarReportePdf(key, pareto, categoriaFoco){
   const [catFoco, vFoco] = entradaFoco;
   const area = simAreaResponsable(catFoco);
   const totalM2 = pareto.reduce((a,[,v])=>a+v.m2,0);
+  const tendencia = simTendenciaCategoria(key, catFoco);
 
   dibujarHeaderPdf(doc, W, `Reporte de causas — ${AV_SECTOR_SHORT[key]||key} → para ${area}`, `últimos ${simMesesConDatos(key).slice(-3).length} meses con datos`);
   let y = 54;
@@ -13531,14 +13644,15 @@ function simGenerarReportePdf(key, pareto, categoriaFoco){
   doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(...PDF_COLORS.amber);
   doc.text(`Motivo: ${catFoco}`, 18, y+8);
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_COLORS.inkDim);
-  doc.text(`${fmt(vFoco.m2,0)} m² perdidos por esta categoría, de un total de ${fmt(totalM2,0)} m² en el período analizado`, 18, y+15);
+  let textoResumen = `${fmt(vFoco.m2,0)} m² perdidos por esta categoría, de un total de ${fmt(totalM2,0)} m² en el período analizado`;
+  if(tendencia) textoResumen += tendencia.variacion>5 ? ` — viene ${tendencia.variacion}% peor que el período anterior` : tendencia.variacion<-5 ? ` — viene ${Math.abs(tendencia.variacion)}% mejor que el período anterior` : ` — estable vs. el período anterior`;
+  doc.text(textoResumen, 18, y+15);
   y += 28;
 
   // tabla acotada solo a las causas de la categoría elegida -- reporte puntual para
   // un área específica, no el desglose completo del sector
-  const filas = Object.entries(vFoco.causas).sort((a,b)=>b[1].m2-a[1].m2).map(([causa,d])=>
-    [causa, d.veces, fmt(d.m2,0)+' m²']
-  );
+  const causasOrdenadas = Object.entries(vFoco.causas).sort((a,b)=>b[1].m2-a[1].m2);
+  const filas = causasOrdenadas.map(([causa,d])=> [causa, d.veces, fmt(d.m2,0)+' m²']);
   doc.autoTable({
     startY: y,
     head: [['Causa declarada','Veces','m² perdidos']],
@@ -13549,13 +13663,38 @@ function simGenerarReportePdf(key, pareto, categoriaFoco){
     margin: {left:14, right:14}
   });
   let y2 = doc.lastAutoTable.finalY + 10;
+
+  // plan de acción: propuesta + tiempo estimado por cada causa de esta categoría
   doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
-  doc.text('Recomendación', 14, y2);
+  doc.text('Plan de acción sugerido', 14, y2);
+  const filasPlan = causasOrdenadas.map(([causa])=>{
+    const p = simPropuestaPara(catFoco, causa);
+    return [causa, p.propuesta, p.tiempo];
+  });
+  doc.autoTable({
+    startY: y2+4,
+    head: [['Causa','Propuesta de mejora','Tiempo estimado']],
+    body: filasPlan,
+    theme: 'grid',
+    headStyles: {fillColor: [31,157,138], textColor: 255, fontSize: 8},
+    bodyStyles: {fontSize: 7.5},
+    columnStyles: {0:{cellWidth:32}, 2:{cellWidth:34}},
+    margin: {left:14, right:14}
+  });
+  let y3 = doc.lastAutoTable.finalY + 10;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(0,0,0);
+  doc.text('Responsable', 14, y3);
   doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
   const texto = `El sector ${AV_SECTOR_SHORT[key]||key} viene perdiendo m² por "${catFoco}". Se sugiere que ${area} revise este punto — es lo declarado por el sector para esta categoría en el período analizado.`;
-  doc.text(doc.splitTextToSize(texto, W-28), 14, y2+6);
+  doc.text(doc.splitTextToSize(texto, W-28), 14, y3+6);
 
-  doc.save(`Reporte_${key}_${catFoco.replace(/[^a-zA-Z0-9]/g,'')}_${area.replace(/[^a-zA-Z0-9]/g,'')}_${fechaHoyLocal()}.pdf`);
+  // en vez de descargar directo (llenaría el disco de archivos que capaz ni hacen falta),
+  // lo abrimos en el mismo visor a pantalla completa que ya usamos para los adjuntos de
+  // ideas -- ahí el usuario elige si lo descarga (botón "Descargar") o lo imprime (el
+  // propio visor de PDF del navegador ya trae esa opción en su barra de herramientas)
+  const nombreArchivo = `Reporte_${key}_${catFoco.replace(/[^a-zA-Z0-9]/g,'')}_${area.replace(/[^a-zA-Z0-9]/g,'')}_${fechaHoyLocal()}.pdf`;
+  misAbrirAdjunto(doc.output('datauristring'), nombreArchivo);
 }
 
 /* ============================================================
