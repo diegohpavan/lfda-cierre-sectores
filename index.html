@@ -2968,7 +2968,8 @@ function entrarComoLider(lider){
     nombre: lider.nombre,
     sector: lider.sector || null,
     sectoresAdicionales: lider.sectoresAdicionales || [],
-    permisos: lider.permisos || permisosVacios()
+    permisos: lider.permisos || permisosVacios(),
+    mostrarEnGerencia: !!lider.mostrarEnGerencia
   });
   iniciarAppPostLogin();
 }
@@ -3061,6 +3062,18 @@ function aplicarRestriccionesDeRol(){
   // Panel de Ideas es exclusivo de jefatura/gerencia/admin/presidencia
   const navPanelIdeas = document.getElementById('navBtnPanelIdeas');
   if(navPanelIdeas) navPanelIdeas.style.display = puedeVerTodo() ? '' : 'none';
+
+  // Modo Presentación (Simulación por Sector) maneja datos sensibles de personal
+  // (bajas, reasignaciones) -- exclusivo de admin o usuarios marcados "gerencia",
+  // no alcanza con el permiso general "ver todo" que ya tienen otras jefaturas
+  const btnPresentacion = document.getElementById('simBtnPresentacion');
+  if(btnPresentacion) btnPresentacion.style.display = puedeVerModoPresentacion() ? '' : 'none';
+}
+
+// admin, o un usuario explícitamente marcado "mostrarEnGerencia" en Configuración →
+// Usuarios -- el permiso general "ver todo" NO alcanza para esto a propósito
+function puedeVerModoPresentacion(){
+  return esAdmin() || !!(sesion && sesion.mostrarEnGerencia);
 }
 
 function chequearSesionAlCargar(){
@@ -9748,10 +9761,16 @@ document.getElementById('btnGuardarFinLinea').addEventListener('click', ()=>{
 
 /* ----- modal de confirmación por contraseña para acciones destructivas ----- */
 const PASS_DESTRUCTIVA = '2015';
+// contraseña dedicada a Modo Presentación (datos sensibles de personal), guardada
+// como hash SHA-256 en vez de texto plano -- este archivo termina en GitHub Pages,
+// que es código fuente público, así que evitamos dejar la contraseña legible ahí
+const PASS_MODO_PRESENTACION_HASH = '83f1ca6cf5ab96baa2feeced43a1904dee6d0007ce9605fe665eddd2dfae0dd6';
 let _passCallback = null;
+let _passHashEsperado = null; // si se usa este modal en modo hash, va acá; si no, queda null y compara contra PASS_DESTRUCTIVA
 
-function pedirConfirmacionPass(titulo, descripcion, callback){
+function pedirConfirmacionPass(titulo, descripcion, callback, hashEsperado){
   _passCallback = callback;
+  _passHashEsperado = hashEsperado || null;
   document.getElementById('modalConfirmPassTitle').textContent = titulo;
   document.getElementById('modalConfirmPassDesc').textContent = descripcion;
   document.getElementById('inputConfirmPass').value = '';
@@ -9763,11 +9782,13 @@ function pedirConfirmacionPass(titulo, descripcion, callback){
 document.getElementById('btnConfirmPassCancel').addEventListener('click', ()=>{
   document.getElementById('modalConfirmPass').classList.remove('show');
   _passCallback = null;
+  _passHashEsperado = null;
 });
 
-document.getElementById('btnConfirmPassOk').addEventListener('click', ()=>{
+document.getElementById('btnConfirmPassOk').addEventListener('click', async ()=>{
   const val = document.getElementById('inputConfirmPass').value;
-  if(val !== PASS_DESTRUCTIVA){
+  const ok = _passHashEsperado ? (await sha256Hex(val)) === _passHashEsperado : val === PASS_DESTRUCTIVA;
+  if(!ok){
     document.getElementById('modalConfirmPassError').style.display = '';
     document.getElementById('inputConfirmPass').value = '';
     document.getElementById('inputConfirmPass').focus();
@@ -9776,6 +9797,7 @@ document.getElementById('btnConfirmPassOk').addEventListener('click', ()=>{
   document.getElementById('modalConfirmPass').classList.remove('show');
   if(_passCallback) _passCallback();
   _passCallback = null;
+  _passHashEsperado = null;
 });
 
 document.getElementById('inputConfirmPass').addEventListener('keydown', (e)=>{
@@ -11229,11 +11251,19 @@ if('serviceWorker' in navigator){
   .sim-pres-card{cursor:pointer;}
   .sim-pres-card .ratio-mes{font-size:.72rem; color:#8b96a8; margin-top:2px;}
   .sim-pres-card .marcados{font-size:.7rem; color:#e8584d; margin-top:6px; font-weight:700;}
-  .sim-pres-ver-calculo, .sim-pres-abrir-personal{position:relative; z-index:2;}
+  .sim-pres-ver-calculo, .sim-pres-abrir-personal{
+    position:relative; z-index:2; cursor:pointer; font-weight:700; font-size:.72rem;
+    padding:7px 13px; border-radius:9px; border:1px solid #2b3340; border-bottom-width:3px;
+    color:#c5cdd8; background:linear-gradient(180deg,#242b38,#161b22);
+    box-shadow:0 3px 6px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.05);
+    transition:transform .08s ease, box-shadow .08s ease, border-color .15s, color .15s;
+  }
+  .sim-pres-ver-calculo{margin-top:10px;}
+  .sim-pres-ver-calculo:hover{border-color:#e8a33d; color:#e8a33d; transform:translateY(-1px); box-shadow:0 5px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);}
+  .sim-pres-abrir-personal:hover{border-color:#4fc9b3; color:#4fc9b3; transform:translateY(-1px); box-shadow:0 5px 10px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);}
+  .sim-pres-ver-calculo:active, .sim-pres-abrir-personal:active{transform:translateY(2px); border-bottom-width:1px; box-shadow:0 1px 2px rgba(0,0,0,.3);}
   .sim-personal-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line2); font-size:13px;}
   .sim-personal-row select{background:var(--panel2); border:1px solid var(--line2); color:var(--ink); padding:5px 8px; border-radius:6px; font-size:12px;}
-  .sim-pres-ver-calculo{margin-top:10px; background:none; border:1px solid #2b3340; color:#8b96a8; font-size:.7rem; padding:4px 10px; border-radius:20px; cursor:pointer;}
-  .sim-pres-ver-calculo:hover{border-color:#e8a33d; color:#e8a33d;}
   .sim-pres-calculo-detalle{margin-top:10px; text-align:left; background:#0d1015; border-radius:8px; padding:10px 12px; font-size:.72rem; line-height:1.7; color:#8b96a8;}
   .sim-pres-calculo-detalle b{color:#e8ecf1;}
   .sim-pres-total b{font-size:1.3rem;}
@@ -11421,7 +11451,7 @@ if('serviceWorker' in navigator){
 
   <div id="simVistaPresentacion" style="display:none;">
     <div class="sim-pres-control">
-      <div class="sim-pres-control-label">🎯 Objetivo de venta mensual (Fin de Línea)</div>
+      <div class="sim-pres-control-label">🎯 Objetivo de m² mensuales — aplicado a cada sector por igual, cada uno contra su propio historial</div>
       <div class="sim-pres-control-row">
         <button class="sim-pres-btn-grande" id="simPresMenos100">−100</button>
         <button class="sim-pres-btn-chico" id="simPresMenos10">−10</button>
@@ -13377,7 +13407,7 @@ function simMesesConDatos(key){
 // m²/operario/día histórico de un sector: promedio de los últimos 3 meses con datos
 // (usa la dotación ACTUAL de ese sector como divisor para toda la serie histórica,
 // misma simplificación que ya usa Capacidad vs Real con proyDotacionTotal)
-function simRatioHistorico(key, mesReferencia){
+function simRatioHistorico(key, mesReferencia, mesCorte){
   const dotacionActual = (state.personalPorSector||{})[key] || 0;
   if(!dotacionActual) return 0;
   if(mesReferencia && mesReferencia!=='auto'){
@@ -13386,11 +13416,13 @@ function simRatioHistorico(key, mesReferencia){
     const {sum, diasConDatos} = simStatsMes(key, mesReferencia);
     return diasConDatos>0 ? sum/(dotacionActual*diasConDatos) : 0;
   }
-  // automático: últimos 3 meses CERRADOS -- se excluye el mes en curso a propósito,
-  // porque un mes parcial/recién arrancado le pega para abajo al promedio y termina
-  // pidiendo más gente de la que realmente hace falta
-  const mesActual = proyMesSiguiente(0);
-  const meses = simMesesConDatos(key).filter(ym=>ym<mesActual).slice(-3);
+  // automático: últimos 3 meses CERRADOS antes de "mesCorte" -- por defecto es hoy (se
+  // excluye el mes en curso a propósito, porque un mes parcial/recién arrancado le pega
+  // para abajo al promedio), pero si se está proyectando un mes YA CERRADO a modo de
+  // prueba (ej. "Proyectar en: julio"), el corte pasa a ser ese mismo mes, para no
+  // incluir julio en el promedio que se usa para calcular... julio
+  const corte = mesCorte || proyMesSiguiente(0);
+  const meses = simMesesConDatos(key).filter(ym=>ym<corte).slice(-3);
   if(!meses.length) return 0;
   let sumaRatios=0, n=0;
   meses.forEach(ym=>{
@@ -13656,16 +13688,16 @@ function simTendenciaCategoria(key, categoria){
 // cuánto procesa este sector en relación a lo que sale por Fin de Línea (promedio de
 // los últimos meses en que hay dato de AMBOS) -- así el objetivo total se reparte entre
 // sectores de forma realista en vez de asumir que todos mueven el mismo m²
-function simFactorVsFinLinea(key, mesReferencia){
+function simFactorVsFinLinea(key, mesReferencia, mesCorte){
   if(key==='8-LI') return 1;
   if(mesReferencia && mesReferencia!=='auto'){
     const li = simStatsMes('8-LI', mesReferencia).sum;
     const sec = simStatsMes(key, mesReferencia).sum;
     return li>0 ? sec/li : 0;
   }
-  const mesActual = proyMesSiguiente(0);
+  const corte = mesCorte || proyMesSiguiente(0);
   const mesesLI = new Set(simMesesConDatos('8-LI'));
-  const meses = simMesesConDatos(key).filter(ym=>ym<mesActual && mesesLI.has(ym)).slice(-3);
+  const meses = simMesesConDatos(key).filter(ym=>ym<corte && mesesLI.has(ym)).slice(-3);
   if(!meses.length) return 0;
   let sumaFactor=0, n=0;
   meses.forEach(ym=>{
@@ -13676,14 +13708,21 @@ function simFactorVsFinLinea(key, mesReferencia){
   return n>0 ? sumaFactor/n : 0;
 }
 
-function simPresOperariosNecesarios(key, targetLI, ym, mesReferencia){
-  const factor = simFactorVsFinLinea(key, mesReferencia);
-  const ratio = simRatioHistorico(key, mesReferencia);
+function simPresOperariosNecesarios(key, target, ym, mesReferencia){
+  // si se está proyectando un mes ya cerrado (prueba contra la realidad), el corte del
+  // promedio automático va antes de ESE mes, no antes de hoy -- si no, un backtest de
+  // julio terminaría promediando julio consigo mismo
+  const hoy = proyMesSiguiente(0);
+  const corte = ym<hoy ? ym : hoy;
+  // cada sector se mide SOLO contra su propio historial -- sin pasar el objetivo por
+  // ningún factor de conversión contra Fin de Línea. Antes, un sector que ya rendía más
+  // que Fin de Línea (ej. CM en julio) terminaba pidiendo MÁS gente igual, porque el
+  // factor le escalaba el objetivo para arriba -- una distorsión, no un dato real.
+  const ratio = simRatioHistorico(key, mesReferencia, corte);
   const dh = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
-  if(!factor || !ratio || !dh) return null;
-  const objetivoSector = targetLI*factor;
-  const mesesUsados = (mesReferencia && mesReferencia!=='auto') ? [mesReferencia] : simMesesConDatos(key).filter(m=>m<proyMesSiguiente(0)).slice(-3);
-  return { valor: objetivoSector/(ratio*dh), factor, ratio, dh, objetivoSector, mesesUsados };
+  if(!ratio || !dh) return null;
+  const mesesUsados = (mesReferencia && mesReferencia!=='auto') ? [mesReferencia] : simMesesConDatos(key).filter(m=>m<corte).slice(-3);
+  return { valor: target/(ratio*dh), ratio, dh, objetivoSector: target, mesesUsados };
 }
 
 let simPresTarget = null;
@@ -13691,13 +13730,19 @@ let simPresMesActual = null;
 let simPresMesReferencia = 'auto';
 
 function simAbrirPresentacion(){
+  if(!puedeVerModoPresentacion()) return; // doble candado, por si se llama desde otro lado
   document.getElementById('simVistaSector').style.display = 'none';
   document.getElementById('simVistaPresentacion').style.display = 'block';
   document.getElementById('simBtnPresentacion').textContent = '📊 Ver por sector';
   if(!simPresMesActual) simPresMesActual = proyMesSiguiente(0);
   const sel = document.getElementById('simPresMes');
-  const mesesSim = [proyMesSiguiente(0), proyMesSiguiente(1), proyMesSiguiente(2)];
-  sel.innerHTML = mesesSim.map(ym=>`<option value="${ym}">${capNombreMes(ym)}</option>`).join('');
+  // "Proyectar en" incluye los próximos 3 meses (para planificar a futuro) Y los meses
+  // ya cerrados con datos (para poder hacer una prueba contra la realidad: "con lo que
+  // pasó en julio, ¿el modelo me hubiese pedido la gente que ya tenía?")
+  const mesesConDatos = [...new Set(AV_SECTOR_ORDER.flatMap(k=>simMesesConDatos(k)))];
+  const mesesFuturos = [proyMesSiguiente(0), proyMesSiguiente(1), proyMesSiguiente(2)];
+  const mesesSim = [...new Set([...mesesConDatos, ...mesesFuturos])].sort();
+  sel.innerHTML = mesesSim.map(ym=>`<option value="${ym}">${capNombreMes(ym)}${ym<proyMesSiguiente(0)?' (cerrado)':''}</option>`).join('');
   sel.value = simPresMesActual;
 
   // meses disponibles como referencia -- unión de lo que tenga cualquier sector, siempre
@@ -13723,7 +13768,14 @@ function simVolverASector(){
 }
 document.getElementById('simBtnPresentacion').addEventListener('click', ()=>{
   const enPresentacion = document.getElementById('simVistaPresentacion').style.display !== 'none';
-  if(enPresentacion) simVolverASector(); else simAbrirPresentacion();
+  if(enPresentacion){ simVolverASector(); return; }
+  if(!puedeVerModoPresentacion()){ toast('Modo Presentación es solo para administración/gerencia', true); return; }
+  pedirConfirmacionPass(
+    'Modo Presentación',
+    'Esta pantalla muestra información sensible de personal (posibles bajas y reasignaciones por sector). Ingresá la contraseña para continuar.',
+    ()=> simAbrirPresentacion(),
+    PASS_MODO_PRESENTACION_HASH
+  );
 });
 document.getElementById('simPresMes').addEventListener('change', (e)=>{ simPresMesActual = e.target.value; simRenderPresentacion(); });
 document.getElementById('simPresReferencia').addEventListener('change', (e)=>{ simPresMesReferencia = e.target.value; simRenderPresentacion(); });
@@ -13769,11 +13821,10 @@ function simRenderPresentacion(){
         <button type="button" class="sim-pres-ver-calculo" data-sim-pres-calc="${key}">ℹ Ver cálculo</button>
       </div>
       <div class="sim-pres-calculo-detalle" id="simPresCalc_${key}" style="display:none;">
-        1. Factor vs. Fin de Línea: <b>${fmt(r.factor,2)}</b> (${esc(AV_SECTOR_SHORT[key]||key)} ÷ Fin de Línea, ${basadoEnTxt})<br>
-        2. Objetivo del sector: ${fmt(simPresTarget,0)} m² × ${fmt(r.factor,2)} = <b>${fmt(r.objetivoSector,0)} m²</b><br>
-        3. m²/operario/día histórico: <b>${fmt(r.ratio,2)}</b> (${basadoEnTxt}, con dotación actual = ${actual})<br>
-        4. Días hábiles de ${esc(capNombreMes(ym,true))}: <b>${r.dh}</b><br>
-        5. Operarios = ${fmt(r.objetivoSector,0)} ÷ (${fmt(r.ratio,2)} × ${r.dh}) = <b>${fmt(r.valor,2)}</b> → redondeado a ${necesario}
+        1. Objetivo (igual para todos los sectores): <b>${fmt(r.objetivoSector,0)} m²</b><br>
+        2. m²/operario/día histórico de ${esc(AV_SECTOR_SHORT[key]||key)}: <b>${fmt(r.ratio,2)}</b> (${basadoEnTxt}, con dotación actual = ${actual})<br>
+        3. Días hábiles de ${esc(capNombreMes(ym,true))}: <b>${r.dh}</b><br>
+        4. Operarios = ${fmt(r.objetivoSector,0)} ÷ (${fmt(r.ratio,2)} × ${r.dh}) = <b>${fmt(r.valor,2)}</b> → redondeado a ${necesario}
       </div>
     </div>`;
   }).join('');
