@@ -11206,7 +11206,7 @@ if('serviceWorker' in navigator){
   .sim-pres-btn-grande{width:74px; height:74px; font-size:1.1rem;}
   .sim-pres-btn-chico{width:56px; height:56px; font-size:.95rem;}
   .sim-pres-btn-grande:hover, .sim-pres-btn-chico:hover{border-color:#e8a33d; color:#e8a33d; transform:scale(1.06);}
-  .sim-pres-sub{margin-top:16px; display:flex; align-items:center; justify-content:center; gap:12px; font-size:.85rem; color:#8b96a8;}
+  .sim-pres-sub{margin-top:16px; display:flex; align-items:center; justify-content:center; gap:12px; font-size:.85rem; color:#8b96a8; flex-wrap:wrap;}
   .sim-pres-sub select{background:#1f2733; border:1px solid #2b3340; color:#e8ecf1; padding:7px 12px; border-radius:8px; font-size:.85rem;}
 
   .sim-pres-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px;}
@@ -11225,6 +11225,13 @@ if('serviceWorker' in navigator){
   .sim-pres-card.sindatos{opacity:.5;}
 
   .sim-pres-total{background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:.95rem;}
+  .sim-pres-reportes{margin-top:12px; background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:.85rem; color:#8b96a8;}
+  .sim-pres-card{cursor:pointer;}
+  .sim-pres-card .ratio-mes{font-size:.72rem; color:#8b96a8; margin-top:2px;}
+  .sim-pres-card .marcados{font-size:.7rem; color:#e8584d; margin-top:6px; font-weight:700;}
+  .sim-pres-ver-calculo, .sim-pres-abrir-personal{position:relative; z-index:2;}
+  .sim-personal-row{display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--line2); font-size:13px;}
+  .sim-personal-row select{background:var(--panel2); border:1px solid var(--line2); color:var(--ink); padding:5px 8px; border-radius:6px; font-size:12px;}
   .sim-pres-ver-calculo{margin-top:10px; background:none; border:1px solid #2b3340; color:#8b96a8; font-size:.7rem; padding:4px 10px; border-radius:20px; cursor:pointer;}
   .sim-pres-ver-calculo:hover{border-color:#e8a33d; color:#e8a33d;}
   .sim-pres-calculo-detalle{margin-top:10px; text-align:left; background:#0d1015; border-radius:8px; padding:10px 12px; font-size:.72rem; line-height:1.7; color:#8b96a8;}
@@ -11423,7 +11430,10 @@ if('serviceWorker' in navigator){
         <button class="sim-pres-btn-grande" id="simPresMas100">+100</button>
       </div>
       <div class="sim-pres-sub">
+        <span>Proyectar en:</span>
         <select id="simPresMes"></select>
+        <span>Basar cálculo en:</span>
+        <select id="simPresReferencia"></select>
         <span id="simPresPorDia"></span>
       </div>
     </div>
@@ -11431,6 +11441,21 @@ if('serviceWorker' in navigator){
     <div class="sim-pres-grid" id="simPresGrid"></div>
 
     <div class="sim-pres-total" id="simPresTotalBar"></div>
+
+    <div class="sim-pres-reportes" id="simPresReportesBar" style="display:none;">
+      <span id="simPresReportesResumen"></span>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn btn-danger btn-sm" id="simBtnReporteBaja">📄 Reporte: personal a dar de baja</button>
+        <button class="btn btn-primary btn-sm" id="simBtnReporteContinua">📄 Reporte: personal que continúa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="mis-modal-overlay" id="simPersonalModalOverlay">
+  <div class="mis-modal-panel" style="max-width:600px;">
+    <button class="mis-modal-close" id="simPersonalCerrar">✕</button>
+    <div id="simPersonalBody"></div>
   </div>
 </div>
 
@@ -13352,10 +13377,20 @@ function simMesesConDatos(key){
 // m²/operario/día histórico de un sector: promedio de los últimos 3 meses con datos
 // (usa la dotación ACTUAL de ese sector como divisor para toda la serie histórica,
 // misma simplificación que ya usa Capacidad vs Real con proyDotacionTotal)
-function simRatioHistorico(key){
+function simRatioHistorico(key, mesReferencia){
   const dotacionActual = (state.personalPorSector||{})[key] || 0;
   if(!dotacionActual) return 0;
-  const meses = simMesesConDatos(key).slice(-3);
+  if(mesReferencia && mesReferencia!=='auto'){
+    // mes puntual elegido a mano (ej. "basar en julio, que fue un buen mes") -- se usa
+    // ese único mes, sin promediar con nada más
+    const {sum, diasConDatos} = simStatsMes(key, mesReferencia);
+    return diasConDatos>0 ? sum/(dotacionActual*diasConDatos) : 0;
+  }
+  // automático: últimos 3 meses CERRADOS -- se excluye el mes en curso a propósito,
+  // porque un mes parcial/recién arrancado le pega para abajo al promedio y termina
+  // pidiendo más gente de la que realmente hace falta
+  const mesActual = proyMesSiguiente(0);
+  const meses = simMesesConDatos(key).filter(ym=>ym<mesActual).slice(-3);
   if(!meses.length) return 0;
   let sumaRatios=0, n=0;
   meses.forEach(ym=>{
@@ -13617,16 +13652,20 @@ function simTendenciaCategoria(key, categoria){
    operarios hace falta por sector para sostenerlo, contra la
    dotación real de hoy -- mostrando sobrante o faltante por sector.
    ============================================================ */
-let simPresTarget = null;
-let simPresMesActual = null;
 
 // cuánto procesa este sector en relación a lo que sale por Fin de Línea (promedio de
 // los últimos meses en que hay dato de AMBOS) -- así el objetivo total se reparte entre
 // sectores de forma realista en vez de asumir que todos mueven el mismo m²
-function simFactorVsFinLinea(key){
+function simFactorVsFinLinea(key, mesReferencia){
   if(key==='8-LI') return 1;
+  if(mesReferencia && mesReferencia!=='auto'){
+    const li = simStatsMes('8-LI', mesReferencia).sum;
+    const sec = simStatsMes(key, mesReferencia).sum;
+    return li>0 ? sec/li : 0;
+  }
+  const mesActual = proyMesSiguiente(0);
   const mesesLI = new Set(simMesesConDatos('8-LI'));
-  const meses = simMesesConDatos(key).filter(ym=>mesesLI.has(ym)).slice(-3);
+  const meses = simMesesConDatos(key).filter(ym=>ym<mesActual && mesesLI.has(ym)).slice(-3);
   if(!meses.length) return 0;
   let sumaFactor=0, n=0;
   meses.forEach(ym=>{
@@ -13637,14 +13676,19 @@ function simFactorVsFinLinea(key){
   return n>0 ? sumaFactor/n : 0;
 }
 
-function simPresOperariosNecesarios(key, targetLI, ym){
-  const factor = simFactorVsFinLinea(key);
-  const ratio = simRatioHistorico(key);
+function simPresOperariosNecesarios(key, targetLI, ym, mesReferencia){
+  const factor = simFactorVsFinLinea(key, mesReferencia);
+  const ratio = simRatioHistorico(key, mesReferencia);
   const dh = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
   if(!factor || !ratio || !dh) return null;
   const objetivoSector = targetLI*factor;
-  return { valor: objetivoSector/(ratio*dh), factor, ratio, dh, objetivoSector, mesesUsados: simMesesConDatos(key).slice(-3) };
+  const mesesUsados = (mesReferencia && mesReferencia!=='auto') ? [mesReferencia] : simMesesConDatos(key).filter(m=>m<proyMesSiguiente(0)).slice(-3);
+  return { valor: objetivoSector/(ratio*dh), factor, ratio, dh, objetivoSector, mesesUsados };
 }
+
+let simPresTarget = null;
+let simPresMesActual = null;
+let simPresMesReferencia = 'auto';
 
 function simAbrirPresentacion(){
   document.getElementById('simVistaSector').style.display = 'none';
@@ -13655,6 +13699,16 @@ function simAbrirPresentacion(){
   const mesesSim = [proyMesSiguiente(0), proyMesSiguiente(1), proyMesSiguiente(2)];
   sel.innerHTML = mesesSim.map(ym=>`<option value="${ym}">${capNombreMes(ym)}</option>`).join('');
   sel.value = simPresMesActual;
+
+  // meses disponibles como referencia -- unión de lo que tenga cualquier sector, siempre
+  // meses ya cerrados (no el mes en curso, que suele estar incompleto)
+  const mesActual = proyMesSiguiente(0);
+  const mesesDisponibles = [...new Set(AV_SECTOR_ORDER.flatMap(k=>simMesesConDatos(k)))].filter(ym=>ym<mesActual).sort().reverse();
+  const selRef = document.getElementById('simPresReferencia');
+  selRef.innerHTML = '<option value="auto">Automático (promedio de los últimos 3 meses cerrados)</option>' +
+    mesesDisponibles.map(ym=>`<option value="${ym}">${capNombreMes(ym)}</option>`).join('');
+  selRef.value = simPresMesReferencia;
+
   if(simPresTarget===null){
     // arranca sugiriendo la capacidad proyectada actual de Fin de línea, redondeada
     const dh0 = avHabilCount(simPresMesActual, avDaysInMonth(simPresMesActual), state.diasObligatorios||[1,2,3,4,5]);
@@ -13672,6 +13726,7 @@ document.getElementById('simBtnPresentacion').addEventListener('click', ()=>{
   if(enPresentacion) simVolverASector(); else simAbrirPresentacion();
 });
 document.getElementById('simPresMes').addEventListener('change', (e)=>{ simPresMesActual = e.target.value; simRenderPresentacion(); });
+document.getElementById('simPresReferencia').addEventListener('change', (e)=>{ simPresMesReferencia = e.target.value; simRenderPresentacion(); });
 function simPresAjustar(delta){ simPresTarget = Math.max(0, simPresTarget+delta); simRenderPresentacion(); }
 document.getElementById('simPresMenos100').addEventListener('click', ()=> simPresAjustar(-100));
 document.getElementById('simPresMenos10').addEventListener('click', ()=> simPresAjustar(-10));
@@ -13690,9 +13745,10 @@ function simRenderPresentacion(){
   let totalActual=0, totalNecesario=0;
   document.getElementById('simPresGrid').innerHTML = AV_SECTOR_ORDER.map(key=>{
     const actual = (state.personalPorSector||{})[key] || 0;
-    const r = simPresOperariosNecesarios(key, simPresTarget, ym);
+    const marcadosBaja = poliState.personas.filter(p=>p.sectorTitular===key && simPresPersonal[p.id] && simPresPersonal[p.id].baja).length;
+    const r = simPresOperariosNecesarios(key, simPresTarget, ym, simPresMesReferencia);
     if(r===null){
-      return `<div class="sim-pres-card sindatos"><div class="nombre">${AV_SECTOR_SHORT[key]||key}</div><div class="necesario">—</div><div class="actual-vs-necesario">Sin datos históricos suficientes</div></div>`;
+      return `<div class="sim-pres-card sindatos" data-sim-pres-abrir-personal="${key}"><div class="nombre">${AV_SECTOR_SHORT[key]||key}</div><div class="necesario">—</div><div class="actual-vs-necesario">Sin datos históricos suficientes</div><button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}" style="margin-top:10px;">👥 Ver equipo</button></div>`;
     }
     const necesario = Math.round(r.valor);
     totalActual += actual; totalNecesario += necesario;
@@ -13700,25 +13756,38 @@ function simRenderPresentacion(){
     const clase = diff>0 ? 'falta' : diff<0 ? 'sobra' : 'justo';
     const textoDiff = diff>0 ? `🔴 Faltan ${diff}` : diff<0 ? `🟢 Sobran ${Math.abs(diff)}` : '🟡 Justo';
     const mesesTxt = r.mesesUsados.map(m=>capNombreMes(m,true)).join(', ') || '—';
+    const basadoEnTxt = r.mesesUsados.length>1 ? `prom. ${esc(mesesTxt)}` : `mes de ${esc(mesesTxt)}`;
     return `<div class="sim-pres-card ${clase}">
       <div class="nombre">${AV_SECTOR_SHORT[key]||key}</div>
       <div class="necesario">${necesario}</div>
       <div class="actual-vs-necesario">operarios necesarios (hoy tiene ${actual})</div>
+      <div class="ratio-mes">${fmt(r.ratio,2)} m²/operario/día · ${basadoEnTxt}</div>
       <div class="diferencia">${textoDiff}</div>
-      <button type="button" class="sim-pres-ver-calculo" data-sim-pres-calc="${key}">ℹ Ver cálculo</button>
+      ${marcadosBaja>0 ? `<div class="marcados">${marcadosBaja} marcado${marcadosBaja===1?'':'s'} para baja</div>` : ''}
+      <div style="display:flex; gap:6px; justify-content:center; margin-top:10px;">
+        <button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}">👥 Ver equipo</button>
+        <button type="button" class="sim-pres-ver-calculo" data-sim-pres-calc="${key}">ℹ Ver cálculo</button>
+      </div>
       <div class="sim-pres-calculo-detalle" id="simPresCalc_${key}" style="display:none;">
-        1. Factor vs. Fin de Línea: <b>${fmt(r.factor,2)}</b> (${esc(AV_SECTOR_SHORT[key]||key)} ÷ Fin de Línea, prom. ${esc(mesesTxt)})<br>
+        1. Factor vs. Fin de Línea: <b>${fmt(r.factor,2)}</b> (${esc(AV_SECTOR_SHORT[key]||key)} ÷ Fin de Línea, ${basadoEnTxt})<br>
         2. Objetivo del sector: ${fmt(simPresTarget,0)} m² × ${fmt(r.factor,2)} = <b>${fmt(r.objetivoSector,0)} m²</b><br>
-        3. m²/operario/día histórico: <b>${fmt(r.ratio,2)}</b> (mismos meses, con dotación actual = ${actual})<br>
+        3. m²/operario/día histórico: <b>${fmt(r.ratio,2)}</b> (${basadoEnTxt}, con dotación actual = ${actual})<br>
         4. Días hábiles de ${esc(capNombreMes(ym,true))}: <b>${r.dh}</b><br>
         5. Operarios = ${fmt(r.objetivoSector,0)} ÷ (${fmt(r.ratio,2)} × ${r.dh}) = <b>${fmt(r.valor,2)}</b> → redondeado a ${necesario}
       </div>
     </div>`;
   }).join('');
   document.querySelectorAll('[data-sim-pres-calc]').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
       const det = document.getElementById('simPresCalc_'+btn.dataset.simPresCalc);
       det.style.display = det.style.display==='none' ? 'block' : 'none';
+    });
+  });
+  document.querySelectorAll('[data-sim-pres-personal]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      simAbrirPersonal(btn.dataset.simPresPersonal);
     });
   });
 
@@ -13728,6 +13797,117 @@ function simRenderPresentacion(){
     <span>🎯 Dotación necesaria para el objetivo: <b>${totalNecesario}</b> operarios</span>
     <span style="color:${diffTotal>0?'#e8584d':diffTotal<0?'#4fc9b3':'#e8a33d'};">${diffTotal>0?`Faltan ${diffTotal} en total`:diffTotal<0?`Sobran ${Math.abs(diffTotal)} en total`:'Dotación exacta'}</span>
   `;
+
+  simRenderReportesBar();
+}
+
+/* ---- selección de personal por sector (marcar baja / destino), en memoria ---- */
+let simPresPersonal = {}; // { personaId: {baja:bool, destino:sectorKey} }
+
+function simAbrirPersonal(key){
+  const {titulares} = poliCobertura(key);
+  document.getElementById('simPersonalBody').innerHTML = `
+    <h2 style="margin-bottom:4px;">${esc(AV_SECTOR_SHORT[key]||key)} — equipo</h2>
+    <div class="sub" style="margin:0 0 14px;">Tildá a quién marcarías para sacar del equipo. A quien se queda le podés elegir si sigue acá o pasa a otro sector.</div>
+    <div id="simPersonalLista"></div>
+  `;
+  simRenderPersonalLista(key, titulares);
+  document.getElementById('simPersonalModalOverlay').classList.add('show');
+}
+document.getElementById('simPersonalCerrar').addEventListener('click', ()=>{
+  document.getElementById('simPersonalModalOverlay').classList.remove('show');
+  simRenderPresentacion(); // refleja "N marcados para baja" en la tarjeta al cerrar
+});
+
+function simRenderPersonalLista(key, titulares){
+  const lista = document.getElementById('simPersonalLista');
+  if(!titulares.length){ lista.innerHTML = '<div class="sub">No hay personal cargado para este sector en Polivalencias.</div>'; return; }
+  lista.innerHTML = titulares.map(p=>{
+    const est = simPresPersonal[p.id] || {baja:false, destino:key};
+    return `<div class="sim-personal-row">
+      <label style="display:flex; align-items:center; gap:8px; flex:1; cursor:pointer;">
+        <input type="checkbox" data-sim-personal-baja="${p.id}" data-sim-personal-sector="${key}" ${est.baja?'checked':''}>
+        <span>${esc(p.nombre)} <span style="color:var(--ink-dim); font-size:11px;">leg ${esc(p.legajo||'-')}</span></span>
+      </label>
+      <select data-sim-personal-destino="${p.id}" ${est.baja?'disabled':''}>
+        <option value="${key}" ${(!est.destino||est.destino===key)?'selected':''}>Se queda en ${esc(AV_SECTOR_SHORT[key]||key)}</option>
+        ${AV_SECTOR_ORDER.filter(k2=>k2!==key).map(k2=>`<option value="${k2}" ${est.destino===k2?'selected':''}>Pasa a ${esc(AV_SECTOR_SHORT[k2]||k2)}</option>`).join('')}
+      </select>
+    </div>`;
+  }).join('');
+  lista.querySelectorAll('[data-sim-personal-baja]').forEach(chk=>{
+    chk.addEventListener('change', (e)=>{
+      const id = chk.dataset.simPersonalBaja, sector = chk.dataset.simPersonalSector;
+      if(!simPresPersonal[id]) simPresPersonal[id] = {baja:false, destino:sector};
+      simPresPersonal[id].baja = e.target.checked;
+      const sel = lista.querySelector(`[data-sim-personal-destino="${id}"]`);
+      if(sel) sel.disabled = e.target.checked;
+    });
+  });
+  lista.querySelectorAll('[data-sim-personal-destino]').forEach(sel=>{
+    sel.addEventListener('change', (e)=>{
+      const id = sel.dataset.simPersonalDestino;
+      if(!simPresPersonal[id]) simPresPersonal[id] = {baja:false};
+      simPresPersonal[id].destino = e.target.value;
+    });
+  });
+}
+
+function simRenderReportesBar(){
+  const marcados = Object.keys(simPresPersonal).filter(id=>simPresPersonal[id].baja);
+  const bar = document.getElementById('simPresReportesBar');
+  if(marcados.length===0){ bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('simPresReportesResumen').textContent = `${marcados.length} persona${marcados.length===1?'':'s'} marcada${marcados.length===1?'':'s'} para baja en total`;
+}
+document.getElementById('simBtnReporteBaja').addEventListener('click', simGenerarReportePersonalPdf.bind(null,'baja'));
+document.getElementById('simBtnReporteContinua').addEventListener('click', simGenerarReportePersonalPdf.bind(null,'continua'));
+
+function simGenerarReportePersonalPdf(modo){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const W = doc.internal.pageSize.getWidth();
+  const personasProduccion = poliState.personas.filter(p=>AV_SECTOR_ORDER.includes(p.sectorTitular));
+
+  if(modo==='baja'){
+    const lista = personasProduccion.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].baja);
+    dibujarHeaderPdf(doc, W, 'Simulación de dotación — personal a dar de baja', `objetivo ${fmt(simPresTarget,0)} m² · ${capNombreMes(simPresMesActual)}`);
+    let y = 54;
+    doc.autoTable({
+      startY: y,
+      head: [['Nombre','Legajo','Sector actual']],
+      body: lista.map(p=>[p.nombre, p.legajo||'-', AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular]),
+      theme: 'grid',
+      headStyles: {fillColor: [232,88,77], textColor: 255, fontSize: 8.5},
+      bodyStyles: {fontSize: 8.5},
+      margin: {left:14, right:14}
+    });
+    let y2 = doc.lastAutoTable.finalY + 10;
+    doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(140,140,140);
+    doc.text(doc.splitTextToSize('Este listado surge de una simulación basada en promedios históricos de productividad (Simulación por Sector, LFDA) — es un insumo de apoyo para la decisión, no un cálculo exacto ni definitivo.', W-28), 14, y2);
+    misAbrirAdjunto(doc.output('datauristring'), `Simulacion_Baja_de_personal_${fechaHoyLocal()}.pdf`);
+  } else {
+    const lista = personasProduccion.filter(p=> !(simPresPersonal[p.id] && simPresPersonal[p.id].baja));
+    dibujarHeaderPdf(doc, W, 'Simulación de dotación — personal que continúa', `objetivo ${fmt(simPresTarget,0)} m² · ${capNombreMes(simPresMesActual)}`);
+    let y = 54;
+    doc.autoTable({
+      startY: y,
+      head: [['Nombre','Legajo','Sector actual','Destino propuesto']],
+      body: lista.map(p=>{
+        const destino = (simPresPersonal[p.id] && simPresPersonal[p.id].destino) || p.sectorTitular;
+        const mismoSector = destino===p.sectorTitular;
+        return [p.nombre, p.legajo||'-', AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular, mismoSector ? 'Sigue en el mismo sector' : `Pasa a ${AV_SECTOR_SHORT[destino]||destino}`];
+      }),
+      theme: 'grid',
+      headStyles: {fillColor: [31,157,138], textColor: 255, fontSize: 8.5},
+      bodyStyles: {fontSize: 8.5},
+      margin: {left:14, right:14}
+    });
+    let y2 = doc.lastAutoTable.finalY + 10;
+    doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(140,140,140);
+    doc.text(doc.splitTextToSize('Este listado surge de una simulación basada en promedios históricos de productividad (Simulación por Sector, LFDA) — es un insumo de apoyo para la decisión, no un cálculo exacto ni definitivo.', W-28), 14, y2);
+    misAbrirAdjunto(doc.output('datauristring'), `Simulacion_Personal_que_continua_${fechaHoyLocal()}.pdf`);
+  }
 }
 
 function simRenderRanking(){
