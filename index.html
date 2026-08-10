@@ -11196,6 +11196,40 @@ if('serviceWorker' in navigator){
   .sim-pareto-row .bar{height:100%; background:linear-gradient(90deg,#e8584d,#c43d33); box-shadow:0 0 10px rgba(232,88,77,.4); border-radius:4px;}
   .sim-pareto-row .val{width:70px; text-align:right; font-weight:700; flex-shrink:0;}
   .sim-reporte-btns{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;}
+
+  /* ---- Modo Presentación (directorio) ---- */
+  .sim-pres-control{background:radial-gradient(ellipse at 50% 0%, #1a2230 0%, #0b0f16 75%); border:1px solid #2b3340; border-radius:16px; padding:26px 20px; text-align:center; margin-bottom:20px;}
+  .sim-pres-control-label{font-size:.85rem; color:#8b96a8; text-transform:uppercase; letter-spacing:.06em; margin-bottom:14px;}
+  .sim-pres-control-row{display:flex; align-items:center; justify-content:center; gap:14px;}
+  .sim-pres-numero{font-size:3.2rem; font-weight:900; min-width:280px; background:linear-gradient(135deg,#e8a33d,#4fc9b3); -webkit-background-clip:text; background-clip:text; color:transparent; filter:drop-shadow(0 0 24px rgba(232,163,61,.25)); transition:transform .12s;}
+  .sim-pres-btn-grande, .sim-pres-btn-chico{background:#161b22; border:1px solid #2b3340; color:#e8ecf1; border-radius:12px; cursor:pointer; font-weight:800; transition:all .12s;}
+  .sim-pres-btn-grande{width:74px; height:74px; font-size:1.1rem;}
+  .sim-pres-btn-chico{width:56px; height:56px; font-size:.95rem;}
+  .sim-pres-btn-grande:hover, .sim-pres-btn-chico:hover{border-color:#e8a33d; color:#e8a33d; transform:scale(1.06);}
+  .sim-pres-sub{margin-top:16px; display:flex; align-items:center; justify-content:center; gap:12px; font-size:.85rem; color:#8b96a8;}
+  .sim-pres-sub select{background:#1f2733; border:1px solid #2b3340; color:#e8ecf1; padding:7px 12px; border-radius:8px; font-size:.85rem;}
+
+  .sim-pres-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px;}
+  @media(max-width:1300px){ .sim-pres-grid{grid-template-columns:repeat(2,1fr);} }
+  .sim-pres-card{background:#161b22; border:1px solid #2b3340; border-radius:14px; padding:16px; text-align:center; transition:border-color .25s, box-shadow .25s;}
+  .sim-pres-card .nombre{font-size:.95rem; font-weight:800; color:#e8ecf1; margin-bottom:10px;}
+  .sim-pres-card .actual-vs-necesario{font-size:.72rem; color:#8b96a8; margin-bottom:6px;}
+  .sim-pres-card .necesario{font-size:2rem; font-weight:900; line-height:1;}
+  .sim-pres-card .diferencia{margin-top:8px; font-size:.85rem; font-weight:800; padding:5px 10px; border-radius:20px; display:inline-block;}
+  .sim-pres-card.falta{border-color:#e8584d; box-shadow:0 0 22px rgba(232,88,77,.18);}
+  .sim-pres-card.falta .diferencia{background:#e8584d22; color:#e8584d;}
+  .sim-pres-card.sobra{border-color:#1f9d8a; box-shadow:0 0 22px rgba(31,157,138,.18);}
+  .sim-pres-card.sobra .diferencia{background:#1f9d8a22; color:#4fc9b3;}
+  .sim-pres-card.justo{border-color:#e8a33d;}
+  .sim-pres-card.justo .diferencia{background:#e8a33d22; color:#e8a33d;}
+  .sim-pres-card.sindatos{opacity:.5;}
+
+  .sim-pres-total{background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:.95rem;}
+  .sim-pres-ver-calculo{margin-top:10px; background:none; border:1px solid #2b3340; color:#8b96a8; font-size:.7rem; padding:4px 10px; border-radius:20px; cursor:pointer;}
+  .sim-pres-ver-calculo:hover{border-color:#e8a33d; color:#e8a33d;}
+  .sim-pres-calculo-detalle{margin-top:10px; text-align:left; background:#0d1015; border-radius:8px; padding:10px 12px; font-size:.72rem; line-height:1.7; color:#8b96a8;}
+  .sim-pres-calculo-detalle b{color:#e8ecf1;}
+  .sim-pres-total b{font-size:1.3rem;}
 </style>
 
 <style>
@@ -11338,41 +11372,65 @@ if('serviceWorker' in navigator){
       <div class="cap-h1">Simulación <span>por sector</span></div>
     </div>
     <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <button class="cap-volver" id="simBtnPresentacion" style="background:linear-gradient(135deg,#e8a33d,#c47f1f); color:#161b22; font-weight:800; border-color:#e8a33d;">🎤 Modo Presentación</button>
       <button class="cap-volver" id="simBtnIrCapacidad">📊 Capacidad vs. Real</button>
       <button class="cap-volver" id="simBtnVolver">← Volver</button>
     </div>
   </div>
 
-  <div class="sim-sector-btns" id="simSectorBtns"></div>
+  <div id="simVistaSector">
+    <div class="sim-sector-btns" id="simSectorBtns"></div>
 
-  <div class="cap-sim-bar">
-    <span style="font-size:11px; color:#8b96a8;">🎚 Simular dotación de</span>
-    <select id="simSimMes"></select>
-    <button class="btn icon" id="simSimMenos" style="padding:5px 10px;">−</button>
-    <span id="simSimNum" style="font-weight:700; font-size:13px; min-width:100px; text-align:center; display:inline-block;">— operarios</span>
-    <button class="btn icon" id="simSimMas" style="padding:5px 10px;">+</button>
-    <button class="btn" id="simSimReset" style="visibility:hidden; padding:5px 10px;">📍 Dotación base</button>
-    <span id="simSimResultado" class="cap-sim-resultado-inline"></span>
+    <div class="cap-sim-bar">
+      <span style="font-size:11px; color:#8b96a8;">🎚 Simular dotación de</span>
+      <select id="simSimMes"></select>
+      <button class="btn icon" id="simSimMenos" style="padding:5px 10px;">−</button>
+      <span id="simSimNum" style="font-weight:700; font-size:13px; min-width:100px; text-align:center; display:inline-block;">— operarios</span>
+      <button class="btn icon" id="simSimMas" style="padding:5px 10px;">+</button>
+      <button class="btn" id="simSimReset" style="visibility:hidden; padding:5px 10px;">📍 Dotación base</button>
+      <span id="simSimResultado" class="cap-sim-resultado-inline"></span>
+    </div>
+
+    <div class="cap-body">
+      <div class="sim-top-grid">
+        <div class="cap-kpis" id="simKpiRow"></div>
+        <div class="sim-gauge-wrap">
+          <div class="sim-gauge" id="simGauge"><span class="num" id="simGaugeNum">—</span></div>
+          <div class="sim-gauge-lbl">Cobertura de la capacidad</div>
+        </div>
+      </div>
+      <div class="cap-stage" id="simStage"></div>
+      <div class="cap-legend" id="simLegend"></div>
+
+      <div class="sim-bottom-grid">
+        <div class="sim-ranking">
+          <div class="titulo">🏁 m² por operario / día — todos los sectores (mes en curso)</div>
+          <div id="simRankingBody"></div>
+        </div>
+        <div class="sim-consejo" id="simConsejo"></div>
+      </div>
+    </div>
   </div>
 
-  <div class="cap-body">
-    <div class="sim-top-grid">
-      <div class="cap-kpis" id="simKpiRow"></div>
-      <div class="sim-gauge-wrap">
-        <div class="sim-gauge" id="simGauge"><span class="num" id="simGaugeNum">—</span></div>
-        <div class="sim-gauge-lbl">Cobertura de la capacidad</div>
+  <div id="simVistaPresentacion" style="display:none;">
+    <div class="sim-pres-control">
+      <div class="sim-pres-control-label">🎯 Objetivo de venta mensual (Fin de Línea)</div>
+      <div class="sim-pres-control-row">
+        <button class="sim-pres-btn-grande" id="simPresMenos100">−100</button>
+        <button class="sim-pres-btn-chico" id="simPresMenos10">−10</button>
+        <div class="sim-pres-numero" id="simPresNumero">— m²</div>
+        <button class="sim-pres-btn-chico" id="simPresMas10">+10</button>
+        <button class="sim-pres-btn-grande" id="simPresMas100">+100</button>
+      </div>
+      <div class="sim-pres-sub">
+        <select id="simPresMes"></select>
+        <span id="simPresPorDia"></span>
       </div>
     </div>
-    <div class="cap-stage" id="simStage"></div>
-    <div class="cap-legend" id="simLegend"></div>
 
-    <div class="sim-bottom-grid">
-      <div class="sim-ranking">
-        <div class="titulo">🏁 m² por operario / día — todos los sectores (mes en curso)</div>
-        <div id="simRankingBody"></div>
-      </div>
-      <div class="sim-consejo" id="simConsejo"></div>
-    </div>
+    <div class="sim-pres-grid" id="simPresGrid"></div>
+
+    <div class="sim-pres-total" id="simPresTotalBar"></div>
   </div>
 </div>
 
@@ -13315,6 +13373,7 @@ function simDotacionParaMes(key, ym){
 
 function simAbrir(){
   document.getElementById('viewSimulacion').style.display = 'block';
+  simVolverASector(); // siempre arranca en la vista por sector, no se queda pegado en modo presentación de una vez anterior
   if(!simSectorActual) simSectorActual = AV_SECTOR_ORDER[0];
   simRenderSectorBtns();
   simRenderSimulador();
@@ -13549,6 +13608,126 @@ function simTendenciaCategoria(key, categoria){
   if(previo===0) return null;
   const variacion = Math.round((actual-previo)/previo*100);
   return {actual, previo, variacion};
+}
+
+/* ============================================================
+   MODO PRESENTACIÓN — pensado para reunión de directorio: Diego
+   mueve un objetivo de m² de venta mensual (medido en Fin de Línea,
+   el output final vendible) y la pantalla recalcula en vivo cuántos
+   operarios hace falta por sector para sostenerlo, contra la
+   dotación real de hoy -- mostrando sobrante o faltante por sector.
+   ============================================================ */
+let simPresTarget = null;
+let simPresMesActual = null;
+
+// cuánto procesa este sector en relación a lo que sale por Fin de Línea (promedio de
+// los últimos meses en que hay dato de AMBOS) -- así el objetivo total se reparte entre
+// sectores de forma realista en vez de asumir que todos mueven el mismo m²
+function simFactorVsFinLinea(key){
+  if(key==='8-LI') return 1;
+  const mesesLI = new Set(simMesesConDatos('8-LI'));
+  const meses = simMesesConDatos(key).filter(ym=>mesesLI.has(ym)).slice(-3);
+  if(!meses.length) return 0;
+  let sumaFactor=0, n=0;
+  meses.forEach(ym=>{
+    const li = simStatsMes('8-LI', ym).sum;
+    const sec = simStatsMes(key, ym).sum;
+    if(li>0){ sumaFactor += sec/li; n++; }
+  });
+  return n>0 ? sumaFactor/n : 0;
+}
+
+function simPresOperariosNecesarios(key, targetLI, ym){
+  const factor = simFactorVsFinLinea(key);
+  const ratio = simRatioHistorico(key);
+  const dh = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
+  if(!factor || !ratio || !dh) return null;
+  const objetivoSector = targetLI*factor;
+  return { valor: objetivoSector/(ratio*dh), factor, ratio, dh, objetivoSector, mesesUsados: simMesesConDatos(key).slice(-3) };
+}
+
+function simAbrirPresentacion(){
+  document.getElementById('simVistaSector').style.display = 'none';
+  document.getElementById('simVistaPresentacion').style.display = 'block';
+  document.getElementById('simBtnPresentacion').textContent = '📊 Ver por sector';
+  if(!simPresMesActual) simPresMesActual = proyMesSiguiente(0);
+  const sel = document.getElementById('simPresMes');
+  const mesesSim = [proyMesSiguiente(0), proyMesSiguiente(1), proyMesSiguiente(2)];
+  sel.innerHTML = mesesSim.map(ym=>`<option value="${ym}">${capNombreMes(ym)}</option>`).join('');
+  sel.value = simPresMesActual;
+  if(simPresTarget===null){
+    // arranca sugiriendo la capacidad proyectada actual de Fin de línea, redondeada
+    const dh0 = avHabilCount(simPresMesActual, avDaysInMonth(simPresMesActual), state.diasObligatorios||[1,2,3,4,5]);
+    simPresTarget = Math.round((simRatioHistorico('8-LI') * ((state.personalPorSector||{})['8-LI']||0) * dh0)/50)*50;
+  }
+  simRenderPresentacion();
+}
+function simVolverASector(){
+  document.getElementById('simVistaPresentacion').style.display = 'none';
+  document.getElementById('simVistaSector').style.display = 'block';
+  document.getElementById('simBtnPresentacion').textContent = '🎤 Modo Presentación';
+}
+document.getElementById('simBtnPresentacion').addEventListener('click', ()=>{
+  const enPresentacion = document.getElementById('simVistaPresentacion').style.display !== 'none';
+  if(enPresentacion) simVolverASector(); else simAbrirPresentacion();
+});
+document.getElementById('simPresMes').addEventListener('change', (e)=>{ simPresMesActual = e.target.value; simRenderPresentacion(); });
+function simPresAjustar(delta){ simPresTarget = Math.max(0, simPresTarget+delta); simRenderPresentacion(); }
+document.getElementById('simPresMenos100').addEventListener('click', ()=> simPresAjustar(-100));
+document.getElementById('simPresMenos10').addEventListener('click', ()=> simPresAjustar(-10));
+document.getElementById('simPresMas10').addEventListener('click', ()=> simPresAjustar(10));
+document.getElementById('simPresMas100').addEventListener('click', ()=> simPresAjustar(100));
+
+function simRenderPresentacion(){
+  const ym = simPresMesActual;
+  const dh = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
+  const numeroEl = document.getElementById('simPresNumero');
+  numeroEl.textContent = fmt(simPresTarget,0) + ' m²';
+  numeroEl.style.transform = 'scale(1.08)';
+  setTimeout(()=> numeroEl.style.transform = 'scale(1)', 120);
+  document.getElementById('simPresPorDia').textContent = `≈ ${fmt(simPresTarget/dh,0)} m²/día hábil · ${dh} días hábiles en ${capNombreMes(ym,true)}`;
+
+  let totalActual=0, totalNecesario=0;
+  document.getElementById('simPresGrid').innerHTML = AV_SECTOR_ORDER.map(key=>{
+    const actual = (state.personalPorSector||{})[key] || 0;
+    const r = simPresOperariosNecesarios(key, simPresTarget, ym);
+    if(r===null){
+      return `<div class="sim-pres-card sindatos"><div class="nombre">${AV_SECTOR_SHORT[key]||key}</div><div class="necesario">—</div><div class="actual-vs-necesario">Sin datos históricos suficientes</div></div>`;
+    }
+    const necesario = Math.round(r.valor);
+    totalActual += actual; totalNecesario += necesario;
+    const diff = necesario - actual;
+    const clase = diff>0 ? 'falta' : diff<0 ? 'sobra' : 'justo';
+    const textoDiff = diff>0 ? `🔴 Faltan ${diff}` : diff<0 ? `🟢 Sobran ${Math.abs(diff)}` : '🟡 Justo';
+    const mesesTxt = r.mesesUsados.map(m=>capNombreMes(m,true)).join(', ') || '—';
+    return `<div class="sim-pres-card ${clase}">
+      <div class="nombre">${AV_SECTOR_SHORT[key]||key}</div>
+      <div class="necesario">${necesario}</div>
+      <div class="actual-vs-necesario">operarios necesarios (hoy tiene ${actual})</div>
+      <div class="diferencia">${textoDiff}</div>
+      <button type="button" class="sim-pres-ver-calculo" data-sim-pres-calc="${key}">ℹ Ver cálculo</button>
+      <div class="sim-pres-calculo-detalle" id="simPresCalc_${key}" style="display:none;">
+        1. Factor vs. Fin de Línea: <b>${fmt(r.factor,2)}</b> (${esc(AV_SECTOR_SHORT[key]||key)} ÷ Fin de Línea, prom. ${esc(mesesTxt)})<br>
+        2. Objetivo del sector: ${fmt(simPresTarget,0)} m² × ${fmt(r.factor,2)} = <b>${fmt(r.objetivoSector,0)} m²</b><br>
+        3. m²/operario/día histórico: <b>${fmt(r.ratio,2)}</b> (mismos meses, con dotación actual = ${actual})<br>
+        4. Días hábiles de ${esc(capNombreMes(ym,true))}: <b>${r.dh}</b><br>
+        5. Operarios = ${fmt(r.objetivoSector,0)} ÷ (${fmt(r.ratio,2)} × ${r.dh}) = <b>${fmt(r.valor,2)}</b> → redondeado a ${necesario}
+      </div>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('[data-sim-pres-calc]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const det = document.getElementById('simPresCalc_'+btn.dataset.simPresCalc);
+      det.style.display = det.style.display==='none' ? 'block' : 'none';
+    });
+  });
+
+  const diffTotal = totalNecesario - totalActual;
+  document.getElementById('simPresTotalBar').innerHTML = `
+    <span>👥 Dotación total hoy: <b>${totalActual}</b> operarios</span>
+    <span>🎯 Dotación necesaria para el objetivo: <b>${totalNecesario}</b> operarios</span>
+    <span style="color:${diffTotal>0?'#e8584d':diffTotal<0?'#4fc9b3':'#e8a33d'};">${diffTotal>0?`Faltan ${diffTotal} en total`:diffTotal<0?`Sobran ${Math.abs(diffTotal)} en total`:'Dotación exacta'}</span>
+  `;
 }
 
 function simRenderRanking(){
