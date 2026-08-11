@@ -2634,7 +2634,25 @@ function subirEstadoAFirestore(){
         // parte de la base correcta, sin arriesgar pisar historial ajeno (ej. otra PC
         // o un líder que cargó algo mientras tanto).
         window.avGuardadosPendientes = Math.max((window.avGuardadosPendientes||1)-1, 0);
-        if(dataRemota && !dataRemota.json) aplicarEstadoRemoto(dataRemota);
+        if(dataRemota && !dataRemota.json){
+          // "actual" es la carga del día EN CURSO, no confirmada -- este chequeo solo mira
+          // días ya confirmados (state.dias), así que nunca debería pisar lo que el usuario
+          // recién tipeó/pegó hoy. Si lo local tiene más avanzado el día de hoy que lo que
+          // trae la nube, lo conservamos y lo volvemos a subir después de adoptar el resto.
+          const actualLocalPrevio = state.actual;
+          aplicarEstadoRemoto(dataRemota);
+          if(actualLocalPrevio && state.actual && actualLocalPrevio.fecha===state.actual.fecha){
+            const localTieneMasAvance =
+              (actualLocalPrevio.resultado && !state.actual.resultado) ||
+              (actualLocalPrevio.fin && !state.actual.fin) ||
+              (actualLocalPrevio.inicio && !state.actual.inicio);
+            if(localTieneMasAvance){
+              state.actual = actualLocalPrevio;
+              renderHoy();
+              subirEstadoAFirestore();
+            }
+          }
+        }
         return;
       }
 
