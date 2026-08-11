@@ -2527,8 +2527,15 @@ function crearReservaComercial({ tipo, semanaDesde, m2, vendedor, cliente, telef
   });
 }
 
+// se pone en true la primera vez que llega un dato REAL desde Firestore en esta
+// sesión -- hasta entonces, cualquier chequeo de "cambió el día" corre sobre un
+// caché local que podría estar desactualizado, y no hay que dejarlo guardar nada
+// a la nube todavía (ver ensureActualDia)
+let firestoreDatosCargados = false;
+
 function aplicarEstadoRemoto(data){
   try{
+    firestoreDatosCargados = true;
     // estado nuevo: viene como campos estructurados directos en el documento,
     // no como un string único — armamos el objeto state a partir de esos campos.
     const remoto = {
@@ -6749,7 +6756,13 @@ function ensureActualDia(){
   // y la fecha guardada no es la de hoy, reseteamos para empezar el día de hoy.
   if(!state.actual.fechaFijadaManual && state.actual.fecha !== hoy){
     state.actual = {fecha: hoy, inicio:null, fin:null, resultado:null, fechaFijadaManual:false};
-    saveState();
+    // ¡OJO! nunca guardar a Firestore acá antes de haber recibido el dato REAL de la
+    // nube en esta sesión -- esto se llama automáticamente desde renderHoy(), y si
+    // corre con el caché local viejo (antes de que llegue la sincronización real),
+    // terminaba pisando la nube con un día en blanco. Se reintenta local nomás hasta
+    // que llegue el primer snapshot real; a partir de ahí, si sigue haciendo falta el
+    // reseteo, ya es sobre el dato verdadero y ahí sí es seguro guardarlo.
+    if(firestoreDatosCargados) saveState();
   }
 }
 
