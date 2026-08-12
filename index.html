@@ -2532,6 +2532,9 @@ function crearReservaComercial({ tipo, semanaDesde, m2, vendedor, cliente, telef
 // caché local que podría estar desactualizado, y no hay que dejarlo guardar nada
 // a la nube todavía (ver ensureActualDia)
 let firestoreDatosCargados = false;
+// true si llegó una actualización remota mientras el modal de "Declarar causa" estaba
+// abierto -- el render de Hoy quedó pausado a propósito, se dispara al cerrar el modal
+let renderHoyPendienteTrasModal = false;
 
 function aplicarEstadoRemoto(data){
   try{
@@ -2582,7 +2585,16 @@ function aplicarEstadoRemoto(data){
       else renderLoginLideres();
       return;
     }
-    renderHoy();
+    // si el modal de "Declarar causa" está abierto, NO tocamos la pantalla de abajo:
+    // el líder puede estar en medio de tipear el detalle de una causa, y si renderHoy()
+    // reconstruye la fila de su sector ahora, se le puede desarmar lo que no guardó
+    // todavía. Guardamos el estado igual (arriba), solo pausamos el re-render visual
+    // hasta que cierre el modal (cancelar o guardar).
+    if(document.getElementById('modalCausa').classList.contains('show')){
+      renderHoyPendienteTrasModal = true;
+    } else {
+      renderHoy();
+    }
     if(document.getElementById('view-historial').classList.contains('active')) renderHistorial();
     if(document.getElementById('view-config').classList.contains('active')) renderConfig();
     if(document.getElementById('view-detalle').classList.contains('active')) renderDetalle();
@@ -7499,6 +7511,7 @@ function actualizarSumaModal(deficit){
 
 document.getElementById('btnCausaCancel').addEventListener('click', ()=>{
   document.getElementById('modalCausa').classList.remove('show');
+  if(renderHoyPendienteTrasModal){ renderHoyPendienteTrasModal = false; renderHoy(); }
 });
 
 document.getElementById('chkAplicarCausaMasiva').addEventListener('change', (e)=>{
@@ -7553,6 +7566,7 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
 
   saveState();
   document.getElementById('modalCausa').classList.remove('show');
+  renderHoyPendienteTrasModal = false; // se guardó y ya se va a refrescar Hoy abajo, no hace falta re-render extra
 
   // Hoy e Historial muestran la misma fuente de verdad (state.dias cuando el día está
   // confirmado) — refrescamos ambas vistas si están activas, sin importar desde dónde
@@ -11279,6 +11293,43 @@ if('serviceWorker' in navigator){
 
   .sim-pres-total{background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:.95rem;}
   .sim-pres-reportes{margin-top:12px; background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:.85rem; color:#8b96a8;}
+
+  .sim-pres-filtros{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+  .sim-pres-filtro-btn{background:#161b22; border:1px solid #2b3340; color:#8b96a8; padding:7px 14px; border-radius:9px; font-size:.78rem; font-weight:700; cursor:pointer; transition:all .15s;}
+  .sim-pres-filtro-btn:hover{border-color:#e8a33d; color:#e8ecf1;}
+  .sim-pres-filtro-btn.activo{background:linear-gradient(135deg,#e8a33d,#c47f1f); color:#161b22; border-color:#e8a33d;}
+  .sim-pres-filtro-btn.todos{border-color:#4fc9b3; color:#4fc9b3;}
+  .sim-pres-filtro-btn.todos.activo{background:linear-gradient(135deg,#1f9d8a,#166b5d); color:#fff; border-color:#1f9d8a;}
+
+  .sim-pres-modo-row{display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+  .sim-pres-toggle-arrastrar{background:#161b22; border:1px solid #2b3340; border-bottom-width:3px; color:#c5cdd8; padding:9px 16px; border-radius:10px; font-size:.8rem; font-weight:800; cursor:pointer; box-shadow:0 3px 6px rgba(0,0,0,.35); transition:all .12s;}
+  .sim-pres-toggle-arrastrar:hover{border-color:#e8a33d; color:#e8a33d; transform:translateY(-1px);}
+  .sim-pres-toggle-arrastrar.activo{background:linear-gradient(135deg,#e8a33d,#c47f1f); color:#161b22; border-color:#e8a33d; box-shadow:0 0 18px rgba(232,163,61,.4);}
+
+  .sim-pres-personas{display:flex; flex-wrap:wrap; gap:6px; justify-content:center; margin-top:10px; min-height:32px; padding:8px; background:#0d1015; border-radius:8px; border:1px dashed #2b3340;}
+  .sim-pres-persona-chip{background:#242b38; border:1px solid #2b3340; color:#e8ecf1; padding:4px 9px; border-radius:20px; font-size:.68rem; font-weight:600; cursor:grab; user-select:none; transition:transform .1s, opacity .1s;}
+  .sim-pres-persona-chip:active{cursor:grabbing;}
+  .sim-pres-persona-chip.arrastrando{opacity:.35;}
+  .sim-pres-card.dropzone-activa{border-color:#1f9d8a; box-shadow:0 0 24px rgba(31,157,138,.35); background:#161f1d;}
+
+  .sim-pres-papelera{background:#1a1214; border:2px dashed #e8584d; border-radius:12px; padding:14px 18px; margin-bottom:14px; transition:all .15s;}
+  .sim-pres-papelera.dropzone-activa{background:#2a1518; box-shadow:0 0 26px rgba(232,88,77,.4);}
+  .sim-pres-papelera .titulo{font-size:.78rem; color:#e8584d; font-weight:800; margin-bottom:8px;}
+  .sim-pres-papelera-lista{display:flex; flex-wrap:wrap; gap:6px; min-height:32px;}
+  .sim-pres-papelera-lista .sim-pres-persona-chip{background:#3a1e21; border-color:#e8584d; color:#ffb4ac;}
+  .sim-pres-papelera-lista .vacio{color:#8b96a8; font-size:.75rem;}
+
+  .sim-pres-iglass{background:#0f1a24; border:2px dashed #3b82f6; border-radius:12px; padding:14px 18px; margin-bottom:14px; transition:all .15s;}
+  .sim-pres-iglass.dropzone-activa{background:#132538; box-shadow:0 0 26px rgba(59,130,246,.4);}
+  .sim-pres-iglass .titulo{font-size:.78rem; color:#3b82f6; font-weight:800; margin-bottom:8px;}
+  .sim-pres-iglass .sim-pres-persona-chip{background:#132538; border-color:#3b82f6; color:#a8c8ff;}
+
+  .sim-pres-persona-chip .puntaje{opacity:.75; font-weight:400; margin-left:4px;}
+  .sim-pres-persona-chip.mejor{border-width:2px; border-color:#1f9d8a !important; box-shadow:0 0 10px rgba(31,157,138,.5);}
+  .sim-pres-persona-chip.peor{border-width:2px; border-color:#e8584d !important; box-shadow:0 0 10px rgba(232,88,77,.5);}
+  .sim-pres-badge-rank{font-size:.62rem; font-weight:800; padding:1px 6px; border-radius:8px; margin-left:5px;}
+  .sim-pres-badge-rank.mejor{background:#1f9d8a33; color:#4fc9b3;}
+  .sim-pres-badge-rank.peor{background:#e8584d33; color:#ff8a80;}
   .sim-pres-card{cursor:pointer;}
   .sim-pres-card .ratio-mes{font-size:.72rem; color:#8b96a8; margin-top:2px;}
   .sim-pres-card .marcados{font-size:.7rem; color:#e8584d; margin-top:6px; font-weight:700;}
@@ -11499,15 +11550,34 @@ if('serviceWorker' in navigator){
       </div>
     </div>
 
+    <div class="sim-pres-filtros" id="simPresFiltroSectores"></div>
+
+    <div class="sim-pres-modo-row">
+      <button type="button" class="sim-pres-toggle-arrastrar" id="simPresToggleArrastrar">🖐 Modo arrastrar personal</button>
+      <span class="sub" style="margin:0;">Arrastrá a cada operario a otra tarjeta para reasignarlo, o a la 🗑 papelera para marcarlo de baja</span>
+    </div>
+
     <div class="sim-pres-grid" id="simPresGrid"></div>
+
+    <div class="sim-pres-papelera" id="simPresPapelera" style="display:none;">
+      <div class="titulo">🗑 Papelera — personal marcado para baja</div>
+      <div id="simPresPapeleraLista" class="sim-pres-papelera-lista"></div>
+    </div>
+
+    <div class="sim-pres-iglass" id="simPresIglass" style="display:none;">
+      <div class="titulo">🏭 Pasan a Iglass</div>
+      <div id="simPresIglassLista" class="sim-pres-papelera-lista"></div>
+    </div>
 
     <div class="sim-pres-total" id="simPresTotalBar"></div>
 
     <div class="sim-pres-reportes" id="simPresReportesBar" style="display:none;">
       <span id="simPresReportesResumen"></span>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-danger btn-sm" id="simBtnReporteBaja">📄 Reporte: personal a dar de baja</button>
-        <button class="btn btn-primary btn-sm" id="simBtnReporteContinua">📄 Reporte: personal que continúa</button>
+        <button class="btn btn-danger btn-sm" id="simBtnReporteBaja">📄 PDF: a dar de baja</button>
+        <button class="btn btn-primary btn-sm" id="simBtnReporteContinua">📄 PDF: continúa</button>
+        <button class="btn btn-primary btn-sm" id="simBtnReporteGlobalPdf">📄 PDF: reporte global</button>
+        <button class="btn btn-ghost btn-sm" id="simBtnReporteGlobalExcel">📊 Excel: reporte global</button>
       </div>
     </div>
   </div>
@@ -13759,6 +13829,96 @@ function simPresOperariosNecesarios(key, target, ym, mesReferencia){
 let simPresTarget = null;
 let simPresMesActual = null;
 let simPresMesReferencia = 'auto';
+let simPresSectoresVisibles = null; // null hasta el primer open -> se llena con todos
+let simPresModoArrastrar = false;
+
+// personal cuyo destino EFECTIVO (post arrastres/checks) es este sector -- si no fue
+// tocado, su destino es su sector titular de siempre
+function simPresPersonalEfectivoPorSector(key){
+  return poliState.personas.filter(p=>{
+    const est = simPresPersonal[p.id];
+    if(est && (est.baja || est.destino==='IGLASS')) return false;
+    const destinoFinal = (est && est.destino) ? est.destino : p.sectorTitular;
+    return destinoFinal === key;
+  });
+}
+function simPresDotacionEfectiva(key){
+  return simPresPersonalEfectivoPorSector(key).length;
+}
+
+// puntaje de habilidades de una persona en las tareas de SU sector de origen -- mismo
+// criterio que ya usa la tarjeta "Mi equipo", para poder distinguir de un vistazo quién
+// conviene más y quién menos dentro de un grupo (papelera o Iglass)
+function simPresPuntajePersona(p){
+  const ops = (poliState.operaciones[p.sectorTitular]||[]);
+  if(!ops.length) return null;
+  let puntaje=0;
+  ops.forEach(op=> puntaje += poliNivelDe(p.id, op.id));
+  return {puntaje, max: ops.length*4};
+}
+// arma los chips de una lista de personas, ordenados de mejor a peor puntaje, marcando
+// al mejor y al peor del grupo -- así si hay que elegir a quién desvincular o mover, se
+// ve rápido quién rinde más y quién menos (sin este dato, se corre el riesgo de llevarse
+// a alguien que no corresponde)
+function simPresRenderListaConRanking(lista){
+  const conPuntaje = lista.map(p=>({p, score: simPresPuntajePersona(p)}));
+  conPuntaje.sort((a,b)=>{
+    if(!a.score && !b.score) return 0;
+    if(!a.score) return 1;
+    if(!b.score) return -1;
+    return b.score.puntaje - a.score.puntaje;
+  });
+  const conDatos = conPuntaje.filter(x=>x.score);
+  return conPuntaje.map(x=>{
+    const esMejor = conDatos.length>1 && x===conDatos[0];
+    const esPeor = conDatos.length>1 && x===conDatos[conDatos.length-1];
+    const clase = esMejor?'mejor':esPeor?'peor':'';
+    const badge = esMejor ? '<span class="sim-pres-badge-rank mejor">🏆 mejor</span>' : esPeor ? '<span class="sim-pres-badge-rank peor">⚠ más flojo</span>' : '';
+    const puntajeTxt = x.score ? `<span class="puntaje">${x.score.puntaje}/${x.score.max}pts</span>` : '';
+    return `<span class="sim-pres-persona-chip ${clase}" draggable="true" data-sim-pres-drag-id="${x.p.id}">${esc(x.p.nombre)} ${puntajeTxt}${badge}</span>`;
+  }).join('');
+}
+function simWireChipsDrag(cont){
+  cont.querySelectorAll('[data-sim-pres-drag-id]').forEach(chip=>{
+    chip.addEventListener('dragstart', (e)=>{
+      e.dataTransfer.setData('text/plain', chip.dataset.simPresDragId);
+      chip.classList.add('arrastrando');
+    });
+    chip.addEventListener('dragend', ()=> chip.classList.remove('arrastrando'));
+  });
+}
+
+function simRenderFiltroSectores(){
+  if(!simPresSectoresVisibles) simPresSectoresVisibles = new Set(AV_SECTOR_ORDER);
+  const wrap = document.getElementById('simPresFiltroSectores');
+  const todosActivos = simPresSectoresVisibles.size === AV_SECTOR_ORDER.length;
+  wrap.innerHTML = `<button type="button" class="sim-pres-filtro-btn todos ${todosActivos?'activo':''}" id="simPresFiltroTodos">👁 Todos</button>` +
+    AV_SECTOR_ORDER.map(k=>`<button type="button" class="sim-pres-filtro-btn ${simPresSectoresVisibles.has(k)?'activo':''}" data-sim-pres-filtro="${k}">${AV_SECTOR_SHORT[k]||k}</button>`).join('');
+  document.getElementById('simPresFiltroTodos').addEventListener('click', ()=>{
+    simPresSectoresVisibles = new Set(AV_SECTOR_ORDER);
+    simRenderFiltroSectores();
+    simRenderPresentacion();
+  });
+  wrap.querySelectorAll('[data-sim-pres-filtro]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const k = btn.dataset.simPresFiltro;
+      if(simPresSectoresVisibles.has(k)){
+        if(simPresSectoresVisibles.size>1) simPresSectoresVisibles.delete(k); // que quede al menos uno
+      } else {
+        simPresSectoresVisibles.add(k);
+      }
+      simRenderFiltroSectores();
+      simRenderPresentacion();
+    });
+  });
+}
+document.getElementById('simPresToggleArrastrar').addEventListener('click', ()=>{
+  simPresModoArrastrar = !simPresModoArrastrar;
+  document.getElementById('simPresToggleArrastrar').classList.toggle('activo', simPresModoArrastrar);
+  document.getElementById('simPresPapelera').style.display = simPresModoArrastrar ? 'block' : 'none';
+  document.getElementById('simPresIglass').style.display = simPresModoArrastrar ? 'block' : 'none';
+  simRenderPresentacion();
+});
 
 function simAbrirPresentacion(){
   if(!puedeVerModoPresentacion()) return; // doble candado, por si se llama desde otro lado
@@ -13766,6 +13926,7 @@ function simAbrirPresentacion(){
   document.getElementById('simVistaPresentacion').style.display = 'block';
   document.getElementById('simBtnPresentacion').textContent = '📊 Ver por sector';
   if(!simPresMesActual) simPresMesActual = proyMesSiguiente(0);
+  simRenderFiltroSectores();
   const sel = document.getElementById('simPresMes');
   // "Proyectar en" incluye los próximos 3 meses (para planificar a futuro) Y los meses
   // ya cerrados con datos (para poder hacer una prueba contra la realidad: "con lo que
@@ -13826,12 +13987,19 @@ function simRenderPresentacion(){
   document.getElementById('simPresPorDia').textContent = `≈ ${fmt(simPresTarget/dh,0)} m²/día hábil · ${dh} días hábiles en ${capNombreMes(ym,true)}`;
 
   let totalActual=0, totalNecesario=0;
-  document.getElementById('simPresGrid').innerHTML = AV_SECTOR_ORDER.map(key=>{
-    const actual = (state.personalPorSector||{})[key] || 0;
-    const marcadosBaja = poliState.personas.filter(p=>p.sectorTitular===key && simPresPersonal[p.id] && simPresPersonal[p.id].baja).length;
+  const sectoresAMostrar = AV_SECTOR_ORDER.filter(k=>(simPresSectoresVisibles||new Set(AV_SECTOR_ORDER)).has(k));
+  document.getElementById('simPresGrid').innerHTML = sectoresAMostrar.map(key=>{
+    const actual = simPresDotacionEfectiva(key);
+    const personasDelSector = simPresModoArrastrar ? simPresPersonalEfectivoPorSector(key) : [];
+    const chipsHtml = simPresModoArrastrar
+      ? `<div class="sim-pres-personas" data-sim-pres-dropzone="${key}">
+          ${personasDelSector.map(p=>`<span class="sim-pres-persona-chip" draggable="true" data-sim-pres-drag-id="${p.id}">${esc(p.nombre)}</span>`).join('') || '<span style="color:#8b96a8;font-size:.68rem;">Sin nadie asignado</span>'}
+        </div>`
+      : '';
     const r = simPresOperariosNecesarios(key, simPresTarget, ym, simPresMesReferencia);
     if(r===null){
-      return `<div class="sim-pres-card sindatos" data-sim-pres-abrir-personal="${key}"><div class="nombre">${AV_SECTOR_SHORT[key]||key}</div><div class="necesario">—</div><div class="actual-vs-necesario">Sin datos históricos suficientes</div><button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}" style="margin-top:10px;">👥 Ver equipo</button></div>`;
+      totalActual += actual;
+      return `<div class="sim-pres-card sindatos" data-sim-pres-dropzone-card="${key}"><div class="nombre">${AV_SECTOR_SHORT[key]||key}</div><div class="necesario">—</div><div class="actual-vs-necesario">Sin datos históricos suficientes (hoy tiene ${actual})</div><button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}" style="margin-top:10px;">👥 Ver equipo</button>${chipsHtml}</div>`;
     }
     const necesario = Math.round(r.valor);
     totalActual += actual; totalNecesario += necesario;
@@ -13840,13 +14008,12 @@ function simRenderPresentacion(){
     const textoDiff = diff>0 ? `🔴 Faltan ${diff}` : diff<0 ? `🟢 Sobran ${Math.abs(diff)}` : '🟡 Justo';
     const mesesTxt = r.mesesUsados.map(m=>capNombreMes(m,true)).join(', ') || '—';
     const basadoEnTxt = r.mesesUsados.length>1 ? `prom. ${esc(mesesTxt)}` : `mes de ${esc(mesesTxt)}`;
-    return `<div class="sim-pres-card ${clase}">
+    return `<div class="sim-pres-card ${clase}" data-sim-pres-dropzone-card="${key}">
       <div class="nombre">${AV_SECTOR_SHORT[key]||key}</div>
       <div class="necesario">${necesario}</div>
       <div class="actual-vs-necesario">operarios necesarios (hoy tiene ${actual})</div>
       <div class="ratio-mes">${fmt(r.ratio,2)} m²/operario/día · ${basadoEnTxt}</div>
       <div class="diferencia">${textoDiff}</div>
-      ${marcadosBaja>0 ? `<div class="marcados">${marcadosBaja} marcado${marcadosBaja===1?'':'s'} para baja</div>` : ''}
       <div style="display:flex; gap:6px; justify-content:center; margin-top:10px;">
         <button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}">👥 Ver equipo</button>
         <button type="button" class="sim-pres-ver-calculo" data-sim-pres-calc="${key}">ℹ Ver cálculo</button>
@@ -13857,6 +14024,7 @@ function simRenderPresentacion(){
         3. Días hábiles de ${esc(capNombreMes(ym,true))}: <b>${r.dh}</b><br>
         4. Operarios = ${fmt(r.objetivoSector,0)} ÷ (${fmt(r.ratio,2)} × ${r.dh}) = <b>${fmt(r.valor,2)}</b> → redondeado a ${necesario}
       </div>
+      ${chipsHtml}
     </div>`;
   }).join('');
   document.querySelectorAll('[data-sim-pres-calc]').forEach(btn=>{
@@ -13873,6 +14041,8 @@ function simRenderPresentacion(){
     });
   });
 
+  if(simPresModoArrastrar) simWireArrastreDrag();
+
   const diffTotal = totalNecesario - totalActual;
   document.getElementById('simPresTotalBar').innerHTML = `
     <span>👥 Dotación total hoy: <b>${totalActual}</b> operarios</span>
@@ -13881,7 +14051,76 @@ function simRenderPresentacion(){
   `;
 
   simRenderReportesBar();
+  if(simPresModoArrastrar){ simRenderPapelera(); simRenderIglass(); }
 }
+
+/* ---- arrastrar y soltar personal entre tarjetas / papelera ---- */
+function simWireArrastreDrag(){
+  document.querySelectorAll('[data-sim-pres-drag-id]').forEach(chip=>{
+    chip.addEventListener('dragstart', (e)=>{
+      e.dataTransfer.setData('text/plain', chip.dataset.simPresDragId);
+      e.dataTransfer.effectAllowed = 'move';
+      chip.classList.add('arrastrando');
+    });
+    chip.addEventListener('dragend', ()=> chip.classList.remove('arrastrando'));
+  });
+  document.querySelectorAll('[data-sim-pres-dropzone-card]').forEach(card=>{
+    card.addEventListener('dragover', (e)=>{ e.preventDefault(); card.classList.add('dropzone-activa'); });
+    card.addEventListener('dragleave', ()=> card.classList.remove('dropzone-activa'));
+    card.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      card.classList.remove('dropzone-activa');
+      const id = e.dataTransfer.getData('text/plain');
+      const destino = card.dataset.simPresDropzoneCard;
+      if(!id || !destino) return;
+      simPresPersonal[id] = {baja:false, destino};
+      simRenderPresentacion();
+    });
+  });
+}
+
+function simRenderPapelera(){
+  const lista = poliState.personas.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].baja);
+  const cont = document.getElementById('simPresPapeleraLista');
+  cont.innerHTML = simPresRenderListaConRanking(lista) || '<span class="vacio">Arrastrá acá a quien quieras marcar de baja</span>';
+  simWireChipsDrag(cont);
+}
+function simRenderIglass(){
+  const lista = poliState.personas.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].destino==='IGLASS' && !simPresPersonal[p.id].baja);
+  const cont = document.getElementById('simPresIglassLista');
+  cont.innerHTML = simPresRenderListaConRanking(lista) || '<span class="vacio">Arrastrá acá a quien pase a Iglass</span>';
+  simWireChipsDrag(cont);
+}
+// las zonas en sí (no su lista interna) nunca se recrean vía innerHTML, así que sus
+// listeners de drag&drop se conectan UNA sola vez acá afuera -- conectarlos de nuevo
+// en cada render iría acumulando listeners duplicados sobre el mismo elemento
+(function simWirePapeleraZona(){
+  const zona = document.getElementById('simPresPapelera');
+  zona.addEventListener('dragover', (e)=>{ e.preventDefault(); zona.classList.add('dropzone-activa'); });
+  zona.addEventListener('dragleave', ()=> zona.classList.remove('dropzone-activa'));
+  zona.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    zona.classList.remove('dropzone-activa');
+    const id = e.dataTransfer.getData('text/plain');
+    if(!id) return;
+    const previo = simPresPersonal[id];
+    simPresPersonal[id] = {baja:true, destino: (previo && previo.destino) || null};
+    simRenderPresentacion();
+  });
+})();
+(function simWireIglassZona(){
+  const zona = document.getElementById('simPresIglass');
+  zona.addEventListener('dragover', (e)=>{ e.preventDefault(); zona.classList.add('dropzone-activa'); });
+  zona.addEventListener('dragleave', ()=> zona.classList.remove('dropzone-activa'));
+  zona.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    zona.classList.remove('dropzone-activa');
+    const id = e.dataTransfer.getData('text/plain');
+    if(!id) return;
+    simPresPersonal[id] = {baja:false, destino:'IGLASS'};
+    simRenderPresentacion();
+  });
+})();
 
 /* ---- selección de personal por sector (marcar baja / destino), en memoria ---- */
 let simPresPersonal = {}; // { personaId: {baja:bool, destino:sectorKey} }
@@ -13914,6 +14153,7 @@ function simRenderPersonalLista(key, titulares){
       <select data-sim-personal-destino="${p.id}" ${est.baja?'disabled':''}>
         <option value="${key}" ${(!est.destino||est.destino===key)?'selected':''}>Se queda en ${esc(AV_SECTOR_SHORT[key]||key)}</option>
         ${AV_SECTOR_ORDER.filter(k2=>k2!==key).map(k2=>`<option value="${k2}" ${est.destino===k2?'selected':''}>Pasa a ${esc(AV_SECTOR_SHORT[k2]||k2)}</option>`).join('')}
+        <option value="IGLASS" ${est.destino==='IGLASS'?'selected':''}>Pasa a Iglass</option>
       </select>
     </div>`;
   }).join('');
@@ -13936,14 +14176,104 @@ function simRenderPersonalLista(key, titulares){
 }
 
 function simRenderReportesBar(){
-  const marcados = Object.keys(simPresPersonal).filter(id=>simPresPersonal[id].baja);
+  const tocados = Object.keys(simPresPersonal).filter(id=>{
+    const est = simPresPersonal[id];
+    return est.baja || (est.destino && est.destino!=='');
+  });
+  const marcadosBaja = Object.keys(simPresPersonal).filter(id=>simPresPersonal[id].baja).length;
+  const marcadosIglass = Object.keys(simPresPersonal).filter(id=>simPresPersonal[id].destino==='IGLASS' && !simPresPersonal[id].baja).length;
   const bar = document.getElementById('simPresReportesBar');
-  if(marcados.length===0){ bar.style.display = 'none'; return; }
+  if(tocados.length===0){ bar.style.display = 'none'; return; }
   bar.style.display = 'flex';
-  document.getElementById('simPresReportesResumen').textContent = `${marcados.length} persona${marcados.length===1?'':'s'} marcada${marcados.length===1?'':'s'} para baja en total`;
+  document.getElementById('simPresReportesResumen').textContent = `${marcadosBaja} para baja · ${marcadosIglass} a Iglass`;
 }
 document.getElementById('simBtnReporteBaja').addEventListener('click', simGenerarReportePersonalPdf.bind(null,'baja'));
 document.getElementById('simBtnReporteContinua').addEventListener('click', simGenerarReportePersonalPdf.bind(null,'continua'));
+document.getElementById('simBtnReporteGlobalPdf').addEventListener('click', simGenerarReporteGlobalPdf);
+document.getElementById('simBtnReporteGlobalExcel').addEventListener('click', simGenerarReporteGlobalExcel);
+
+// separa a todo el personal de producción en los 3 grupos de la simulación: sigue
+// (en su sector o reasignado a otro), pasa a Iglass, o se va (baja)
+function simDatosGlobalesPersonal(){
+  const personasProduccion = poliState.personas.filter(p=>AV_SECTOR_ORDER.includes(p.sectorTitular));
+  const seQuedan=[], pasanIglass=[], seVan=[];
+  personasProduccion.forEach(p=>{
+    const est = simPresPersonal[p.id];
+    if(est && est.baja){ seVan.push(p); return; }
+    if(est && est.destino==='IGLASS'){ pasanIglass.push(p); return; }
+    seQuedan.push(p);
+  });
+  return {seQuedan, pasanIglass, seVan};
+}
+function simDestinoTexto(p){
+  const destino = (simPresPersonal[p.id] && simPresPersonal[p.id].destino) || p.sectorTitular;
+  return destino===p.sectorTitular ? 'Mismo sector' : `Pasa a ${AV_SECTOR_SHORT[destino]||destino}`;
+}
+
+function simGenerarReporteGlobalPdf(){
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const W = doc.internal.pageSize.getWidth();
+  const {seQuedan, pasanIglass, seVan} = simDatosGlobalesPersonal();
+
+  dibujarHeaderPdf(doc, W, 'Simulación de dotación — resumen global', `objetivo ${fmt(simPresTarget,0)} m² · ${capNombreMes(simPresMesActual)}`);
+  let y = 54;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(0,0,0);
+  doc.text(`${seQuedan.length} continúan  ·  ${pasanIglass.length} pasan a Iglass  ·  ${seVan.length} se van`, 14, y);
+  y += 8;
+
+  const chequearSalto = (alturaEstim)=>{ if(y + alturaEstim > 280){ doc.addPage(); y = 20; } };
+
+  chequearSalto(20);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(31,157,138);
+  doc.text('✔ Personal que continúa', 14, y); y += 3;
+  doc.autoTable({
+    startY: y,
+    head: [['Nombre','Legajo','Sector actual','Destino']],
+    body: seQuedan.map(p=>[p.nombre, p.legajo||'-', AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular, simDestinoTexto(p)]),
+    theme:'grid', headStyles:{fillColor:[31,157,138], textColor:255, fontSize:8}, bodyStyles:{fontSize:8}, margin:{left:14,right:14}
+  });
+  y = doc.lastAutoTable.finalY + 10;
+
+  chequearSalto(20);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(59,130,246);
+  doc.text('🏭 Pasan a Iglass', 14, y); y += 3;
+  doc.autoTable({
+    startY: y,
+    head: [['Nombre','Legajo','Sector actual']],
+    body: pasanIglass.map(p=>[p.nombre, p.legajo||'-', AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular]),
+    theme:'grid', headStyles:{fillColor:[59,130,246], textColor:255, fontSize:8}, bodyStyles:{fontSize:8}, margin:{left:14,right:14}
+  });
+  y = doc.lastAutoTable.finalY + 10;
+
+  chequearSalto(20);
+  doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(232,88,77);
+  doc.text('🗑 Se van (baja)', 14, y); y += 3;
+  doc.autoTable({
+    startY: y,
+    head: [['Nombre','Legajo','Sector actual']],
+    body: seVan.map(p=>[p.nombre, p.legajo||'-', AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular]),
+    theme:'grid', headStyles:{fillColor:[232,88,77], textColor:255, fontSize:8}, bodyStyles:{fontSize:8}, margin:{left:14,right:14}
+  });
+  y = doc.lastAutoTable.finalY + 10;
+  chequearSalto(16);
+  doc.setFont('helvetica','italic'); doc.setFontSize(7.5); doc.setTextColor(140,140,140);
+  doc.text(doc.splitTextToSize('Este listado surge de una simulación basada en promedios históricos de productividad (Simulación por Sector, LFDA) — es un insumo de apoyo para la decisión, no un cálculo exacto ni definitivo.', W-28), 14, y);
+
+  misAbrirAdjunto(doc.output('datauristring'), `Simulacion_Resumen_Global_${fechaHoyLocal()}.pdf`);
+}
+
+function simGenerarReporteGlobalExcel(){
+  const {seQuedan, pasanIglass, seVan} = simDatosGlobalesPersonal();
+  const wb = XLSX.utils.book_new();
+  const hojaQuedan = seQuedan.map(p=>({Nombre:p.nombre, Legajo:p.legajo||'-', 'Sector actual':AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular, Destino: simDestinoTexto(p)}));
+  const hojaIglass = pasanIglass.map(p=>({Nombre:p.nombre, Legajo:p.legajo||'-', 'Sector actual':AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular}));
+  const hojaBaja = seVan.map(p=>({Nombre:p.nombre, Legajo:p.legajo||'-', 'Sector actual':AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular}));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hojaQuedan.length?hojaQuedan:[{Nombre:'(sin datos)'}]), 'Continúan');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hojaIglass.length?hojaIglass:[{Nombre:'(sin datos)'}]), 'Pasan a Iglass');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(hojaBaja.length?hojaBaja:[{Nombre:'(sin datos)'}]), 'Se van');
+  XLSX.writeFile(wb, `Simulacion_Resumen_Global_${fechaHoyLocal()}.xlsx`);
+}
 
 function simGenerarReportePersonalPdf(modo){
   const {jsPDF} = window.jspdf;
@@ -13978,7 +14308,8 @@ function simGenerarReportePersonalPdf(modo){
       body: lista.map(p=>{
         const destino = (simPresPersonal[p.id] && simPresPersonal[p.id].destino) || p.sectorTitular;
         const mismoSector = destino===p.sectorTitular;
-        return [p.nombre, p.legajo||'-', AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular, mismoSector ? 'Sigue en el mismo sector' : `Pasa a ${AV_SECTOR_SHORT[destino]||destino}`];
+        const nombreDestino = destino==='IGLASS' ? 'Iglass' : (AV_SECTOR_SHORT[destino]||destino);
+        return [p.nombre, p.legajo||'-', AV_SECTOR_SHORT[p.sectorTitular]||p.sectorTitular, mismoSector ? 'Sigue en el mismo sector' : `Pasa a ${nombreDestino}`];
       }),
       theme: 'grid',
       headStyles: {fillColor: [31,157,138], textColor: 255, fontSize: 8.5},
