@@ -11276,13 +11276,31 @@ if('serviceWorker' in navigator){
   .sim-pres-sub{margin-top:16px; display:flex; align-items:center; justify-content:center; gap:12px; font-size:.85rem; color:#8b96a8; flex-wrap:wrap;}
   .sim-pres-sub select{background:#1f2733; border:1px solid #2b3340; color:#e8ecf1; padding:7px 12px; border-radius:8px; font-size:.85rem;}
 
-  .sim-pres-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:18px;}
-  @media(max-width:1300px){ .sim-pres-grid{grid-template-columns:repeat(2,1fr);} }
-  .sim-pres-card{background:#161b22; border:1px solid #2b3340; border-radius:14px; padding:16px; text-align:center; transition:border-color .25s, box-shadow .25s;}
-  .sim-pres-card .nombre{font-size:.95rem; font-weight:800; color:#e8ecf1; margin-bottom:10px;}
-  .sim-pres-card .actual-vs-necesario{font-size:.72rem; color:#8b96a8; margin-bottom:6px;}
-  .sim-pres-card .necesario{font-size:2rem; font-weight:900; line-height:1;}
-  .sim-pres-card .diferencia{margin-top:8px; font-size:.85rem; font-weight:800; padding:5px 10px; border-radius:20px; display:inline-block;}
+  .sim-pres-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(460px,1fr)); gap:16px; margin-bottom:18px;}
+  @media(max-width:1000px){ .sim-pres-grid{grid-template-columns:1fr;} }
+  .sim-pres-card{background:#161b22; border:1px solid #2b3340; border-radius:14px; padding:18px; text-align:center; transition:border-color .25s, box-shadow .25s;}
+  .sim-pres-card-grid{display:grid; grid-template-columns:96px 1fr 96px; gap:8px; align-items:stretch;}
+  .sim-pres-col-lateral{display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; padding:8px 4px; border-radius:10px; background:#0d1015;}
+  .sim-pres-col-lateral .col-titulo{font-size:.66rem; font-weight:900; letter-spacing:.05em; color:#8b96a8;}
+  .sim-pres-col-stat .col-titulo{color:#e8a33d;}
+  .sim-pres-col-manual .col-titulo{color:#4fc9b3;}
+  .sim-pres-stat-val{font-size:1.1rem; font-weight:900; line-height:1.15; color:#ffd23f;}
+  .sim-pres-stat-btn{background:none; border:1px solid transparent; border-radius:8px; padding:2px 4px; cursor:pointer; transition:all .12s; color:inherit; width:100%;}
+  .sim-pres-stat-btn:hover:not(:disabled){border-color:#e8a33d; background:#e8a33d14;}
+  .sim-pres-stat-btn:disabled{cursor:default;}
+  .sim-pres-stat-lbl{font-size:.62rem; font-weight:800; color:#c5cdd8; text-transform:uppercase;}
+  .sim-pres-stat-rango{font-size:.56rem; color:#5a6472; margin-top:4px; line-height:1.3;}
+  .sim-pres-manual-btn{width:34px; height:34px; border-radius:8px; background:linear-gradient(180deg,#242b38,#161b22); border:1px solid #2b3340; border-bottom-width:3px; color:#e8ecf1; font-weight:900; font-size:1.1rem; cursor:pointer; box-shadow:0 3px 6px rgba(0,0,0,.35);}
+  .sim-pres-manual-btn:hover{border-color:#4fc9b3; color:#4fc9b3;}
+  .sim-pres-manual-btn:active{transform:translateY(2px); border-bottom-width:1px;}
+  .sim-pres-manual-val{font-size:1.05rem; font-weight:900; color:#4fc9b3;}
+  .sim-pres-manual-reset{font-size:.85rem; font-weight:900; color:#ffd23f; background:none; border:none; cursor:pointer; text-decoration:underline; margin-top:4px; text-shadow:0 0 10px rgba(255,210,63,.5);}
+  .sim-pres-manual-reset:hover{color:#fff2b8;}
+  .sim-pres-col-centro{display:flex; flex-direction:column; justify-content:center;}
+  .sim-pres-card .nombre{font-size:1.15rem; font-weight:900; color:#e8ecf1; margin-bottom:10px;}
+  .sim-pres-card .actual-vs-necesario{font-size:.82rem; font-weight:700; color:#c5cdd8; margin-bottom:6px;}
+  .sim-pres-card .necesario{font-size:2.4rem; font-weight:900; line-height:1;}
+  .sim-pres-card .diferencia{margin-top:8px; font-size:1rem; font-weight:900; padding:6px 14px; border-radius:20px; display:inline-block;}
   .sim-pres-card.falta{border-color:#e8584d; box-shadow:0 0 22px rgba(232,88,77,.18);}
   .sim-pres-card.falta .diferencia{background:#e8584d22; color:#e8584d;}
   .sim-pres-card.sobra{border-color:#1f9d8a; box-shadow:0 0 22px rgba(31,157,138,.18);}
@@ -11291,8 +11309,10 @@ if('serviceWorker' in navigator){
   .sim-pres-card.justo .diferencia{background:#e8a33d22; color:#e8a33d;}
   .sim-pres-card.sindatos{opacity:.5;}
 
-  .sim-pres-total{background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:16px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:.95rem;}
-  .sim-pres-reportes{margin-top:12px; background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:14px 18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-size:.85rem; color:#8b96a8;}
+  .sim-pres-total{background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:14px 16px; display:flex; flex-direction:column; align-items:flex-start; gap:6px; font-size:.85rem;}
+  .sim-pres-reportes{margin-top:0; background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:12px 16px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; font-size:.78rem; color:#8b96a8;}
+  .sim-pres-reportes > div{display:flex; flex-direction:column; gap:6px; width:100%;}
+  .sim-pres-reportes button{width:100%;}
 
   .sim-pres-filtros{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
   .sim-pres-filtro-btn{background:#161b22; border:1px solid #2b3340; color:#8b96a8; padding:7px 14px; border-radius:9px; font-size:.78rem; font-weight:700; cursor:pointer; transition:all .15s;}
@@ -11310,19 +11330,30 @@ if('serviceWorker' in navigator){
   .sim-pres-persona-chip{background:#242b38; border:1px solid #2b3340; color:#e8ecf1; padding:4px 9px; border-radius:20px; font-size:.68rem; font-weight:600; cursor:grab; user-select:none; transition:transform .1s, opacity .1s;}
   .sim-pres-persona-chip:active{cursor:grabbing;}
   .sim-pres-persona-chip.arrastrando{opacity:.35;}
+  .sim-pres-persona-chip.drop-objetivo{outline:2px dashed #ffd23f; outline-offset:2px;}
+  .sim-pres-orden-reset{margin-top:8px; background:none; border:1px solid #2b3340; color:#8b96a8; font-size:.68rem; padding:4px 10px; border-radius:14px; cursor:pointer;}
+  .sim-pres-orden-reset:hover{border-color:#ffd23f; color:#ffd23f;}
+  .sim-pres-esquema{background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;}
+  .sim-pres-esquema button{width:100%;}
   .sim-pres-card.dropzone-activa{border-color:#1f9d8a; box-shadow:0 0 24px rgba(31,157,138,.35); background:#161f1d;}
+
+  .sim-pres-layout{display:grid; grid-template-columns:300px 1fr; gap:16px; align-items:start;}
+  @media(max-width:1000px){ .sim-pres-layout{grid-template-columns:1fr;} .sim-pres-sidebar{position:static !important;} }
+  .sim-pres-sidebar{position:sticky; top:10px; display:flex; flex-direction:column; gap:12px; max-height:calc(100vh - 20px); overflow-y:auto;}
 
   .sim-pres-papelera{background:#1a1214; border:2px dashed #e8584d; border-radius:12px; padding:14px 18px; margin-bottom:14px; transition:all .15s;}
   .sim-pres-papelera.dropzone-activa{background:#2a1518; box-shadow:0 0 26px rgba(232,88,77,.4);}
   .sim-pres-papelera .titulo{font-size:.78rem; color:#e8584d; font-weight:800; margin-bottom:8px;}
-  .sim-pres-papelera-lista{display:flex; flex-wrap:wrap; gap:6px; min-height:32px;}
-  .sim-pres-papelera-lista .sim-pres-persona-chip{background:#3a1e21; border-color:#e8584d; color:#ffb4ac;}
+  .sim-pres-papelera-lista{display:flex; flex-direction:column; gap:6px; min-height:32px;}
+  .sim-pres-papelera-lista .sim-pres-persona-chip{background:#3a1e21; border-color:#e8584d; color:#ffb4ac; display:flex; align-items:center; gap:8px; width:100%; border-radius:9px; padding:7px 12px; text-align:left;}
+  .sim-pres-papelera-lista .sim-pres-persona-chip .orden-num{flex-shrink:0; width:22px; height:22px; border-radius:50%; background:#e8584d33; color:#ffb4ac; font-weight:900; font-size:.66rem; display:flex; align-items:center; justify-content:center;}
   .sim-pres-papelera-lista .vacio{color:#8b96a8; font-size:.75rem;}
 
   .sim-pres-iglass{background:#0f1a24; border:2px dashed #3b82f6; border-radius:12px; padding:14px 18px; margin-bottom:14px; transition:all .15s;}
   .sim-pres-iglass.dropzone-activa{background:#132538; box-shadow:0 0 26px rgba(59,130,246,.4);}
   .sim-pres-iglass .titulo{font-size:.78rem; color:#3b82f6; font-weight:800; margin-bottom:8px;}
-  .sim-pres-iglass .sim-pres-persona-chip{background:#132538; border-color:#3b82f6; color:#a8c8ff;}
+  .sim-pres-iglass .sim-pres-persona-chip{background:#132538; border-color:#3b82f6; color:#a8c8ff; display:flex; align-items:center; gap:8px; width:100%; border-radius:9px; padding:7px 12px; text-align:left;}
+  .sim-pres-iglass .sim-pres-persona-chip .orden-num{flex-shrink:0; width:22px; height:22px; border-radius:50%; background:#3b82f633; color:#a8c8ff; font-weight:900; font-size:.66rem; display:flex; align-items:center; justify-content:center;}
 
   .sim-pres-persona-chip .puntaje{opacity:.75; font-weight:400; margin-left:4px;}
   .sim-pres-persona-chip.mejor{border-width:2px; border-color:#1f9d8a !important; box-shadow:0 0 10px rgba(31,157,138,.5);}
@@ -11331,7 +11362,8 @@ if('serviceWorker' in navigator){
   .sim-pres-badge-rank.mejor{background:#1f9d8a33; color:#4fc9b3;}
   .sim-pres-badge-rank.peor{background:#e8584d33; color:#ff8a80;}
   .sim-pres-card{cursor:pointer;}
-  .sim-pres-card .ratio-mes{font-size:.72rem; color:#8b96a8; margin-top:2px;}
+  .sim-pres-card .ratio-mes{font-size:1.2rem; font-weight:900; color:#e8ecf1; margin-top:4px;}
+  .sim-pres-card .ratio-mes .lbl{display:block; font-size:.66rem; font-weight:800; color:#c5cdd8; text-transform:uppercase; margin-top:2px;}
   .sim-pres-card .marcados{font-size:.7rem; color:#e8584d; margin-top:6px; font-weight:700;}
   .sim-pres-ver-calculo, .sim-pres-abrir-personal{
     position:relative; z-index:2; cursor:pointer; font-weight:700; font-size:.72rem;
@@ -11557,28 +11589,39 @@ if('serviceWorker' in navigator){
       <span class="sub" style="margin:0;">Arrastrá a cada operario a otra tarjeta para reasignarlo, o a la 🗑 papelera para marcarlo de baja</span>
     </div>
 
-    <div class="sim-pres-grid" id="simPresGrid"></div>
+    <div class="sim-pres-layout">
+      <div class="sim-pres-sidebar" id="simPresSidebar">
+        <div class="sim-pres-esquema">
+          <button type="button" class="btn btn-ghost btn-sm" id="simBtnEsquemaVolverOriginal">🔄 Volver todos a su sector</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="simBtnEsquemaGuardar">💾 Guardar esquema</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="simBtnEsquemaCargar" style="display:none;">📂 Cargar esquema guardado</button>
+          <span class="sub" id="simEsquemaEstado" style="margin:0;"></span>
+        </div>
 
-    <div class="sim-pres-papelera" id="simPresPapelera" style="display:none;">
-      <div class="titulo">🗑 Papelera — personal marcado para baja</div>
-      <div id="simPresPapeleraLista" class="sim-pres-papelera-lista"></div>
-    </div>
+        <div class="sim-pres-papelera" id="simPresPapelera" style="display:none;">
+          <div class="titulo">🗑 Papelera — el que se va primero, arriba</div>
+          <div id="simPresPapeleraLista" class="sim-pres-papelera-lista"></div>
+        </div>
 
-    <div class="sim-pres-iglass" id="simPresIglass" style="display:none;">
-      <div class="titulo">🏭 Pasan a Iglass</div>
-      <div id="simPresIglassLista" class="sim-pres-papelera-lista"></div>
-    </div>
+        <div class="sim-pres-iglass" id="simPresIglass" style="display:none;">
+          <div class="titulo">🏭 Pasan a Iglass</div>
+          <div id="simPresIglassLista" class="sim-pres-papelera-lista"></div>
+        </div>
 
-    <div class="sim-pres-total" id="simPresTotalBar"></div>
+        <div class="sim-pres-total" id="simPresTotalBar"></div>
 
-    <div class="sim-pres-reportes" id="simPresReportesBar" style="display:none;">
-      <span id="simPresReportesResumen"></span>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn btn-danger btn-sm" id="simBtnReporteBaja">📄 PDF: a dar de baja</button>
-        <button class="btn btn-primary btn-sm" id="simBtnReporteContinua">📄 PDF: continúa</button>
-        <button class="btn btn-primary btn-sm" id="simBtnReporteGlobalPdf">📄 PDF: reporte global</button>
-        <button class="btn btn-ghost btn-sm" id="simBtnReporteGlobalExcel">📊 Excel: reporte global</button>
+        <div class="sim-pres-reportes" id="simPresReportesBar" style="display:none;">
+          <span id="simPresReportesResumen"></span>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="btn btn-danger btn-sm" id="simBtnReporteBaja">📄 PDF: a dar de baja</button>
+            <button class="btn btn-primary btn-sm" id="simBtnReporteContinua">📄 PDF: continúa</button>
+            <button class="btn btn-primary btn-sm" id="simBtnReporteGlobalPdf">📄 PDF: reporte global</button>
+            <button class="btn btn-ghost btn-sm" id="simBtnReporteGlobalExcel">📊 Excel: reporte global</button>
+          </div>
+        </div>
       </div>
+
+      <div class="sim-pres-grid" id="simPresGrid"></div>
     </div>
   </div>
 </div>
@@ -13819,13 +13862,33 @@ function simPresOperariosNecesarios(key, target, ym, mesReferencia){
   // ningún factor de conversión contra Fin de Línea. Antes, un sector que ya rendía más
   // que Fin de Línea (ej. CM en julio) terminaba pidiendo MÁS gente igual, porque el
   // factor le escalaba el objetivo para arriba -- una distorsión, no un dato real.
-  const ratio = simRatioHistorico(key, mesReferencia, corte);
+  const ratioBase = simRatioHistorico(key, mesReferencia, corte);
   const dh = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
-  if(!ratio || !dh) return null;
+  if(!ratioBase || !dh) return null;
+  // "MANUAL": si Diego ajustó el m²/operario/día a mano para este sector (para simular
+  // una mejora de productividad, ej. un método nuevo), ese valor pisa al histórico acá
+  // nomás al final -- todo lo demás (objetivo, días hábiles) sigue igual
+  const ratio = (simPresRatioManual[key]!==undefined) ? simPresRatioManual[key] : ratioBase;
   const mesesUsados = (mesReferencia && mesReferencia!=='auto') ? [mesReferencia] : simMesesConDatos(key).filter(m=>m<corte).slice(-3);
-  return { valor: target/(ratio*dh), ratio, dh, objetivoSector: target, mesesUsados };
+  return { valor: target/(ratio*dh), ratio, ratioBase, dh, objetivoSector: target, mesesUsados, esManual: simPresRatioManual[key]!==undefined };
 }
 
+// máximo y mínimo histórico de m²/operario/día de un sector (mismos meses que usa el
+// automático) -- referencia para saber entre qué rango se movió antes de tocar el manual
+function simEstadisticaHistorica(key){
+  const dotacionActual = (state.personalPorSector||{})[key] || 0;
+  if(!dotacionActual) return {max:0, min:0, desde:null, hasta:null};
+  const hoy = proyMesSiguiente(0);
+  const meses = simMesesConDatos(key).filter(ym=>ym<hoy);
+  const ratios = meses.map(ym=>{
+    const {sum, diasConDatos} = simStatsMes(key, ym);
+    return diasConDatos>0 ? sum/(dotacionActual*diasConDatos) : null;
+  }).filter(r=>r!==null && r>0);
+  if(!ratios.length) return {max:0, min:0, desde:null, hasta:null};
+  return {max: Math.max(...ratios), min: Math.min(...ratios), desde: meses[0], hasta: meses[meses.length-1]};
+}
+
+let simPresRatioManual = {}; // { '2-MEC': 22.5 } -- override manual de m²/operario/día, en memoria
 let simPresTarget = null;
 let simPresMesActual = null;
 let simPresMesReferencia = 'auto';
@@ -13846,6 +13909,56 @@ function simPresDotacionEfectiva(key){
   return simPresPersonalEfectivoPorSector(key).length;
 }
 
+let simPresOrdenManual = { baja: null, iglass: null }; // array de ids en el orden elegido a mano, o null = automático
+
+// ids de una lista (baja o iglass) en el orden que corresponde mostrar: primero el
+// ranking automático (peor primero en "baja" -- el candidato a irse primero es el que
+// menos rinde; mejor primero en "iglass"), y si hay un orden manual guardado, se aplica
+// sobre esa base (los que ya no están en la lista se sacan solos, los nuevos se agregan al final)
+function simPresOrdenBase(tipo){
+  const lista = (tipo==='baja')
+    ? poliState.personas.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].baja)
+    : poliState.personas.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].destino==='IGLASS' && !simPresPersonal[p.id].baja);
+  const ordenAscendente = (tipo==='baja'); // baja: peor (menos puntaje) primero
+  const conPuntaje = lista.map(p=>({p, score: simPresPuntajePersona(p)}));
+  conPuntaje.sort((a,b)=>{
+    if(!a.score && !b.score) return 0;
+    if(!a.score) return 1;
+    if(!b.score) return -1;
+    return ordenAscendente ? (a.score.puntaje-b.score.puntaje) : (b.score.puntaje-a.score.puntaje);
+  });
+  let ids = conPuntaje.map(x=>x.p.id);
+  const manual = simPresOrdenManual[tipo];
+  if(manual){
+    const idsSet = new Set(ids);
+    const reordenados = manual.filter(id=>idsSet.has(id));
+    ids.forEach(id=>{ if(!manual.includes(id)) reordenados.push(id); });
+    ids = reordenados;
+  }
+  return ids;
+}
+// devuelve las personas de esa lista, ya en el orden final -- lo usan tanto el render
+// en pantalla como los reportes PDF/Excel, para que siempre coincidan
+function simPresListaOrdenada(tipo){
+  const orden = simPresOrdenBase(tipo);
+  return orden.map(id=>poliState.personas.find(p=>p.id===id)).filter(Boolean);
+}
+
+function simPresReordenar(tipo, idArrastrado, idObjetivo){
+  let orden = simPresOrdenBase(tipo).filter(id=>id!==idArrastrado);
+  const idx = orden.indexOf(idObjetivo);
+  if(idx===-1) orden.push(idArrastrado); else orden.splice(idx, 0, idArrastrado);
+  simPresOrdenManual[tipo] = orden;
+  simRenderPresentacion();
+}
+// pone a alguien explícitamente al final de la lista -- se usa al soltar en el espacio
+// vacío (no sobre un chip puntual), para que "llevar al último puesto" sea confiable
+function simPresMoverAlFinal(tipo, id){
+  let orden = simPresOrdenBase(tipo).filter(x=>x!==id);
+  orden.push(id);
+  simPresOrdenManual[tipo] = orden;
+}
+
 // puntaje de habilidades de una persona en las tareas de SU sector de origen -- mismo
 // criterio que ya usa la tarjeta "Mi equipo", para poder distinguir de un vistazo quién
 // conviene más y quién menos dentro de un grupo (papelera o Iglass)
@@ -13856,26 +13969,26 @@ function simPresPuntajePersona(p){
   ops.forEach(op=> puntaje += poliNivelDe(p.id, op.id));
   return {puntaje, max: ops.length*4};
 }
-// arma los chips de una lista de personas, ordenados de mejor a peor puntaje, marcando
-// al mejor y al peor del grupo -- así si hay que elegir a quién desvincular o mover, se
-// ve rápido quién rinde más y quién menos (sin este dato, se corre el riesgo de llevarse
-// a alguien que no corresponde)
-function simPresRenderListaConRanking(lista){
-  const conPuntaje = lista.map(p=>({p, score: simPresPuntajePersona(p)}));
-  conPuntaje.sort((a,b)=>{
-    if(!a.score && !b.score) return 0;
-    if(!a.score) return 1;
-    if(!b.score) return -1;
-    return b.score.puntaje - a.score.puntaje;
-  });
-  const conDatos = conPuntaje.filter(x=>x.score);
-  return conPuntaje.map(x=>{
-    const esMejor = conDatos.length>1 && x===conDatos[0];
-    const esPeor = conDatos.length>1 && x===conDatos[conDatos.length-1];
+// arma los chips de una lista ya ORDENADA (según simPresListaOrdenada), marcando al
+// mejor y al peor puntaje real del grupo (independiente del orden manual que se le haya
+// dado) -- así si hay que elegir a quién desvincular o mover, se ve rápido quién rinde
+// más y quién menos, y de paso se puede arrastrar cada chip sobre otro para reordenar
+function simPresRenderListaConRanking(personasOrdenadas, tipo){
+  const conScore = personasOrdenadas.map(p=>({p, score: simPresPuntajePersona(p)}));
+  const conDatos = conScore.filter(x=>x.score).sort((a,b)=>b.score.puntaje-a.score.puntaje);
+  // si están todos empatados (típicamente todos en 0 porque a este grupo no se le cargó
+  // Polivalencias todavía), no hay ninguna diferencia real que mostrar -- poner "mejor"
+  // en cualquiera de ellos sería engañoso, así que en ese caso no se marca a nadie
+  const hayDiferenciaReal = conDatos.length>1 && conDatos[0].score.puntaje > conDatos[conDatos.length-1].score.puntaje;
+  const mejorId = hayDiferenciaReal ? conDatos[0].p.id : null;
+  const peorId = hayDiferenciaReal ? conDatos[conDatos.length-1].p.id : null;
+  return conScore.map((x,i)=>{
+    const esMejor = x.p.id===mejorId;
+    const esPeor = x.p.id===peorId;
     const clase = esMejor?'mejor':esPeor?'peor':'';
     const badge = esMejor ? '<span class="sim-pres-badge-rank mejor">🏆 mejor</span>' : esPeor ? '<span class="sim-pres-badge-rank peor">⚠ más flojo</span>' : '';
     const puntajeTxt = x.score ? `<span class="puntaje">${x.score.puntaje}/${x.score.max}pts</span>` : '';
-    return `<span class="sim-pres-persona-chip ${clase}" draggable="true" data-sim-pres-drag-id="${x.p.id}">${esc(x.p.nombre)} ${puntajeTxt}${badge}</span>`;
+    return `<span class="sim-pres-persona-chip ${clase}" draggable="true" data-sim-pres-drag-id="${x.p.id}" data-sim-pres-lista="${tipo}"><span class="orden-num">${i+1}º</span>${esc(x.p.nombre)} ${puntajeTxt}${badge}</span>`;
   }).join('');
 }
 function simWireChipsDrag(cont){
@@ -13885,6 +13998,22 @@ function simWireChipsDrag(cont){
       chip.classList.add('arrastrando');
     });
     chip.addEventListener('dragend', ()=> chip.classList.remove('arrastrando'));
+    // reordenar dentro de la misma lista: soltar sobre otro chip lo inserta justo antes
+    chip.addEventListener('dragover', (e)=>{ e.preventDefault(); e.stopPropagation(); chip.classList.add('drop-objetivo'); });
+    chip.addEventListener('dragleave', ()=> chip.classList.remove('drop-objetivo'));
+    chip.addEventListener('drop', (e)=>{
+      e.preventDefault(); e.stopPropagation();
+      chip.classList.remove('drop-objetivo');
+      const idArrastrado = e.dataTransfer.getData('text/plain');
+      const idObjetivo = chip.dataset.simPresDragId;
+      const tipo = chip.dataset.simPresLista;
+      if(!idArrastrado || idArrastrado===idObjetivo || !tipo) return;
+      // si viene de afuera de esta lista (ej. arrastrado directo desde una tarjeta de
+      // sector), primero lo pasamos a este estado antes de ubicarlo en la posición exacta
+      if(tipo==='baja') simPresPersonal[idArrastrado] = {baja:true, destino:(simPresPersonal[idArrastrado]&&simPresPersonal[idArrastrado].destino)||null};
+      else if(tipo==='iglass') simPresPersonal[idArrastrado] = {baja:false, destino:'IGLASS'};
+      simPresReordenar(tipo, idArrastrado, idObjetivo);
+    });
   });
 }
 
@@ -13996,10 +14125,41 @@ function simRenderPresentacion(){
           ${personasDelSector.map(p=>`<span class="sim-pres-persona-chip" draggable="true" data-sim-pres-drag-id="${p.id}">${esc(p.nombre)}</span>`).join('') || '<span style="color:#8b96a8;font-size:.68rem;">Sin nadie asignado</span>'}
         </div>`
       : '';
+    const est = simEstadisticaHistorica(key);
+    const colEstadistica = `<div class="sim-pres-col-lateral sim-pres-col-stat">
+      <div class="col-titulo">ESTADÍSTICA</div>
+      <button type="button" class="sim-pres-stat-btn" ${est.max?`data-sim-pres-usar-stat="${key}|${est.max}"`:'disabled'} title="Usar el máximo como manual">
+        <div class="sim-pres-stat-val">${est.max?fmt(est.max,1):'—'}</div><div class="sim-pres-stat-lbl">Máximo</div>
+      </button>
+      <button type="button" class="sim-pres-stat-btn" ${est.min?`data-sim-pres-usar-stat="${key}|${est.min}"`:'disabled'} title="Usar el mínimo como manual">
+        <div class="sim-pres-stat-val">${est.min?fmt(est.min,1):'—'}</div><div class="sim-pres-stat-lbl">Mínimo</div>
+      </button>
+      ${est.desde?`<div class="sim-pres-stat-rango">${capNombreMes(est.desde,true)}${est.desde!==est.hasta?' a '+capNombreMes(est.hasta,true):''}</div>`:''}
+    </div>`;
+    const valorManualActual = simPresRatioManual[key]!==undefined ? simPresRatioManual[key] : null;
+    const colManual = `<div class="sim-pres-col-lateral sim-pres-col-manual">
+      <div class="col-titulo">MANUAL</div>
+      <button type="button" class="sim-pres-manual-btn" data-sim-pres-manual-mas="${key}">+</button>
+      <div class="sim-pres-manual-val">${valorManualActual!==null?fmt(valorManualActual,1):''}</div>
+      <button type="button" class="sim-pres-manual-btn" data-sim-pres-manual-menos="${key}">−</button>
+      ${valorManualActual!==null?`<button type="button" class="sim-pres-manual-reset" data-sim-pres-manual-reset="${key}">↺ auto</button>`:''}
+    </div>`;
     const r = simPresOperariosNecesarios(key, simPresTarget, ym, simPresMesReferencia);
     if(r===null){
       totalActual += actual;
-      return `<div class="sim-pres-card sindatos" data-sim-pres-dropzone-card="${key}"><div class="nombre">${AV_SECTOR_SHORT[key]||key}</div><div class="necesario">—</div><div class="actual-vs-necesario">Sin datos históricos suficientes (hoy tiene ${actual})</div><button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}" style="margin-top:10px;">👥 Ver equipo</button>${chipsHtml}</div>`;
+      return `<div class="sim-pres-card sindatos" data-sim-pres-dropzone-card="${key}">
+        <div class="sim-pres-card-grid">
+          ${colEstadistica}
+          <div class="sim-pres-col-centro">
+            <div class="nombre">${AV_SECTOR_SHORT[key]||key}</div>
+            <div class="necesario">—</div>
+            <div class="actual-vs-necesario">Sin datos históricos suficientes (hoy tiene ${actual})</div>
+            <button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}" style="margin-top:10px;">👥 Ver equipo</button>
+          </div>
+          ${colManual}
+        </div>
+        ${chipsHtml}
+      </div>`;
     }
     const necesario = Math.round(r.valor);
     totalActual += actual; totalNecesario += necesario;
@@ -14009,24 +14169,65 @@ function simRenderPresentacion(){
     const mesesTxt = r.mesesUsados.map(m=>capNombreMes(m,true)).join(', ') || '—';
     const basadoEnTxt = r.mesesUsados.length>1 ? `prom. ${esc(mesesTxt)}` : `mes de ${esc(mesesTxt)}`;
     return `<div class="sim-pres-card ${clase}" data-sim-pres-dropzone-card="${key}">
-      <div class="nombre">${AV_SECTOR_SHORT[key]||key}</div>
-      <div class="necesario">${necesario}</div>
-      <div class="actual-vs-necesario">operarios necesarios (hoy tiene ${actual})</div>
-      <div class="ratio-mes">${fmt(r.ratio,2)} m²/operario/día · ${basadoEnTxt}</div>
-      <div class="diferencia">${textoDiff}</div>
-      <div style="display:flex; gap:6px; justify-content:center; margin-top:10px;">
-        <button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}">👥 Ver equipo</button>
-        <button type="button" class="sim-pres-ver-calculo" data-sim-pres-calc="${key}">ℹ Ver cálculo</button>
-      </div>
-      <div class="sim-pres-calculo-detalle" id="simPresCalc_${key}" style="display:none;">
-        1. Objetivo (igual para todos los sectores): <b>${fmt(r.objetivoSector,0)} m²</b><br>
-        2. m²/operario/día histórico de ${esc(AV_SECTOR_SHORT[key]||key)}: <b>${fmt(r.ratio,2)}</b> (${basadoEnTxt}, con dotación actual = ${actual})<br>
-        3. Días hábiles de ${esc(capNombreMes(ym,true))}: <b>${r.dh}</b><br>
-        4. Operarios = ${fmt(r.objetivoSector,0)} ÷ (${fmt(r.ratio,2)} × ${r.dh}) = <b>${fmt(r.valor,2)}</b> → redondeado a ${necesario}
+      <div class="sim-pres-card-grid">
+        ${colEstadistica}
+        <div class="sim-pres-col-centro">
+          <div class="nombre">${AV_SECTOR_SHORT[key]||key}</div>
+          <div class="necesario">${necesario}</div>
+          <div class="actual-vs-necesario">operarios necesarios (hoy tiene ${actual})</div>
+          <div class="ratio-mes">${fmt(r.ratio,2)}${r.esManual?' ✋':''}<span class="lbl">m²/operario/día${r.esManual?' (manual)':''}</span></div>
+          <div class="diferencia">${textoDiff}</div>
+          <div style="display:flex; gap:6px; justify-content:center; margin-top:10px; flex-wrap:wrap;">
+            <button type="button" class="sim-pres-abrir-personal" data-sim-pres-personal="${key}">👥 Ver equipo</button>
+            <button type="button" class="sim-pres-ver-calculo" data-sim-pres-calc="${key}">ℹ Ver cálculo</button>
+          </div>
+          <div class="sim-pres-calculo-detalle" id="simPresCalc_${key}" style="display:none;">
+            1. Objetivo (igual para todos los sectores): <b>${fmt(r.objetivoSector,0)} m²</b><br>
+            2. m²/operario/día ${r.esManual?'MANUAL':'histórico'} de ${esc(AV_SECTOR_SHORT[key]||key)}: <b>${fmt(r.ratio,2)}</b> ${r.esManual?`(automático sería ${fmt(r.ratioBase,2)}, ${basadoEnTxt})`:`(${basadoEnTxt}, con dotación actual = ${actual})`}<br>
+            3. Días hábiles de ${esc(capNombreMes(ym,true))}: <b>${r.dh}</b><br>
+            4. Operarios = ${fmt(r.objetivoSector,0)} ÷ (${fmt(r.ratio,2)} × ${r.dh}) = <b>${fmt(r.valor,2)}</b> → redondeado a ${necesario}
+          </div>
+        </div>
+        ${colManual}
       </div>
       ${chipsHtml}
     </div>`;
   }).join('');
+  document.querySelectorAll('[data-sim-pres-manual-mas]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const key = btn.dataset.simPresManualMas;
+      const r = simPresOperariosNecesarios(key, simPresTarget, ym, simPresMesReferencia);
+      const base = simPresRatioManual[key]!==undefined ? simPresRatioManual[key] : (r ? r.ratio : 1);
+      simPresRatioManual[key] = Math.round((base+0.5)*10)/10;
+      simRenderPresentacion();
+    });
+  });
+  document.querySelectorAll('[data-sim-pres-manual-menos]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const key = btn.dataset.simPresManualMenos;
+      const r = simPresOperariosNecesarios(key, simPresTarget, ym, simPresMesReferencia);
+      const base = simPresRatioManual[key]!==undefined ? simPresRatioManual[key] : (r ? r.ratio : 1);
+      simPresRatioManual[key] = Math.max(0.1, Math.round((base-0.5)*10)/10);
+      simRenderPresentacion();
+    });
+  });
+  document.querySelectorAll('[data-sim-pres-manual-reset]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      delete simPresRatioManual[btn.dataset.simPresManualReset];
+      simRenderPresentacion();
+    });
+  });
+  document.querySelectorAll('[data-sim-pres-usar-stat]').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const [key, valor] = btn.dataset.simPresUsarStat.split('|');
+      simPresRatioManual[key] = Number(valor);
+      simRenderPresentacion();
+    });
+  });
   document.querySelectorAll('[data-sim-pres-calc]').forEach(btn=>{
     btn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -14080,15 +14281,15 @@ function simWireArrastreDrag(){
 }
 
 function simRenderPapelera(){
-  const lista = poliState.personas.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].baja);
+  const personas = simPresListaOrdenada('baja');
   const cont = document.getElementById('simPresPapeleraLista');
-  cont.innerHTML = simPresRenderListaConRanking(lista) || '<span class="vacio">Arrastrá acá a quien quieras marcar de baja</span>';
+  cont.innerHTML = simPresRenderListaConRanking(personas, 'baja') || '<span class="vacio">Arrastrá acá a quien quieras marcar de baja</span>';
   simWireChipsDrag(cont);
 }
 function simRenderIglass(){
-  const lista = poliState.personas.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].destino==='IGLASS' && !simPresPersonal[p.id].baja);
+  const personas = simPresListaOrdenada('iglass');
   const cont = document.getElementById('simPresIglassLista');
-  cont.innerHTML = simPresRenderListaConRanking(lista) || '<span class="vacio">Arrastrá acá a quien pase a Iglass</span>';
+  cont.innerHTML = simPresRenderListaConRanking(personas, 'iglass') || '<span class="vacio">Arrastrá acá a quien pase a Iglass</span>';
   simWireChipsDrag(cont);
 }
 // las zonas en sí (no su lista interna) nunca se recrean vía innerHTML, así que sus
@@ -14105,6 +14306,10 @@ function simRenderIglass(){
     if(!id) return;
     const previo = simPresPersonal[id];
     simPresPersonal[id] = {baja:true, destino: (previo && previo.destino) || null};
+    // soltar en el espacio vacío de la lista (no sobre un chip puntual) = mandarlo al
+    // final -- si no, quedaba en la posición que tuviera en el orden automático/previo
+    // y parecía "pegarse" en cualquier lado menos al final
+    simPresMoverAlFinal('baja', id);
     simRenderPresentacion();
   });
 })();
@@ -14118,8 +14323,59 @@ function simRenderIglass(){
     const id = e.dataTransfer.getData('text/plain');
     if(!id) return;
     simPresPersonal[id] = {baja:false, destino:'IGLASS'};
+    simPresMoverAlFinal('iglass', id);
     simRenderPresentacion();
   });
+})();
+
+/* ---- esquema completo: volver todo a como estaba, o guardar/cargar un punto de
+   partida propio (localStorage, para no perder el trabajo si se cierra la pestaña) ---- */
+const SIM_ESQUEMA_KEY = 'lfda_sim_presentacion_esquema_v1';
+function simPresSnapshot(){
+  return { personal: simPresPersonal, ordenManual: simPresOrdenManual, ratioManual: simPresRatioManual, target: simPresTarget, mes: simPresMesActual, referencia: simPresMesReferencia };
+}
+document.getElementById('simBtnEsquemaVolverOriginal').addEventListener('click', ()=>{
+  if(!confirm('Esto descarta todas las bajas, pases a Iglass, reasignaciones y ajustes manuales que hiciste en esta pantalla (no afecta lo guardado con "💾 Guardar esquema"). ¿Confirmás?')) return;
+  simPresPersonal = {};
+  simPresOrdenManual = {baja:null, iglass:null};
+  simPresRatioManual = {};
+  simRenderPresentacion();
+  toast('Todos vuelven a su sector original');
+});
+document.getElementById('simBtnEsquemaGuardar').addEventListener('click', ()=>{
+  try{
+    localStorage.setItem(SIM_ESQUEMA_KEY, JSON.stringify(simPresSnapshot()));
+    document.getElementById('simBtnEsquemaCargar').style.display = '';
+    document.getElementById('simEsquemaEstado').textContent = 'Esquema guardado ✓';
+    toast('Esquema guardado en este navegador');
+  }catch(e){
+    console.error('No se pudo guardar el esquema', e);
+    toast('No se pudo guardar el esquema (¿navegador sin espacio?)', true);
+  }
+});
+document.getElementById('simBtnEsquemaCargar').addEventListener('click', ()=>{
+  try{
+    const raw = localStorage.getItem(SIM_ESQUEMA_KEY);
+    if(!raw){ toast('No hay ningún esquema guardado todavía', true); return; }
+    const snap = JSON.parse(raw);
+    simPresPersonal = snap.personal || {};
+    simPresOrdenManual = snap.ordenManual || {baja:null, iglass:null};
+    simPresRatioManual = snap.ratioManual || {};
+    if(snap.target!=null) simPresTarget = snap.target;
+    if(snap.mes) simPresMesActual = snap.mes;
+    if(snap.referencia) simPresMesReferencia = snap.referencia;
+    simRenderPresentacion();
+    toast('Esquema guardado cargado');
+  }catch(e){
+    console.error('No se pudo cargar el esquema', e);
+    toast('No se pudo cargar el esquema guardado', true);
+  }
+});
+// si ya hay un esquema guardado de una sesión anterior, mostramos el botón de cargar
+(function simChequearEsquemaGuardado(){
+  try{
+    if(localStorage.getItem(SIM_ESQUEMA_KEY)) document.getElementById('simBtnEsquemaCargar').style.display = '';
+  }catch(e){ /* localStorage no disponible -- sin drama, el resto sigue funcionando */ }
 })();
 
 /* ---- selección de personal por sector (marcar baja / destino), en memoria ---- */
@@ -14196,13 +14452,12 @@ document.getElementById('simBtnReporteGlobalExcel').addEventListener('click', si
 // (en su sector o reasignado a otro), pasa a Iglass, o se va (baja)
 function simDatosGlobalesPersonal(){
   const personasProduccion = poliState.personas.filter(p=>AV_SECTOR_ORDER.includes(p.sectorTitular));
-  const seQuedan=[], pasanIglass=[], seVan=[];
-  personasProduccion.forEach(p=>{
-    const est = simPresPersonal[p.id];
-    if(est && est.baja){ seVan.push(p); return; }
-    if(est && est.destino==='IGLASS'){ pasanIglass.push(p); return; }
-    seQuedan.push(p);
-  });
+  const idsBaja = new Set(personasProduccion.filter(p=>simPresPersonal[p.id] && simPresPersonal[p.id].baja).map(p=>p.id));
+  const idsIglass = new Set(personasProduccion.filter(p=>simPresPersonal[p.id] && simPresPersonal[p.id].destino==='IGLASS' && !simPresPersonal[p.id].baja).map(p=>p.id));
+  const seQuedan = personasProduccion.filter(p=> !idsBaja.has(p.id) && !idsIglass.has(p.id));
+  // baja e iglass respetan el mismo orden ya elegido a mano (o automático) que se ve en pantalla
+  const seVan = simPresListaOrdenada('baja');
+  const pasanIglass = simPresListaOrdenada('iglass');
   return {seQuedan, pasanIglass, seVan};
 }
 function simDestinoTexto(p){
@@ -14282,7 +14537,7 @@ function simGenerarReportePersonalPdf(modo){
   const personasProduccion = poliState.personas.filter(p=>AV_SECTOR_ORDER.includes(p.sectorTitular));
 
   if(modo==='baja'){
-    const lista = personasProduccion.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].baja);
+    const lista = simPresListaOrdenada('baja');
     dibujarHeaderPdf(doc, W, 'Simulación de dotación — personal a dar de baja', `objetivo ${fmt(simPresTarget,0)} m² · ${capNombreMes(simPresMesActual)}`);
     let y = 54;
     doc.autoTable({
