@@ -14055,6 +14055,7 @@ function simAbrirPresentacion(){
   document.getElementById('simVistaPresentacion').style.display = 'block';
   document.getElementById('simBtnPresentacion').textContent = '📊 Ver por sector';
   if(!simPresMesActual) simPresMesActual = proyMesSiguiente(0);
+  simChequearEsquemaGuardado();
   simRenderFiltroSectores();
   const sel = document.getElementById('simPresMes');
   // "Proyectar en" incluye los próximos 3 meses (para planificar a futuro) Y los meses
@@ -14329,8 +14330,9 @@ function simRenderIglass(){
 })();
 
 /* ---- esquema completo: volver todo a como estaba, o guardar/cargar un punto de
-   partida propio (localStorage, para no perder el trabajo si se cierra la pestaña) ---- */
-const SIM_ESQUEMA_KEY = 'lfda_sim_presentacion_esquema_v1';
+   partida propio en Firestore (así se ve desde cualquier PC que entre como admin/
+   gerencia, no solo desde el navegador donde se guardó) ---- */
+const SIM_ESQUEMA_DOC = 'sim_presentacion_esquema';
 function simPresSnapshot(){
   return { personal: simPresPersonal, ordenManual: simPresOrdenManual, ratioManual: simPresRatioManual, target: simPresTarget, mes: simPresMesActual, referencia: simPresMesReferencia };
 }
@@ -14343,40 +14345,51 @@ document.getElementById('simBtnEsquemaVolverOriginal').addEventListener('click',
   toast('Todos vuelven a su sector original');
 });
 document.getElementById('simBtnEsquemaGuardar').addEventListener('click', ()=>{
-  try{
-    localStorage.setItem(SIM_ESQUEMA_KEY, JSON.stringify(simPresSnapshot()));
+  const btn = document.getElementById('simBtnEsquemaGuardar');
+  btn.disabled = true; btn.textContent = 'Guardando…';
+  firestoreDb.collection(FIRESTORE_COLLECTION).doc(SIM_ESQUEMA_DOC).set({
+    ...simPresSnapshot(),
+    guardadoPor: (typeof sesion!=='undefined' && sesion && sesion.nombre) || 'admin',
+    _ts: new Date().toISOString()
+  }).then(()=>{
     document.getElementById('simBtnEsquemaCargar').style.display = '';
-    document.getElementById('simEsquemaEstado').textContent = 'Esquema guardado ✓';
-    toast('Esquema guardado en este navegador');
-  }catch(e){
-    console.error('No se pudo guardar el esquema', e);
-    toast('No se pudo guardar el esquema (¿navegador sin espacio?)', true);
-  }
+    document.getElementById('simEsquemaEstado').textContent = 'Esquema guardado en la nube ✓';
+    toast('Esquema guardado — ya se puede abrir desde cualquier PC');
+  }).catch(err=>{
+    console.error('No se pudo guardar el esquema', err);
+    alert('No se pudo guardar el esquema: ' + (err && err.message ? err.message : err));
+  }).finally(()=>{
+    btn.disabled = false; btn.textContent = '💾 Guardar esquema';
+  });
 });
 document.getElementById('simBtnEsquemaCargar').addEventListener('click', ()=>{
-  try{
-    const raw = localStorage.getItem(SIM_ESQUEMA_KEY);
-    if(!raw){ toast('No hay ningún esquema guardado todavía', true); return; }
-    const snap = JSON.parse(raw);
-    simPresPersonal = snap.personal || {};
-    simPresOrdenManual = snap.ordenManual || {baja:null, iglass:null};
-    simPresRatioManual = snap.ratioManual || {};
-    if(snap.target!=null) simPresTarget = snap.target;
-    if(snap.mes) simPresMesActual = snap.mes;
-    if(snap.referencia) simPresMesReferencia = snap.referencia;
+  const btn = document.getElementById('simBtnEsquemaCargar');
+  btn.disabled = true; btn.textContent = 'Cargando…';
+  firestoreDb.collection(FIRESTORE_COLLECTION).doc(SIM_ESQUEMA_DOC).get().then(snap=>{
+    if(!snap.exists){ toast('No hay ningún esquema guardado todavía', true); return; }
+    const data = snap.data();
+    simPresPersonal = data.personal || {};
+    simPresOrdenManual = data.ordenManual || {baja:null, iglass:null};
+    simPresRatioManual = data.ratioManual || {};
+    if(data.target!=null) simPresTarget = data.target;
+    if(data.mes) simPresMesActual = data.mes;
+    if(data.referencia) simPresMesReferencia = data.referencia;
     simRenderPresentacion();
-    toast('Esquema guardado cargado');
-  }catch(e){
-    console.error('No se pudo cargar el esquema', e);
-    toast('No se pudo cargar el esquema guardado', true);
-  }
+    toast('Esquema cargado' + (data.guardadoPor ? ` (guardado por ${data.guardadoPor})` : ''));
+  }).catch(err=>{
+    console.error('No se pudo cargar el esquema', err);
+    alert('No se pudo cargar el esquema guardado: ' + (err && err.message ? err.message : err));
+  }).finally(()=>{
+    btn.disabled = false; btn.textContent = '📂 Cargar esquema guardado';
+  });
 });
-// si ya hay un esquema guardado de una sesión anterior, mostramos el botón de cargar
-(function simChequearEsquemaGuardado(){
-  try{
-    if(localStorage.getItem(SIM_ESQUEMA_KEY)) document.getElementById('simBtnEsquemaCargar').style.display = '';
-  }catch(e){ /* localStorage no disponible -- sin drama, el resto sigue funcionando */ }
-})();
+// al abrir Modo Presentación chequeamos una sola vez si hay un esquema guardado en la
+// nube (no hace falta un listener en vivo para esto), para mostrar u ocultar el botón
+function simChequearEsquemaGuardado(){
+  firestoreDb.collection(FIRESTORE_COLLECTION).doc(SIM_ESQUEMA_DOC).get().then(snap=>{
+    document.getElementById('simBtnEsquemaCargar').style.display = snap.exists ? '' : 'none';
+  }).catch(err=> console.error('No se pudo chequear si hay esquema guardado', err));
+}
 
 /* ---- selección de personal por sector (marcar baja / destino), en memoria ---- */
 let simPresPersonal = {}; // { personaId: {baja:bool, destino:sectorKey} }
