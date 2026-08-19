@@ -2654,8 +2654,15 @@ function subirEstadoAFirestore(){
           const actualLocalPrevio = state.actual;
           aplicarEstadoRemoto(dataRemota);
           if(actualLocalPrevio && state.actual && actualLocalPrevio.fecha===state.actual.fecha){
+            // antes esto solo miraba si un campo EXISTÍA (con vs. sin) -- si los dos lados
+            // ya tenían un "resultado" calculado (uno fresco recién hecho, otro viejo de
+            // la nube), no distinguía cuál era más nuevo y se quedaba con el de la nube.
+            // Ahora usa la marca de tiempo del cálculo para decidir de verdad cuál ganar.
+            const localTsResultado = actualLocalPrevio._resultadoTs || 0;
+            const remotoTsResultado = state.actual._resultadoTs || 0;
             const localTieneMasAvance =
               (actualLocalPrevio.resultado && !state.actual.resultado) ||
+              (actualLocalPrevio.resultado && state.actual.resultado && localTsResultado > remotoTsResultado) ||
               (actualLocalPrevio.fin && !state.actual.fin) ||
               (actualLocalPrevio.inicio && !state.actual.inicio);
             if(localTieneMasAvance){
@@ -6826,6 +6833,10 @@ function guardarResultadoVigente(resultado){
     diaConfirmado.sectores = resultado;
   } else {
     state.actual.resultado = resultado;
+    // marca de cuándo se calculó este resultado -- así, si más tarde hay que decidir
+    // entre esta versión y otra (ej. la salvaguarda de sync comparando local vs. nube),
+    // se puede saber cuál es realmente la más fresca en vez de solo mirar si existe o no
+    state.actual._resultadoTs = Date.now();
   }
 }
 
@@ -11327,6 +11338,7 @@ if('serviceWorker' in navigator){
   .sim-pres-filtro-btn.todos.activo{background:linear-gradient(135deg,#1f9d8a,#166b5d); color:#fff; border-color:#1f9d8a;}
 
   .sim-pres-modo-row{display:flex; align-items:center; gap:12px; margin-bottom:14px; flex-wrap:wrap;}
+
   .sim-pres-toggle-arrastrar{background:#161b22; border:1px solid #2b3340; border-bottom-width:3px; color:#c5cdd8; padding:9px 16px; border-radius:10px; font-size:.8rem; font-weight:800; cursor:pointer; box-shadow:0 3px 6px rgba(0,0,0,.35); transition:all .12s;}
   .sim-pres-toggle-arrastrar:hover{border-color:#e8a33d; color:#e8a33d; transform:translateY(-1px);}
   .sim-pres-toggle-arrastrar.activo{background:linear-gradient(135deg,#e8a33d,#c47f1f); color:#161b22; border-color:#e8a33d; box-shadow:0 0 18px rgba(232,163,61,.4);}
@@ -14622,7 +14634,6 @@ function simGenerarReportePersonalPdf(modo){
     misAbrirAdjunto(doc.output('datauristring'), `Simulacion_Personal_que_continua_${fechaHoyLocal()}.pdf`);
   }
 }
-
 function simRenderRanking(){
   const ranking = AV_SECTOR_ORDER.map(k=>({k, ratio: simRatioHistorico(k)})).sort((a,b)=>b.ratio-a.ratio);
   const maxR = Math.max(0.01, ...ranking.map(r=>r.ratio));
