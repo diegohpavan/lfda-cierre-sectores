@@ -6391,11 +6391,15 @@ function colaTasaTeoricaCapacidad(){
   return Math.max(0, CONSTANTE_BASE_M2 - dimInfo.dimension) * dotacion;
 }
 function colaTasaDiariaReal(){
+  // el promedio REAL (mismo que muestra el héroe de Avance por Sector) tiene prioridad
+  // siempre que ya haya datos suficientes -- la fórmula teórica queda solo como respaldo
+  // para el arranque del mes, cuando todavía no hay días reales cargados para promediar
+  const liKey = state.sectorFinLinea || '8-LI';
+  const real = colaPromedioSectorReal(liKey);
+  if(real>0) return real;
   const teorica = colaTasaTeoricaCapacidad();
   if(teorica!==null) return teorica;
-  // respaldo si todavía no hay cola pactada cargada este mes: promedio real de Fin de Línea
-  const liKey = state.sectorFinLinea || '8-LI';
-  return colaPromedioSectorReal(liKey);
+  return real;
 }
 function colaPromedioSectorReal(key){
   const dObl = state.diasObligatorios||[1,2,3,4,5];
