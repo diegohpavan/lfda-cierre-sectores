@@ -687,6 +687,12 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
   box-shadow:0 2px 6px rgba(0,0,0,.4);
 }
 .poli-badge.open{ background:var(--ink-faint); color:var(--bg); }
+.poli-lider-editar{
+  position:absolute; top:-8px; left:-8px; background:var(--panel2); color:var(--ink);
+  border:1px solid var(--line2); font-size:11px; border-radius:50%; width:20px; height:20px;
+  display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2;
+}
+.poli-lider-editar:hover{ border-color:var(--amber); color:var(--amber); }
 .poli-lider-group{
   display:flex; flex-direction:column; align-items:stretch; gap:6px;
   border:1px dashed var(--line); border-radius:12px; padding:12px 14px;
@@ -1746,6 +1752,12 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
           <input type="text" id="poliNewOpCodigo" placeholder="Código (ej: ALM-PVC Acces)" style="min-width:150px;">
           <input type="text" id="poliNewOpName" placeholder="Proced nombre (Sector / Puesto)…">
           <button class="btn btn-primary" id="poliBtnAddOp">+ Agregar tarea</button>
+        </div>
+        <div class="poli-add-op">
+          <input type="text" id="poliNewPersonaNombre" placeholder="Nombre y apellido…" style="min-width:170px;">
+          <input type="text" id="poliNewPersonaLegajo" placeholder="Legajo (opcional)" style="min-width:100px;">
+          <select id="poliNewPersonaSector"></select>
+          <button class="btn btn-primary" id="poliBtnAddPersona">+ Agregar operario</button>
         </div>
       </div>
 
@@ -8987,20 +8999,17 @@ document.getElementById('btnAgregarFeriado').addEventListener('click', ()=>{
 function renderPersonalConfig(){
   const cont = document.getElementById('personalPorSectorList');
   if(!cont) return;
-  if(!state.personalPorSector) state.personalPorSector = {};
+  // esto ya no se carga a mano acá -- se cuenta solo desde Polivalencias, para tener un
+  // único lugar donde mover gente y que todo el resto de la app (Simulación, Capacidad,
+  // Modo Presentación) lo tome de ahí, sin un número aparte que se podía desincronizar
   const orden = ['1-ALM','2-MEC','3-SOL','4-VID','5-DVH','6-ARM','7-ACR','8-LI'];
-  cont.innerHTML = orden.map(key=>`
+  cont.innerHTML = `<div class="hint" style="margin-bottom:10px;">Esto ya no se edita acá — se cuenta solo, en vivo, desde la nómina real de Polivalencias. Para sumar, sacar o mover a alguien de sector, hacelo desde Configuración → Polivalencias.</div>` +
+    orden.map(key=>`
     <div class="cfg-field">
       <label>${esc(AV_SECTOR_SHORT[key]||key)}</label>
-      <input type="number" min="0" data-personal-sector="${key}" value="${state.personalPorSector[key]||0}" style="width:100px;">
+      <div style="padding:8px 10px; font-weight:700;">${personalDelSector(key)}</div>
     </div>
   `).join('');
-  cont.querySelectorAll('[data-personal-sector]').forEach(inp=>{
-    inp.addEventListener('change', ()=>{
-      state.personalPorSector[inp.dataset.personalSector] = Number(inp.value)||0;
-      saveState();
-    });
-  });
 }
 
 function renderListaRespaldosLocales(){
@@ -11355,6 +11364,8 @@ if('serviceWorker' in navigator){
   .sim-pres-orden-reset{margin-top:8px; background:none; border:1px solid #2b3340; color:#8b96a8; font-size:.68rem; padding:4px 10px; border-radius:14px; cursor:pointer;}
   .sim-pres-orden-reset:hover{border-color:#ffd23f; color:#ffd23f;}
   .sim-pres-esquema{background:#161b22; border:1px solid #2b3340; border-radius:12px; padding:12px; display:flex; flex-direction:column; gap:8px;}
+  .sim-pres-aplicar{background:#1a1214; border:1px solid #e8584d55; border-radius:12px; padding:12px; display:flex; flex-direction:column;}
+  .sim-pres-aplicar .sub{color:#c99; font-size:.68rem; line-height:1.4;}
   .sim-pres-esquema button{width:100%;}
   .sim-pres-card.dropzone-activa{border-color:#1f9d8a; box-shadow:0 0 24px rgba(31,157,138,.35); background:#161f1d;}
 
@@ -11622,6 +11633,11 @@ if('serviceWorker' in navigator){
           <button type="button" class="btn btn-ghost btn-sm" id="simBtnEsquemaGuardar">💾 Guardar esquema</button>
           <button type="button" class="btn btn-ghost btn-sm" id="simBtnEsquemaCargar" style="display:none;">📂 Cargar esquema guardado</button>
           <span class="sub" id="simEsquemaEstado" style="margin:0;"></span>
+        </div>
+
+        <div class="sim-pres-aplicar">
+          <button type="button" class="btn btn-danger btn-sm" id="simBtnAplicarCambios" style="width:100%;">✅ Aplicar cambios a toda la app</button>
+          <span class="sub" style="margin:4px 0 0;">Convierte bajas/Iglass/reasignaciones en la nómina real de Polivalencias y en la dotación por sector — se usa en toda la app, no solo acá</span>
         </div>
 
         <div class="sim-pres-papelera" id="simPresPapelera" style="display:none;">
@@ -12088,6 +12104,15 @@ const POLI_PEOPLE = [
 const POLI_ID_SIN_LEGAJO = { 'Maglio, Alejandro Javier':'N-MAGLIO', 'Cabral, Carlos Sebastian':'N-CABRAL', 'Cabrera, Eduardo Maximiliano':'N-CABRERA' };
 function poliPersonaId(nombre, legajo){ return legajo ? ('L'+legajo) : (POLI_ID_SIN_LEGAJO[nombre] || ('N-'+nombre)); }
 
+// única fuente de verdad para "cuánta gente hay hoy en este sector" -- se cuenta en vivo
+// contra la lista real de Polivalencias, en vez de un número aparte que había que
+// mantener sincronizado a mano (Configuración → Personal por sector, ya sacado). Con esto,
+// agregar/sacar gente en Polivalencias es lo único que hace falta tocar; todo lo demás
+// (Simulación, Capacidad, Modo Presentación) lo toma solo de acá.
+function personalDelSector(key){
+  return poliState.personas.filter(p=>p.sectorTitular===key).length;
+}
+
 // líder real de cada sector (roster de login de Cierre Diario)
 const POLI_LIDERES = {
   '0-Planificación':{nombre:'Vera, Alfredo', id:'L270'},
@@ -12168,6 +12193,8 @@ function poliFreshState(){
     niveles: JSON.parse(JSON.stringify(POLI_NIVELES_INICIALES)),
     puestosPorSector: {},
     equipoSabado: { fecha: null, asignaciones: {} },
+    lideres: JSON.parse(JSON.stringify(POLI_LIDERES)), // semilla editable -- antes esto era fijo en el código
+    jefes: JSON.parse(JSON.stringify(POLI_JEFES)), // ídem -- editable desde el organigrama con el lápiz
   };
 }
 
@@ -12199,6 +12226,8 @@ function poliIniciarSync(){
         if(data.personas) poliState.personas = data.personas;
         if(data.operaciones) poliState.operaciones = data.operaciones;
         if(data.puestosPorSector) poliState.puestosPorSector = data.puestosPorSector;
+        if(data.lideres) poliState.lideres = data.lideres;
+        if(data.jefes) poliState.jefes = data.jefes;
       } else {
         // NUNCA auto-sembrar: si Firestore reporta "no existe" (puede ser un problema
         // transitorio de conexión/permisos, no necesariamente que el doc se haya borrado
@@ -12252,7 +12281,7 @@ function poliGuardarNivel(personaId, opId, val){
 function poliGuardarConfig(){
   if(typeof firestoreDb !== 'undefined' && firestoreDb){
     firestoreDb.collection(POLI_COLLECTION).doc(POLI_CONFIG_DOC)
-      .set({ personas: poliState.personas, operaciones: poliState.operaciones, puestosPorSector: poliState.puestosPorSector })
+      .set({ personas: poliState.personas, operaciones: poliState.operaciones, puestosPorSector: poliState.puestosPorSector, lideres: poliState.lideres, jefes: poliState.jefes })
       .catch(e=>console.error('No se pudo guardar la configuración', e));
   }
 }
@@ -12430,17 +12459,20 @@ document.getElementById('poliSabExportar').addEventListener('click', ()=>{
 });
 
 /* ---------------- ORGANIGRAMA ---------------- */
-const POLI_LIDERES_CON_NOMBRE = POLI_ALL_SECTOR_ORDER.filter(id=>POLI_LIDERES[id]);
+// antes esta lista y los nombres/id de cada líder eran FIJOS en el código (const
+// POLI_LIDERES) -- ahora poliState.lideres es editable desde la app y se guarda en
+// Firestore; POLI_LIDERES solo se usa como semilla la primerísima vez
+function poliLideresConNombre(){ return POLI_ALL_SECTOR_ORDER.filter(id=>poliState.lideres && poliState.lideres[id]); }
 
 function poliBuildOrgTree(){
   const root = { tipo:'gerente', key:'gerente', nombre:POLI_GERENTE.nombre, rol:POLI_GERENTE.rol, children:[] };
-  POLI_JEFES.forEach(j=>{
+  (poliState.jefes || POLI_JEFES).forEach(j=>{
     const jefeNode = { tipo:'jefe', key:'jefe:'+j.id, id:j.id, nombre:j.nombre, rol:j.rol, children:[] };
-    POLI_LIDERES_CON_NOMBRE.forEach(secId=>{
-      const liderId = POLI_LIDERES[secId].id;
-      const miembros = poliState.personas.filter(p=>p.sectorTitular===secId && p.id!==liderId);
+    poliLideresConNombre().forEach(secId=>{
+      const liderInfo = poliState.lideres[secId];
+      const miembros = poliState.personas.filter(p=>p.sectorTitular===secId && p.id!==liderInfo.id);
       jefeNode.children.push({
-        tipo:'lider', key:'lider:'+secId, sector:secId, nombre:POLI_LIDERES[secId].nombre,
+        tipo:'lider', key:'lider:'+secId, sector:secId, nombre:liderInfo.nombre,
         rol:'LÍDER '+poliSectorById(secId).name.toUpperCase(), color:poliSectorById(secId).color,
         children: miembros.map(p=>({
           tipo:'operario', key:'operario:'+p.id, nombre:p.nombre, rol:poliSectorById(secId).name,
@@ -12451,6 +12483,45 @@ function poliBuildOrgTree(){
     root.children.push(jefeNode);
   });
   return root;
+}
+
+// abre un prompt simple para elegir/escribir quién es el líder de un sector -- si la
+// persona ya está cargada en Polivalencias para ese sector, se puede elegir de la lista;
+// si es alguien nuevo, se puede escribir el nombre directo
+function poliEditarLiderSector(secId){
+  if(!esAdmin()){ toast('Solo el administrador puede cambiar líderes del organigrama', true); return; }
+  const candidatos = poliState.personas.filter(p=>p.sectorTitular===secId);
+  const actual = (poliState.lideres && poliState.lideres[secId]) || {nombre:'', id:''};
+  const listaTxt = candidatos.length
+    ? '\n\nPersonal ya cargado en ' + poliSectorById(secId).name + ': ' + candidatos.map(p=>p.nombre).join(', ')
+    : '';
+  const nombre = prompt(`¿Quién es ahora el líder de ${poliSectorById(secId).name}?${listaTxt}\n\nEscribí el nombre exacto (si ya está en la lista de arriba, así queda vinculado a esa persona):`, actual.nombre);
+  if(!nombre) return;
+  const nombreTrim = nombre.trim();
+  const match = candidatos.find(p=>p.nombre.toLowerCase()===nombreTrim.toLowerCase());
+  poliState.lideres = poliState.lideres || {};
+  poliState.lideres[secId] = { nombre: match ? match.nombre : nombreTrim, id: match ? match.id : 'N-'+nombreTrim.toUpperCase().replace(/[^A-Z0-9]/g,'') };
+  poliGuardarConfig();
+  poliRenderOrganigramaView();
+  toast('Líder actualizado');
+}
+
+// para "Jefes de Producción" (y cualquier otro nodo de jefatura que se agregue): el
+// nombre es texto libre, no está atado a la lista de Polivalencias -- ej. para sacar a
+// alguien que dejó el cargo, alcanza con reescribir el texto sin su nombre
+function poliEditarJefe(jefeId){
+  if(!esAdmin()){ toast('Solo el administrador puede cambiar esto', true); return; }
+  if(!poliState.jefes) poliState.jefes = JSON.parse(JSON.stringify(POLI_JEFES));
+  const jefe = poliState.jefes.find(j=>j.id===jefeId);
+  if(!jefe) return;
+  const nombre = prompt(`Nombre(s) a mostrar en esta caja del organigrama (separá con " · " si son varios):`, jefe.nombre);
+  if(nombre===null) return;
+  const nombreTrim = nombre.trim();
+  if(!nombreTrim) return;
+  jefe.nombre = nombreTrim;
+  poliGuardarConfig();
+  poliRenderOrganigramaView();
+  toast('Actualizado');
 }
 
 const poliExpandedKeys = new Set();
@@ -12470,9 +12541,22 @@ function poliNodeCard(node){
   const dotColor = node.tipo==='gerente'?'#e8c34a':node.tipo==='jefe'?'var(--blue)':(node.color||'var(--ink-faint)');
   const abierto = poliExpandedKeys.has(node.key);
   const badge = isExpandable ? `<div class="poli-badge ${abierto?'open':''}">${abierto?'–':'+'} ${node.children.length}</div>` : '';
-  wrap.innerHTML = `${badge}<div class="dot" style="background:${dotColor}"></div>
+  const btnEditarLider = (node.tipo==='lider' && esAdmin()) ? `<div class="poli-lider-editar" title="Cambiar líder">✎</div>` : '';
+  const btnEditarJefe = (node.tipo==='jefe' && esAdmin()) ? `<div class="poli-lider-editar" title="Editar nombre(s)">✎</div>` : '';
+  wrap.innerHTML = `${badge}${btnEditarLider}${btnEditarJefe}<div class="dot" style="background:${dotColor}"></div>
     <div class="nm">${node.nombre}</div><div class="rl">${node.rol}</div>`;
-  if(isExpandable) wrap.addEventListener('click', ()=> poliToggleKey(node.key));
+  if(isExpandable) wrap.addEventListener('click', (e)=>{
+    if(e.target.classList.contains('poli-lider-editar')) return; // el lápiz no expande, edita
+    poliToggleKey(node.key);
+  });
+  if(node.tipo==='lider'){
+    const editar = wrap.querySelector('.poli-lider-editar');
+    if(editar) editar.addEventListener('click', (e)=>{ e.stopPropagation(); poliEditarLiderSector(node.sector); });
+  }
+  if(node.tipo==='jefe'){
+    const editar = wrap.querySelector('.poli-lider-editar');
+    if(editar) editar.addEventListener('click', (e)=>{ e.stopPropagation(); poliEditarJefe(node.id); });
+  }
   return wrap;
 }
 
@@ -12599,6 +12683,13 @@ function poliRenderFilterSector(){
   const current = sel.value;
   sel.innerHTML = POLI_ALL_SECTOR_ORDER.map(id=>`<option value="${id}">${poliSectorById(id).name} (${(poliState.operaciones[id]||[]).length} tareas)</option>`).join('');
   sel.value = current && POLI_ALL_SECTOR_ORDER.includes(current) ? current : POLI_ALL_SECTOR_ORDER[0];
+
+  const selPersona = document.getElementById('poliNewPersonaSector');
+  if(selPersona){
+    const currentP = selPersona.value;
+    selPersona.innerHTML = POLI_ALL_SECTOR_ORDER.map(id=>`<option value="${id}">${poliSectorById(id).name}</option>`).join('');
+    selPersona.value = currentP && POLI_ALL_SECTOR_ORDER.includes(currentP) ? currentP : POLI_ALL_SECTOR_ORDER[0];
+  }
 }
 
 function poliRenderMatrix(){
@@ -12618,6 +12709,7 @@ function poliRenderMatrix(){
 
   const body = document.getElementById('poliBodyRows');
   const personasFiltradas = poliState.personas.filter(p=> !q || p.nombre.toLowerCase().includes(q) || (p.legajo||'').includes(q));
+  const puedeQuitarPersona = esAdmin();
 
   let html = '';
   POLI_ALL_SECTOR_ORDER.forEach(gid=>{
@@ -12625,7 +12717,7 @@ function poliRenderMatrix(){
     if(!grupo.length) return;
     html += `<tr class="grp"><td colspan="${ops.length+1}">${poliSectorById(gid).name} (${grupo.length})</td></tr>`;
     grupo.forEach(p=>{
-      html += `<tr><td class="name-col">${p.nombre}<span class="leg">leg ${p.legajo||'-'}</span></td>`;
+      html += `<tr><td class="name-col">${p.nombre}<span class="leg">leg ${p.legajo||'-'}</span>${puedeQuitarPersona?`<span class="rm" data-persona-rm="${p.id}" title="Quitar de Polivalencias">✕</span>`:''}</td>`;
       ops.forEach(op=>{
         const lvl = poliNivelDe(p.id, op.id);
         html += `<td><span class="poli-lvl" data-l="${lvl}" data-persona="${p.id}" data-op="${op.id}">${lvl}</span></td>`;
@@ -12634,6 +12726,19 @@ function poliRenderMatrix(){
     });
   });
   body.innerHTML = html;
+
+  body.querySelectorAll('[data-persona-rm]').forEach(el=>{
+    el.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const id = el.dataset.personaRm;
+      const p = poliState.personas.find(x=>x.id===id);
+      if(!p) return;
+      if(!confirm(`¿Sacar a ${p.nombre} de la matriz de Polivalencias?\n\nEsto no borra sus niveles cargados (por si vuelve a ingresar), pero deja de contar en Mi equipo, Simulación por Sector y el organigrama. Si es líder de un sector, recordá también cambiar el líder desde el Organigrama (✎).`)) return;
+      poliState.personas = poliState.personas.filter(x=>x.id!==id);
+      poliGuardarConfig(); poliRenderPolivalenciasView();
+      toast('Operario quitado de Polivalencias');
+    });
+  });
 
   body.querySelectorAll('.poli-lvl').forEach(el=>{
     el.addEventListener('click', ()=>{
@@ -12686,6 +12791,26 @@ document.getElementById('poliBtnAddOp').addEventListener('click', ()=>{
 });
 document.getElementById('poliNewOpName').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('poliBtnAddOp').click(); });
 document.getElementById('poliNewOpCodigo').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('poliBtnAddOp').click(); });
+
+document.getElementById('poliBtnAddPersona').addEventListener('click', ()=>{
+  const inputNombre = document.getElementById('poliNewPersonaNombre');
+  const inputLegajo = document.getElementById('poliNewPersonaLegajo');
+  const selSector = document.getElementById('poliNewPersonaSector');
+  const nombre = inputNombre.value.trim();
+  const legajo = inputLegajo.value.trim();
+  if(!nombre) return;
+  const id = poliPersonaId(nombre, legajo);
+  if(poliState.personas.some(p=>p.id===id)){
+    alert('Ya existe una persona cargada con ese nombre/legajo. Si es la misma persona, editala desde ahí en vez de duplicarla; si es otra, cargá un legajo distinto para diferenciarlas.');
+    return;
+  }
+  poliState.personas.push({id, nombre, legajo, sectorTitular: selSector.value});
+  inputNombre.value=''; inputLegajo.value='';
+  poliGuardarConfig(); poliRenderPolivalenciasView();
+  toast('Operario agregado ✓');
+});
+document.getElementById('poliNewPersonaNombre').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('poliBtnAddPersona').click(); });
+document.getElementById('poliNewPersonaLegajo').addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('poliBtnAddPersona').click(); });
 document.getElementById('poliFilterSector').addEventListener('change', ()=>{ poliRenderMatrix(); poliRenderFlow(); });
 document.getElementById('poliSearch').addEventListener('input', poliRenderMatrix);
 
@@ -12753,7 +12878,7 @@ function poliRenderAnalisisDetail(){
   const wrap = document.getElementById('poliAnalisisDetail');
   wrap.innerHTML = `
     <div class="poli-analisis-card">
-      <h3>${poliSectorById(secId).name}${POLI_LIDERES[secId] ? ' · líder '+POLI_LIDERES[secId].nombre : ''}</h3>
+      <h3>${poliSectorById(secId).name}${(poliState.lideres && poliState.lideres[secId]) ? ' · líder '+poliState.lideres[secId].nombre : ''}</h3>
       <div class="sub">${titulares.length} titulares · ${polivalentes.length} personas de otros sectores pueden cubrir acá (nivel 3 o 4 en al menos una tarea) · ordenado por polivalencia</div>
       <div class="poli-chips">
         ${titulares.map(p=>`<button class="poli-chip titular" data-persona="${p.id}">${p.nombre}<small>Titular${k.porPersona[p.id]?' · '+k.porPersona[p.id]+' habilidades nivel 3+':''}</small></button>`).join('')}
@@ -12896,8 +13021,7 @@ function proyDimensionParaMes(ym){
 }
 
 function proyDotacionTotal(){
-  const p = state.personalPorSector || {};
-  return Object.keys(p).reduce((acc,k)=> acc + (Number(p[k])||0), 0);
+  return AV_SECTOR_ORDER.reduce((acc,k)=> acc + personalDelSector(k), 0);
 }
 
 function proySumaPendienteActual(){
@@ -13576,7 +13700,7 @@ function simMesesConDatos(key){
 // (usa la dotación ACTUAL de ese sector como divisor para toda la serie histórica,
 // misma simplificación que ya usa Capacidad vs Real con proyDotacionTotal)
 function simRatioHistorico(key, mesReferencia, mesCorte){
-  const dotacionActual = (state.personalPorSector||{})[key] || 0;
+  const dotacionActual = personalDelSector(key);
   if(!dotacionActual) return 0;
   if(mesReferencia && mesReferencia!=='auto'){
     // mes puntual elegido a mano (ej. "basar en julio, que fue un buen mes") -- se usa
@@ -13603,7 +13727,7 @@ function simRatioHistorico(key, mesReferencia, mesCorte){
 function simDotacionParaMes(key, ym){
   const o = simDotacionOverride[key];
   if(o && o[ym]!==undefined) return o[ym];
-  return (state.personalPorSector||{})[key] || 0;
+  return personalDelSector(key);
 }
 
 function simAbrir(){
@@ -13644,7 +13768,7 @@ function simRenderSimulador(){
 function simSimActualizar(){
   const ym = document.getElementById('simSimMes').value;
   const key = simSectorActual;
-  const dotBase = (state.personalPorSector||{})[key] || 0;
+  const dotBase = personalDelSector(key);
   const n = simDotacionParaMes(key, ym);
   document.getElementById('simSimNum').textContent = n + ' operarios';
   document.getElementById('simSimReset').style.visibility = (simDotacionOverride[key] && simDotacionOverride[key][ym]!==undefined) ? 'visible' : 'hidden';
@@ -13719,7 +13843,7 @@ function simRender(){
   const {sum:realVivo} = simStatsMes(key, mesActual);
   const ratio = simRatioHistorico(key);
   const dotConsiderada = simDotacionParaMes(key, mesActual);
-  const dotBase = (state.personalPorSector||{})[key] || 0;
+  const dotBase = personalDelSector(key);
   const dh = avHabilCount(mesActual, avDaysInMonth(mesActual), state.diasObligatorios||[1,2,3,4,5]);
   const capacidadProyectada = ratio * dotConsiderada * dh;
   const cobertura = capacidadProyectada>0 ? Math.min(100, Math.round(realVivo/capacidadProyectada*100)) : 0;
@@ -13900,7 +14024,7 @@ function simPresOperariosNecesarios(key, target, ym, mesReferencia){
 // máximo y mínimo histórico de m²/operario/día de un sector (mismos meses que usa el
 // automático) -- referencia para saber entre qué rango se movió antes de tocar el manual
 function simEstadisticaHistorica(key){
-  const dotacionActual = (state.personalPorSector||{})[key] || 0;
+  const dotacionActual = personalDelSector(key);
   if(!dotacionActual) return {max:0, min:0, desde:null, hasta:null};
   const hoy = proyMesSiguiente(0);
   const meses = simMesesConDatos(key).filter(ym=>ym<hoy);
@@ -14112,7 +14236,7 @@ function simAbrirPresentacion(){
   if(simPresTarget===null){
     // arranca sugiriendo la capacidad proyectada actual de Fin de línea, redondeada
     const dh0 = avHabilCount(simPresMesActual, avDaysInMonth(simPresMesActual), state.diasObligatorios||[1,2,3,4,5]);
-    simPresTarget = Math.round((simRatioHistorico('8-LI') * ((state.personalPorSector||{})['8-LI']||0) * dh0)/50)*50;
+    simPresTarget = Math.round((simRatioHistorico('8-LI') * personalDelSector('8-LI') * dh0)/50)*50;
   }
   simRenderPresentacion();
 }
@@ -14511,6 +14635,73 @@ document.getElementById('simBtnReporteGlobalExcel').addEventListener('click', si
 
 // separa a todo el personal de producción en los 3 grupos de la simulación: sigue
 // (en su sector o reasignado a otro), pasa a Iglass, o se va (baja)
+// aplica de verdad, a la nómina real de Polivalencias y a la dotación por sector, lo
+// que se armó en la simulación (bajas, pases a Iglass, reasignaciones) -- deja de ser
+// un "qué pasaría si" y pasa a ser el dato que usa toda la app. Acción sensible: pide
+// confirmar el resumen y después la contraseña de Modo Presentación antes de tocar nada.
+document.getElementById('simBtnAplicarCambios').addEventListener('click', ()=>{
+  const personasProduccion = poliState.personas.filter(p=>AV_SECTOR_ORDER.includes(p.sectorTitular));
+  const bajas = personasProduccion.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].baja);
+  const iglass = personasProduccion.filter(p=> simPresPersonal[p.id] && simPresPersonal[p.id].destino==='IGLASS' && !simPresPersonal[p.id].baja);
+  const reasignados = personasProduccion.filter(p=>{
+    const est = simPresPersonal[p.id];
+    return est && !est.baja && est.destino && est.destino!=='IGLASS' && est.destino!==p.sectorTitular;
+  });
+  if(bajas.length===0 && iglass.length===0 && reasignados.length===0){
+    alert('No hay ningún cambio marcado en esta pantalla todavía (nadie en la papelera, en Iglass, ni reasignado).');
+    return;
+  }
+
+  // dotación nueva por sector, simulando ya aplicados los 3 tipos de cambio -- esto es
+  // solo para el resumen de confirmación; una vez aplicado de verdad, la dotación real
+  // sale sola de contar poliState.personas (personalDelSector), no hay nada más que guardar
+  const idsQueSalen = new Set([...bajas, ...iglass].map(p=>p.id));
+  const dotacionNueva = {};
+  AV_SECTOR_ORDER.forEach(k=> dotacionNueva[k] = 0);
+  personasProduccion.forEach(p=>{
+    if(idsQueSalen.has(p.id)) return;
+    const est = simPresPersonal[p.id];
+    const destinoFinal = (est && est.destino && est.destino!=='IGLASS') ? est.destino : p.sectorTitular;
+    if(dotacionNueva[destinoFinal]!==undefined) dotacionNueva[destinoFinal]++;
+  });
+  const resumenDotacion = AV_SECTOR_ORDER.map(k=>`  ${AV_SECTOR_SHORT[k]||k}: ${personalDelSector(k)} → ${dotacionNueva[k]}`).join('\n');
+
+  const resumen =
+    `Esto va a modificar la nómina real de Polivalencias y la dotación por sector de TODA la app (no solo esta pantalla):\n\n` +
+    `🗑 Dados de baja (${bajas.length}): ${bajas.map(p=>p.nombre).join(', ') || '—'}\n\n` +
+    `🏭 Pasan a Iglass (${iglass.length}): ${iglass.map(p=>p.nombre).join(', ') || '—'}\n\n` +
+    `🔀 Reasignados de sector (${reasignados.length}): ${reasignados.map(p=>`${p.nombre} (${AV_SECTOR_SHORT[p.sectorTitular]}→${AV_SECTOR_SHORT[simPresPersonal[p.id].destino]})`).join(', ') || '—'}\n\n` +
+    `Dotación por sector, antes → después:\n${resumenDotacion}\n\n` +
+    `¿Confirmás que ya está todo bien y querés aplicarlo de verdad?`;
+
+  if(!confirm(resumen)) return;
+
+  pedirConfirmacionPass(
+    'Aplicar cambios a toda la app',
+    'Última confirmación: esto va a dar de baja/mover gente en la nómina real de Polivalencias y actualizar la dotación de cada sector para todos los usuarios. Ingresá la contraseña para ejecutar.',
+    ()=>{
+      // reasignar sectorTitular de quienes cambian de sector (sin tocar a los que se van)
+      reasignados.forEach(p=>{
+        const persona = poliState.personas.find(x=>x.id===p.id);
+        if(persona) persona.sectorTitular = simPresPersonal[p.id].destino;
+      });
+      // sacar de la nómina a los que se dan de baja o pasan a Iglass
+      poliState.personas = poliState.personas.filter(p=>!idsQueSalen.has(p.id));
+      // la dotación por sector de toda la app sale sola de contar acá arriba -- no hace
+      // falta guardar ningún número aparte
+
+      poliGuardarConfig();
+
+      // la simulación ya se aplicó a la realidad -- se limpia el "qué pasaría si"
+      simPresPersonal = {};
+      simPresOrdenManual = {baja:null, iglass:null};
+      simRenderPresentacion();
+      toast(`Aplicado: ${bajas.length} baja(s), ${iglass.length} a Iglass, ${reasignados.length} reasignado(s)`);
+    },
+    PASS_MODO_PRESENTACION_HASH
+  );
+});
+
 function simDatosGlobalesPersonal(){
   const personasProduccion = poliState.personas.filter(p=>AV_SECTOR_ORDER.includes(p.sectorTitular));
   const idsBaja = new Set(personasProduccion.filter(p=>simPresPersonal[p.id] && simPresPersonal[p.id].baja).map(p=>p.id));
