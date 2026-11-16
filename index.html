@@ -254,6 +254,37 @@ input[type=date]::-webkit-calendar-picker-indicator:hover{background:var(--bg2);
   .causa-detalle-row .cd-grid{grid-template-columns:1fr;}
   .causa-detalle-row input[type=number]{text-align:left;font-size:16px;}
 }
+/* declaración de causas: "¿cuál?", carga por personas x tiempo, "sin identificar" */
+.causa-chip-sin{border-style:dashed;}
+.causa-chip-sin::before{content:'❓ ';}
+.causa-detalle-row .cd-cual{margin-bottom:8px;}
+.causa-detalle-row .cd-cual input[type=text]{width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:6px;color:var(--ink);padding:8px 10px;font-size:13px;}
+.causa-detalle-row .cd-detalle{margin-bottom:8px;}
+.causa-detalle-row .cd-modo{display:inline-flex;margin-bottom:8px;border:1px solid var(--line2);border-radius:16px;overflow:hidden;}
+.causa-detalle-row .cd-modo button{background:transparent;border:none;color:var(--ink-dim);font-size:11px;font-weight:600;padding:6px 12px;cursor:pointer;}
+.causa-detalle-row .cd-modo button.on{background:var(--amber);color:#1a1505;}
+.causa-detalle-row .cd-modo button:disabled{opacity:.4;cursor:not-allowed;}
+.causa-detalle-row .cd-carga > input[type=number]{max-width:160px;}
+.causa-detalle-row .cd-tiempo{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.causa-detalle-row .cd-quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.causa-detalle-row .cd-quick button{background:var(--panel);border:1px solid var(--line2);color:var(--ink-dim);font-size:11px;padding:4px 10px;border-radius:12px;cursor:pointer;}
+.causa-detalle-row .cd-quick button:hover{border-color:var(--amber);color:var(--ink);}
+.causa-detalle-row .cd-conv{margin-top:8px;font-size:12px;color:var(--ink);}
+.causa-detalle-row .cd-conv-det{color:var(--ink-faint);font-size:11px;}
+#modalCausaRepetirWrap{margin-bottom:10px;}
+#modalCausaRestoWrap{margin-top:8px;}
+.cfg-especificos{margin-top:8px;}
+.cfg-esp-label{font-size:11px;color:var(--ink-dim);margin-bottom:4px;}
+.cfg-esp-label span{color:var(--ink-faint);}
+.cfg-especificos textarea{width:100%;font-size:12px;}
+@media (max-width:700px){
+  #modalCausa{padding:8px;}
+  #modalCausa .modal{padding:14px;max-height:94vh;}
+  .causa-chip{padding:10px 14px;font-size:14px;margin:4px;}
+  .causa-detalle-row textarea,.causa-detalle-row .cd-cual input[type=text]{font-size:16px;}
+  .causa-detalle-row .cd-modo button{padding:9px 14px;font-size:13px;}
+  .causa-detalle-row .cd-quick button{padding:8px 12px;font-size:12px;}
+}
 
 /* ===== config (sectores/causas) ===== */
 .cfg-sector{background:var(--bg2);border:1px solid var(--line2);border-radius:8px;padding:12px 14px;margin-bottom:10px;}
@@ -2248,7 +2279,10 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
   <div class="modal" style="max-width:560px;">
     <h3 id="modalCausaTitle">Sector — no alcanzó el objetivo</h3>
     <div class="modal-sub" id="modalCausaSub"></div>
-    <div class="hint" style="margin-bottom:8px;">1. Tocá las causas que aplican.</div>
+    <div id="modalCausaRepetirWrap" style="display:none;">
+      <button type="button" class="btn btn-ghost btn-sm" id="btnCausaRepetir">↻ Repetir lo declarado la vez pasada</button>
+    </div>
+    <div class="hint" style="margin-bottom:8px;">1. Tocá las causas que aplican (las más usadas en este sector aparecen primero).</div>
     <div id="modalCausaChips"></div>
 
     <div class="hint" style="margin:16px 0 8px;">2. Para cada causa marcada, contá qué pasó y cuántos m² explica.</div>
@@ -2257,6 +2291,10 @@ body.tema-claro #view-avance .btn.icon{border-radius:50%; width:38px; height:38p
     <div class="row between" id="modalCausaSumaRow" style="margin-top:10px;padding:10px 12px;border-radius:6px;background:var(--bg2);">
       <span class="hint">Suma declarada: <b id="modalSumaM2" style="color:var(--ink);">0</b> m² de <b id="modalDeficitM2" style="color:var(--ink);">0</b> m² de déficit</span>
       <span id="modalSumaEstado" class="status-pill"></span>
+    </div>
+
+    <div id="modalCausaRestoWrap" style="display:none;">
+      <button type="button" class="btn btn-ghost btn-sm" id="btnCausaResto">❓ Asignar lo que falta a «Sin identificar»</button>
     </div>
 
     <div id="modalCausaMasivaWrap" style="display:none;margin-top:14px;padding:12px 14px;border:1px solid var(--line2);border-radius:8px;background:var(--bg2);">
@@ -5124,7 +5162,7 @@ function avSectorObjetivosMensual(key){
   // fijo para todas las áreas (pedido explícito de Diego) — antes se calculaba
   // por sector (o.min*dh / o.opt*dh), lo que daba techos distintos entre sectores
   // y hacía difícil comparar de un vistazo si la producción pasaba el mínimo.
-  return { min: 1800, opt: 2400 };
+  return { min: 2400, opt: 3300 };
 }
 
 // ============================================================
@@ -7202,7 +7240,7 @@ function crearBloquePlanificacion(nombre, r){
         ${r.motivoCausa.length>0
           ? r.motivoCausa.map(c=>`
             <div class="sb-causa-row">
-              <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
+              <span class="sc-text"><b>${esc(c.causa)}${c.cual?' · '+esc(c.cual):''}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
             </div>
           `).join('')
           : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía</span></div>`
@@ -7312,7 +7350,7 @@ function crearBloqueSector(nombre, r, fechaParaPulmonInicio){
       ${r.motivoCausa.length>0
         ? r.motivoCausa.map(c=>`
           <div class="sb-causa-row">
-            <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
+            <span class="sc-text"><b>${esc(c.causa)}${c.cual?' · '+esc(c.cual):''}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
           </div>
         `).join('')
         : (cumple ? '' : `<div class="sb-causa-row" style="background:var(--bg2);"><span class="sc-text" style="color:var(--ink-faint);">Sin causa declarada todavía</span></div>`)
@@ -7332,7 +7370,104 @@ function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;
 /* ----- modal causa 5M ----- */
 let causaSectorActivo = null;
 let causaContextoActivo = null; // 'hoy' o fecha ISO de state.dias, para saber qué re-renderizar
-let causasDetalle = []; // [{causa, detalle, m2}]
+let causasDetalle = []; // [{causa, detalle, m2, cual?, modo?, personas?, minutos?}]
+let causaDeficitActivo = null;
+let causaEsPlanifActivo = false;
+
+// causa especial para lo que no se logra explicar: se declara como tal (y se mide aparte)
+// en vez de inventar un número para que la suma cierre
+const CAUSA_SIN_IDENTIFICAR = 'Sin identificar';
+// minutos efectivos de trabajo por jornada (07:00-16:00 menos desayuno de 15' y almuerzo de 35'),
+// base para convertir "personas x minutos perdidos" en m² con el rendimiento del sector
+const CAUSA_JORNADA_MIN = 490;
+
+// para comparar el "¿cuál?" sin que "CM 1", "cm1" y "CM1" cuenten como cosas distintas en el Pareto
+function causaNorm(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'');
+}
+function causaCfgSector(nombreSector){
+  return (state.sectores||[]).find(s=>s.nombre===nombreSector) || null;
+}
+// rubro (5M) al que pertenece una causa dentro del catálogo de ese sector
+function causaGrupoDe(cfgSector, nombreCausa){
+  const causas = (cfgSector && cfgSector.causas) || DEFAULT_CAUSAS;
+  for(const g of Object.keys(causas)){
+    if((causas[g]||[]).includes(nombreCausa)) return g;
+  }
+  return null;
+}
+function causaListaEspecificos(cfgSector, grupo){
+  if(!cfgSector || !grupo) return [];
+  return (cfgSector.especificos && cfgSector.especificos[grupo]) || [];
+}
+// devuelve el nombre ya existente si hay uno equivalente; si no, lo agrega a la lista del sector/rubro
+function causaRegistrarEspecifico(cfgSector, grupo, texto){
+  const t = String(texto||'').trim().replace(/\s+/g,' ');
+  if(!t || !cfgSector || !grupo) return t;
+  if(!cfgSector.especificos) cfgSector.especificos = {};
+  if(!cfgSector.especificos[grupo]) cfgSector.especificos[grupo] = [];
+  const lista = cfgSector.especificos[grupo];
+  const existente = lista.find(x=>causaNorm(x)===causaNorm(t));
+  if(existente) return existente;
+  lista.push(t);
+  return t;
+}
+function causaPlaceholderCual(grupo){
+  const g = (grupo||'').toLowerCase();
+  if(g.startsWith('máquina')) return '¿Qué máquina o equipo? (opcional)';
+  if(g.startsWith('material')) return '¿Qué insumo o material? (opcional)';
+  if(g.startsWith('mano de obra')) return '¿Qué puesto o quiénes? (opcional)';
+  if(g.startsWith('método')) return '¿Qué proceso u orden? (opcional)';
+  if(g.startsWith('medio ambiente')) return '¿Qué área o situación? (opcional)';
+  return '¿Cuál? (opcional)';
+}
+// cuántas veces se declaró cada causa en este sector (para mostrar primero las más usadas)
+function causaFrecuencias(nombreSector){
+  const freq = {};
+  Object.keys(state.dias||{}).forEach(f=>{
+    const s = state.dias[f] && state.dias[f].sectores && state.dias[f].sectores[nombreSector];
+    if(!s) return;
+    (s.motivoCausa||[]).forEach(c=>{ freq[c.causa] = (freq[c.causa]||0)+1; });
+  });
+  return freq;
+}
+// última declaración de este sector anterior a una fecha (para "repetir lo de la vez pasada")
+function causaUltimaDeclaracion(nombreSector, fechaLimite){
+  const fechas = Object.keys(state.dias||{}).filter(f=>f<fechaLimite).sort().reverse();
+  for(const f of fechas){
+    const s = state.dias[f] && state.dias[f].sectores && state.dias[f].sectores[nombreSector];
+    if(s && (s.motivoCausa||[]).length) return {fecha:f, causas:s.motivoCausa};
+  }
+  return null;
+}
+// m² que rinde una persona en una jornada completa en este sector (histórico real) -- null si no hay datos
+function causaRatioSector(nombreSector){
+  try{
+    if(typeof simRatioHistorico!=='function') return null;
+    const r = simRatioHistorico(nombreSector);
+    return (r && isFinite(r) && r>0) ? r : null;
+  }catch(e){ return null; }
+}
+// m² estimados que se pierden si N personas dejan de producir M minutos
+function causaM2DeTiempo(ratio, personas, minutos){
+  if(!ratio || !(personas>0) || !(minutos>0)) return 0;
+  return round1(ratio * personas * (minutos / CAUSA_JORNADA_MIN));
+}
+function causaNuevaEntrada(causa, extra){
+  return Object.assign({causa, detalle:'', m2:0}, extra||{});
+}
+function causaTextoConversion(cd, ratio){
+  if(!(cd.m2>0)) return 'Completá personas y minutos para calcular los m².';
+  return `≈ <b>${fmt(cd.m2)} m²</b> <span class="cd-conv-det">(${fmt(Number(cd.personas)||0)} pers. × ${fmt(Number(cd.minutos)||0)} min, con ${fmt(ratio,2)} m²/operario/día de este sector)</span>`;
+}
+function causaRecalcularTiempo(idx){
+  const cd = causasDetalle[idx];
+  if(!cd) return;
+  cd.m2 = causaM2DeTiempo(causaRatioSector(causaSectorActivo), Number(cd.personas)||0, Number(cd.minutos)||0);
+  const out = document.getElementById('cdConv_'+idx);
+  if(out) out.innerHTML = causaTextoConversion(cd, causaRatioSector(causaSectorActivo));
+  if(!causaEsPlanifActivo) actualizarSumaModal(causaDeficitActivo);
+}
 
 function abrirModalCausa(nombreSector, contexto){
   const puedeVerEsteSector = puedeVerTodo() || sectorDelLider()===nombreSector;
@@ -7347,13 +7482,17 @@ function abrirModalCausa(nombreSector, contexto){
   causasDetalle = (r.motivoCausa || []).map(c=>({...c}));
   const esPlanificacion = r.tipo === 'planificacion';
   const deficit = esPlanificacion ? null : round1(Math.max(0, r.objetivoMin - r.cerrado));
+  causaDeficitActivo = deficit;
+  causaEsPlanifActivo = esPlanificacion;
 
   const sumaRow = document.getElementById('modalCausaSumaRow');
+  const restoWrap = document.getElementById('modalCausaRestoWrap');
   if(esPlanificacion){
     document.getElementById('modalCausaTitle').textContent = `${nombreSector} — pulmón de sector(es) dependiente(s) bajo umbral`;
     const dependientesTxt = r.dependientes.filter(d=>d.bajoUmbral).map(d=>`${d.sector} (${fmt(d.pulmon)} m², umbral ${fmt(d.umbral)})`).join(', ');
     document.getElementById('modalCausaSub').textContent = `Quedó bajo umbral: ${dependientesTxt}. Indicá si fue por falta de planos u otra causa ajena a Planificación.`;
     if(sumaRow) sumaRow.style.display = 'none';
+    if(restoWrap) restoWrap.style.display = 'none';
   } else {
     document.getElementById('modalCausaTitle').textContent = `${nombreSector} — no alcanzó el objetivo`;
     document.getElementById('modalCausaSub').textContent = `Cerró ${fmt(r.cerrado)} m² de ${fmt(r.objetivoMin)} m² objetivo mínimo.`;
@@ -7361,8 +7500,9 @@ function abrirModalCausa(nombreSector, contexto){
     if(sumaRow) sumaRow.style.display = '';
   }
 
-  const cfgSector = state.sectores.find(s=>s.nombre===nombreSector);
+  const cfgSector = causaCfgSector(nombreSector);
   const causas = cfgSector ? cfgSector.causas : DEFAULT_CAUSAS;
+  const freq = causaFrecuencias(nombreSector);
 
   const chipsCont = document.getElementById('modalCausaChips');
   chipsCont.innerHTML='';
@@ -7372,7 +7512,10 @@ function abrirModalCausa(nombreSector, contexto){
     lbl.textContent = grupo;
     chipsCont.appendChild(lbl);
     const wrap = document.createElement('div');
-    causas[grupo].forEach(c=>{
+    // las más usadas en este sector primero (a igual uso, se respeta el orden del catálogo)
+    const ordenadas = (causas[grupo]||[]).map((c,i)=>({c,i}))
+      .sort((a,b)=> (freq[b.c]||0)-(freq[a.c]||0) || a.i-b.i).map(x=>x.c);
+    ordenadas.forEach(c=>{
       const chip = document.createElement('span');
       const yaSel = causasDetalle.some(cd=>cd.causa===c);
       chip.className = 'causa-chip' + (yaSel ? ' sel':'');
@@ -7383,7 +7526,7 @@ function abrirModalCausa(nombreSector, contexto){
           causasDetalle.splice(idx,1);
           chip.classList.remove('sel');
         } else {
-          causasDetalle.push({causa:c, detalle:'', m2:0});
+          causasDetalle.push(causaNuevaEntrada(c));
           chip.classList.add('sel');
         }
         renderCausaDetalles(deficit, esPlanificacion);
@@ -7410,7 +7553,7 @@ function abrirModalCausa(nombreSector, contexto){
           }
           cfgSector.causas[grupo].push(nombreNueva);
           saveState();
-          causasDetalle.push({causa:nombreNueva, detalle:'', m2:0});
+          causasDetalle.push(causaNuevaEntrada(nombreNueva));
           inputNueva.value='';
           abrirModalCausa(nombreSector, contexto); // re-render completo del modal con la causa nueva ya seleccionada
           toast('Causa agregada al catálogo de ' + nombreSector);
@@ -7419,7 +7562,63 @@ function abrirModalCausa(nombreSector, contexto){
     }
   });
 
-  renderCausaDetalles(deficit);
+  // "Sin identificar": para lo que no se logra explicar -- se declara como tal, sin inventar números
+  if(!esPlanificacion){
+    const lblSin = document.createElement('div');
+    lblSin.className='causa-group-label';
+    lblSin.textContent = 'Si no se sabe qué pasó';
+    chipsCont.appendChild(lblSin);
+    const wrapSin = document.createElement('div');
+    const chipSin = document.createElement('span');
+    chipSin.className = 'causa-chip causa-chip-sin' + (causasDetalle.some(cd=>cd.causa===CAUSA_SIN_IDENTIFICAR) ? ' sel' : '');
+    chipSin.textContent = CAUSA_SIN_IDENTIFICAR;
+    chipSin.addEventListener('click', ()=>{
+      const idx = causasDetalle.findIndex(cd=>cd.causa===CAUSA_SIN_IDENTIFICAR);
+      if(idx>-1){
+        causasDetalle.splice(idx,1);
+        chipSin.classList.remove('sel');
+      } else {
+        // arranca con lo que todavía falta explicar, así no hay que calcularlo a mano
+        const suma = round1(causasDetalle.reduce((a,c)=>a+(c.m2||0),0));
+        causasDetalle.push(causaNuevaEntrada(CAUSA_SIN_IDENTIFICAR, {m2: deficit!=null ? Math.max(0, round1(deficit-suma)) : 0}));
+        chipSin.classList.add('sel');
+      }
+      renderCausaDetalles(deficit, esPlanificacion);
+    });
+    wrapSin.appendChild(chipSin);
+    chipsCont.appendChild(wrapSin);
+  }
+
+  // "repetir lo de la vez pasada": copia las causas de la última declaración anterior de este sector
+  const repWrap = document.getElementById('modalCausaRepetirWrap');
+  const btnRep = document.getElementById('btnCausaRepetir');
+  const fechaLimite = (causaContextoActivo==='hoy') ? state.actual.fecha : causaContextoActivo;
+  const ultima = causaUltimaDeclaracion(nombreSector, fechaLimite);
+  if(ultima){
+    repWrap.style.display = '';
+    btnRep.textContent = `↻ Repetir lo declarado el ${fechaDMY(ultima.fecha)}`;
+    btnRep.onclick = ()=>{
+      let copiadas = 0;
+      ultima.causas.forEach(c=>{
+        if(causasDetalle.some(cd=>cd.causa===c.causa && (cd.cual||'')===(c.cual||''))) return;
+        const copia = causaNuevaEntrada(c.causa, {detalle: c.detalle||''});
+        if(c.cual) copia.cual = c.cual;
+        if(c.modo==='tiempo' && !esPlanificacion){
+          copia.modo = 'tiempo'; copia.personas = c.personas; copia.minutos = c.minutos;
+          copia.m2 = causaM2DeTiempo(causaRatioSector(nombreSector), Number(c.personas)||0, Number(c.minutos)||0);
+        }
+        causasDetalle.push(copia);
+        copiadas++;
+      });
+      syncChipsSelState();
+      renderCausaDetalles(deficit, esPlanificacion);
+      toast(copiadas>0 ? `Se copiaron ${copiadas} causa(s) del ${fechaDMY(ultima.fecha)} — revisá los m² de cada una` : 'Esas causas ya estaban cargadas');
+    };
+  } else {
+    repWrap.style.display = 'none';
+  }
+
+  renderCausaDetalles(deficit, esPlanificacion);
 
   // carga masiva: solo tiene sentido para quien puede ver/declarar en varios sectores
   // (si un líder normal solo ve el suyo, no hay "otros sectores" a los que aplicar)
@@ -7456,7 +7655,45 @@ function renderCausaDetalles(deficit, esPlanificacion){
     cont.innerHTML = `<div class="hint">Todavía no seleccionaste ninguna causa.</div>`;
   }
 
+  const cfgSector = causaCfgSector(causaSectorActivo);
+  const ratio = esPlanificacion ? null : causaRatioSector(causaSectorActivo);
+
   causasDetalle.forEach((cd, idx)=>{
+    const esSin = cd.causa===CAUSA_SIN_IDENTIFICAR;
+    const grupo = causaGrupoDe(cfgSector, cd.causa);
+    const lista = causaListaEspecificos(cfgSector, grupo);
+    const mostrarCual = !esPlanificacion && !esSin && !!grupo;
+    const modo = (cd.modo==='tiempo' && ratio) ? 'tiempo' : 'm2';
+
+    const cargaHtml = esPlanificacion ? '' : `
+      <div class="cd-carga">
+        <div class="cd-modo">
+          <button type="button" class="${modo==='m2'?'on':''}" data-modo-idx="${idx}" data-modo="m2">m² directo</button>
+          <button type="button" class="${modo==='tiempo'?'on':''}" data-modo-idx="${idx}" data-modo="tiempo" ${ratio?'':'disabled title="Todavía no hay datos históricos suficientes de este sector para convertir"'}>Personas × tiempo</button>
+        </div>
+        ${modo==='m2' ? `
+          <span class="cd-m2-label">m² que explica</span>
+          <input type="number" min="0" step="0.1" data-m2-idx="${idx}" value="${cd.m2}">
+        ` : `
+          <div class="cd-tiempo">
+            <div>
+              <span class="cd-m2-label">Personas afectadas</span>
+              <input type="number" min="0" step="1" data-personas-idx="${idx}" value="${cd.personas===undefined?'':cd.personas}">
+            </div>
+            <div>
+              <span class="cd-m2-label">Minutos perdidos c/u</span>
+              <input type="number" min="0" step="5" data-minutos-idx="${idx}" value="${cd.minutos===undefined?'':cd.minutos}">
+            </div>
+          </div>
+          <div class="cd-quick">
+            <button type="button" data-quick-idx="${idx}" data-quick-min="${CAUSA_JORNADA_MIN}">Jornada completa</button>
+            <button type="button" data-quick-idx="${idx}" data-quick-min="60">1 hora</button>
+            <button type="button" data-quick-idx="${idx}" data-quick-min="30">30 min</button>
+          </div>
+          <div class="cd-conv" id="cdConv_${idx}">${causaTextoConversion(cd, ratio)}</div>
+        `}
+      </div>`;
+
     const row = document.createElement('div');
     row.className='causa-detalle-row';
     row.innerHTML = `
@@ -7467,16 +7704,16 @@ function renderCausaDetalles(deficit, esPlanificacion){
           <button type="button" class="btn-link btn-link-danger" data-remove-idx="${idx}">Quitar</button>
         </span>
       </div>
-      <div class="cd-grid" style="${esPlanificacion?'grid-template-columns:1fr;':''}">
-        <div>
-          <textarea data-detalle-idx="${idx}" placeholder="¿Qué pasó exactamente? Ej: CM1 y CM3 fuera de funcionamiento">${esc(cd.detalle)}</textarea>
-        </div>
-        ${esPlanificacion ? '' : `
-        <div>
-          <span class="cd-m2-label">m² que explica</span>
-          <input type="number" min="0" step="0.1" data-m2-idx="${idx}" value="${cd.m2}">
-        </div>`}
+      ${mostrarCual ? `
+        <div class="cd-cual">
+          <span class="cd-m2-label">${esc(causaPlaceholderCual(grupo))}</span>
+          <input type="text" maxlength="60" autocomplete="off" data-cual-idx="${idx}" list="cdCualList_${idx}" value="${esc(cd.cual||'')}" placeholder="${lista.length ? 'Elegí de la lista o escribí otra' : 'Escribilo (queda guardado para la próxima)'}">
+          <datalist id="cdCualList_${idx}">${lista.map(x=>`<option value="${esc(x)}"></option>`).join('')}</datalist>
+        </div>` : ''}
+      <div class="cd-detalle">
+        <textarea data-detalle-idx="${idx}" placeholder="${esSin ? 'Opcional: lo que se sepa hasta ahora' : '¿Qué pasó exactamente? Ej: CM1 y CM3 fuera de funcionamiento'}">${esc(cd.detalle)}</textarea>
       </div>
+      ${cargaHtml}
     `;
     cont.appendChild(row);
   });
@@ -7484,7 +7721,7 @@ function renderCausaDetalles(deficit, esPlanificacion){
   cont.querySelectorAll('[data-dup-idx]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const idx = parseInt(btn.dataset.dupIdx);
-      causasDetalle.splice(idx+1, 0, {causa: causasDetalle[idx].causa, detalle:'', m2:0});
+      causasDetalle.splice(idx+1, 0, causaNuevaEntrada(causasDetalle[idx].causa));
       renderCausaDetalles(deficit, esPlanificacion);
     });
   });
@@ -7502,13 +7739,59 @@ function renderCausaDetalles(deficit, esPlanificacion){
       causasDetalle[parseInt(ta.dataset.detalleIdx)].detalle = ta.value;
     });
   });
+  cont.querySelectorAll('[data-cual-idx]').forEach(inp=>{
+    inp.addEventListener('input', ()=>{
+      causasDetalle[parseInt(inp.dataset.cualIdx)].cual = inp.value;
+    });
+  });
+
   if(!esPlanificacion){
+    cont.querySelectorAll('[data-modo-idx]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = parseInt(btn.dataset.modoIdx);
+        const cd = causasDetalle[idx];
+        if(btn.dataset.modo==='tiempo'){
+          cd.modo = 'tiempo';
+          if(cd.personas===undefined) cd.personas = '';
+          if(cd.minutos===undefined) cd.minutos = '';
+          if(Number(cd.personas)>0 && Number(cd.minutos)>0) cd.m2 = causaM2DeTiempo(ratio, Number(cd.personas), Number(cd.minutos));
+        } else {
+          cd.modo = 'm2';
+          delete cd.personas; delete cd.minutos;
+        }
+        renderCausaDetalles(deficit, esPlanificacion);
+      });
+    });
     cont.querySelectorAll('[data-m2-idx]').forEach(inp=>{
       inp.addEventListener('input', ()=>{
         const idx = parseInt(inp.dataset.m2Idx);
         const val = parseFloat(inp.value);
         causasDetalle[idx].m2 = isNaN(val) ? 0 : val;
+        if(causasDetalle[idx].modo==='tiempo'){ causasDetalle[idx].modo = 'm2'; delete causasDetalle[idx].personas; delete causasDetalle[idx].minutos; }
         actualizarSumaModal(deficit);
+      });
+    });
+    cont.querySelectorAll('[data-personas-idx]').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        const idx = parseInt(inp.dataset.personasIdx);
+        causasDetalle[idx].personas = inp.value==='' ? '' : (parseFloat(inp.value)||0);
+        causaRecalcularTiempo(idx);
+      });
+    });
+    cont.querySelectorAll('[data-minutos-idx]').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        const idx = parseInt(inp.dataset.minutosIdx);
+        causasDetalle[idx].minutos = inp.value==='' ? '' : (parseFloat(inp.value)||0);
+        causaRecalcularTiempo(idx);
+      });
+    });
+    cont.querySelectorAll('[data-quick-idx]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const idx = parseInt(btn.dataset.quickIdx);
+        causasDetalle[idx].minutos = parseFloat(btn.dataset.quickMin);
+        const inp = cont.querySelector(`[data-minutos-idx="${idx}"]`);
+        if(inp) inp.value = causasDetalle[idx].minutos;
+        causaRecalcularTiempo(idx);
       });
     });
     actualizarSumaModal(deficit);
@@ -7534,7 +7817,33 @@ function actualizarSumaModal(deficit){
     pill.textContent = `sobran ${fmt(dif)} m²`;
     pill.className = 'status-pill pending';
   }
+  // si todavía falta explicar algo, ofrece mandarlo a "Sin identificar" en un toque
+  const restoWrap = document.getElementById('modalCausaRestoWrap');
+  const btnResto = document.getElementById('btnCausaResto');
+  if(restoWrap && btnResto){
+    if(deficit!=null && dif < -0.15){
+      restoWrap.style.display = '';
+      btnResto.textContent = `❓ Asignar lo que falta (${fmt(Math.abs(dif))} m²) a «Sin identificar»`;
+    } else {
+      restoWrap.style.display = 'none';
+    }
+  }
 }
+
+document.getElementById('btnCausaResto').addEventListener('click', ()=>{
+  if(causaDeficitActivo==null) return;
+  const suma = round1(causasDetalle.reduce((a,c)=>a+(c.m2||0),0));
+  const falta = round1(causaDeficitActivo - suma);
+  if(falta <= 0.15) return;
+  const existente = causasDetalle.find(c=>c.causa===CAUSA_SIN_IDENTIFICAR);
+  if(existente) existente.m2 = round1((existente.m2||0) + falta);
+  else causasDetalle.push(causaNuevaEntrada(CAUSA_SIN_IDENTIFICAR, {m2: falta}));
+  syncChipsSelState();
+  renderCausaDetalles(causaDeficitActivo, false);
+});
+
+// texto de una causa incluyendo el "¿cuál?" si lo tiene (para listados y PDFs)
+function causaConCual(c){ return c.causa + (c.cual ? ' ('+c.cual+')' : ''); }
 
 document.getElementById('btnCausaCancel').addEventListener('click', ()=>{
   document.getElementById('modalCausa').classList.remove('show');
@@ -7547,9 +7856,24 @@ document.getElementById('chkAplicarCausaMasiva').addEventListener('change', (e)=
 
 document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
   if(causasDetalle.length===0){ toast('Seleccioná al menos una causa', true); return; }
-  const sinDetalle = causasDetalle.some(c=>!c.detalle.trim());
+  // "Sin identificar" es justamente lo que no se sabe: no se le exige detalle
+  const sinDetalle = causasDetalle.some(c=> c.causa!==CAUSA_SIN_IDENTIFICAR && !(c.detalle||'').trim());
   if(sinDetalle){ toast('Completá el detalle de cada causa', true); return; }
-  const nuevasCausas = causasDetalle.map(c=>({...c, m2: round1(c.m2)}));
+  const tiempoIncompleto = causasDetalle.some(c=> c.modo==='tiempo' && !(Number(c.m2)>0));
+  if(tiempoIncompleto){ toast('Completá personas y minutos en las causas cargadas por tiempo', true); return; }
+  const cfgSectorGuardar = causaCfgSector(causaSectorActivo);
+  const nuevasCausas = causasDetalle.map(c=>{
+    const o = {...c, detalle:(c.detalle||'').trim(), m2: round1(c.m2||0)};
+    const cual = (c.cual||'').trim();
+    if(cual){
+      // si ya existe uno equivalente en la lista del sector se usa ese nombre; si es nuevo, queda guardado para la próxima
+      const grupo = causaGrupoDe(cfgSectorGuardar, c.causa);
+      o.cual = grupo ? causaRegistrarEspecifico(cfgSectorGuardar, grupo, cual) : cual;
+    } else { delete o.cual; }
+    if(c.modo==='tiempo'){ o.modo='tiempo'; o.personas=Number(c.personas)||0; o.minutos=Number(c.minutos)||0; }
+    else { delete o.modo; delete o.personas; delete o.minutos; }
+    return o;
+  });
 
   if(causaContextoActivo === 'hoy'){
     const resultadoVigente = obtenerResultadoVigente();
@@ -7582,7 +7906,7 @@ document.getElementById('btnCausaGuardar').addEventListener('click', ()=>{
         : state.dias[causaContextoActivo].sectores[nombreDestino];
       if(!destino) return;
       if(!destino.motivoCausa) destino.motivoCausa = [];
-      destino.motivoCausa.push(...nuevasCausas.map(c=>({...c})));
+      destino.motivoCausa.push(...nuevasCausas.map(c=>({causa:c.causa, detalle:c.detalle, m2:c.m2})));
       const diaParaPendientes = (causaContextoActivo === 'hoy') ? state.dias[state.actual.fecha] : state.dias[causaContextoActivo];
       if(diaParaPendientes && diaParaPendientes.sectoresPendientesCausa){
         diaParaPendientes.sectoresPendientesCausa = diaParaPendientes.sectoresPendientesCausa.filter(n=>n!==nombreDestino);
@@ -7658,7 +7982,7 @@ function bloqueHistorialPlanificacion(nombre, s, contexto){
         <div class="sb-causas">
           ${causas.map(c=>`
             <div class="sb-causa-row">
-              <span class="sc-text"><b>${esc(c.causa)}</b>${c.detalle?' · '+esc(c.detalle):''}</span>
+              <span class="sc-text"><b>${esc(c.causa)}${c.cual?' · '+esc(c.cual):''}</b>${c.detalle?' · '+esc(c.detalle):''}</span>
             </div>
           `).join('')}
           <div class="sb-pendiente-row">
@@ -7763,7 +8087,7 @@ function crearTarjetaDia(fecha, sectoresObj, esEnCurso){
             <div class="sb-causas">
               ${causas.map(c=>`
                 <div class="sb-causa-row">
-                  <span class="sc-text"><b>${esc(c.causa)}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
+                  <span class="sc-text"><b>${esc(c.causa)}${c.cual?' · '+esc(c.cual):''}</b> — ${fmt(c.m2||0)} m²${c.detalle?' · '+esc(c.detalle):''}</span>
                 </div>
               `).join('')}
               <div class="sb-pendiente-row">
@@ -8855,6 +9179,13 @@ function renderConfig(){
       addRow.className='add-causa-row';
       addRow.innerHTML = `<input type="text" placeholder="Agregar causa de ${esc(grupo)}..." data-add-causa="${idx}|${grupo}">`;
       g.appendChild(addRow);
+      if(!esPlanif){
+        const espWrap = document.createElement('div');
+        espWrap.className = 'cfg-especificos';
+        espWrap.innerHTML = `<div class="cfg-esp-label">Lista del «¿cuál?» de ${esc(grupo)} <span>(una por línea — la usan los líderes al declarar)</span></div>
+          <textarea rows="3" data-especificos="${idx}|${esc(grupo)}" placeholder="Ej: nombres de las máquinas, insumos, puestos…">${esc(((sector.especificos&&sector.especificos[grupo])||[]).join('\n'))}</textarea>`;
+        g.appendChild(espWrap);
+      }
       grupoCont.appendChild(g);
     });
   });
@@ -8950,6 +9281,25 @@ function renderConfig(){
         renderConfig();
         toast('Causa agregada');
       }
+    });
+  });
+
+  // listas del "¿cuál?" (máquinas, insumos, etc.) por sector y rubro
+  cont.querySelectorAll('[data-especificos]').forEach(ta=>{
+    ta.addEventListener('change', ()=>{
+      const [idxStr, grupo] = ta.dataset.especificos.split('|');
+      const sector = state.sectores[parseInt(idxStr)];
+      if(!sector) return;
+      const vistos = new Set(); const lista = [];
+      ta.value.split('\n').map(x=>x.trim().replace(/\s+/g,' ')).filter(Boolean).forEach(x=>{
+        const k = causaNorm(x);
+        if(!vistos.has(k)){ vistos.add(k); lista.push(x); }
+      });
+      if(!sector.especificos) sector.especificos = {};
+      sector.especificos[grupo] = lista;
+      ta.value = lista.join('\n');
+      saveState();
+      toast('Lista actualizada');
     });
   });
 
@@ -10073,7 +10423,7 @@ function generarPdfDia(fecha, sectoresObj){
     const causaRows = [];
     bajos.forEach(([nombre,s])=>{
       (s.motivoCausa||[]).forEach(c=>{
-        causaRows.push([nombre, c.causa, c.detalle||'—', fmt(c.m2||0)+' m²']);
+        causaRows.push([nombre, causaConCual(c), c.detalle||'—', fmt(c.m2||0)+' m²']);
       });
       if(!(s.motivoCausa||[]).length){
         causaRows.push([nombre, 'Sin declarar', '—', '—']);
@@ -10117,7 +10467,7 @@ function generarPdfDia(fecha, sectoresObj){
       });
       (s.motivoCausa||[]).forEach(c=>{
         doc.setTextColor(20,20,20);
-        doc.text(`  Causa: ${c.causa}${c.detalle ? ' — '+c.detalle : ''}`, 14, y);
+        doc.text(`  Causa: ${causaConCual(c)}${c.detalle ? ' — '+c.detalle : ''}`, 14, y);
         y += 4.5;
       });
       y += 4;
@@ -10870,7 +11220,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
     // causas de los sectores bajo mínimo este día
     const causasDelDia = [];
     sectoresDia.filter(([,s])=>s.tipo!=='planificacion').forEach(([nombre,s])=>{
-      (s.motivoCausa||[]).forEach(c=> causasDelDia.push([nombre, c.causa, fmt(round1(c.m2||0))+' m²', c.detalle||'—']));
+      (s.motivoCausa||[]).forEach(c=> causasDelDia.push([nombre, causaConCual(c), fmt(round1(c.m2||0))+' m²', c.detalle||'—']));
     });
     // y el estado de Planificación, si corresponde, en el mismo bloque del día
     sectoresDia.filter(([,s])=>s.tipo==='planificacion').forEach(([nombre,s])=>{
@@ -10880,7 +11230,7 @@ function generarPdfRango(desde, hasta, sectoresElegidos){
       doc.setTextColor(...(s.sostenido?PDF_COLORS.green:PDF_COLORS.red));
       doc.text(`${nombre}: ${estadoTxt}`, 18, y+3);
       y += 7;
-      (s.motivoCausa||[]).forEach(c=> causasDelDia.push([nombre, c.causa, '—', c.detalle||'—']));
+      (s.motivoCausa||[]).forEach(c=> causasDelDia.push([nombre, causaConCual(c), '—', c.detalle||'—']));
     });
 
     if(causasDelDia.length>0){
@@ -13048,10 +13398,14 @@ function proyMesSiguiente(offsetMeses){
 function proyCalcularMes(ym, dotacion){
   const info = proyDimensionParaMes(ym);
   const diasHabiles = avHabilCount(ym, avDaysInMonth(ym), state.diasObligatorios||[1,2,3,4,5]);
-  if(!info) return { ym, diasHabiles, dimension:null, capacidadDiariaOperario:null, m2Proyectados:null, fuente:null };
+  if(!info) return { ym, diasHabiles, dimension:null, capacidadDiariaOperario:null, m2Proyectados:null, fuente:null, sinCola:true, pactadoMes:0 };
   const capacidadDiariaOperario = Math.max(0, CONSTANTE_BASE_M2 - info.dimension);
   const m2Proyectados = capacidadDiariaOperario * dotacion * diasHabiles;
-  return { ym, diasHabiles, dimension:info.dimension, sup:info.sup, uds:info.uds, capacidadDiariaOperario, m2Proyectados, fuente:info.fuente };
+  // OJO: cuando el mes no tiene cola propia (fuente 'general'), `sup` es el total de TODA la cola
+  // (se usa solo para explicar la dimensión promedio), NO lo pactado de ese mes -- para pintar
+  // m² pactados hay que usar pactadoMes, que es 0 si el mes no tiene cola pactada cargada
+  return { ym, diasHabiles, dimension:info.dimension, sup:info.sup, uds:info.uds, capacidadDiariaOperario, m2Proyectados, fuente:info.fuente,
+           sinCola: info.fuente!=='mes', pactadoMes: info.fuente==='mes' ? info.sup : 0 };
 }
 
 function proyRenderPanel(){
@@ -13343,17 +13697,21 @@ function capRender(){
         p.dimensionFuente = 'real cerrado ÷ '+abertCerradas+' aberturas cerradas';
       }
     } else {
-      p.realValor = p.sup||0;
+      p.realValor = p.pactadoMes||0;
       p.realLabel = 'M² reales de cola productiva';
-      p.realSub = 'cola pactada (G-PRO)';
+      p.realSub = p.sinCola ? 'sin cola pactada cargada' : 'cola pactada (G-PRO)';
     }
     p.pactadoFijo = CAP_PACTADO_MANUAL[p.ym] || null;
+    // barra ámbar de m² pactados: solo si ese mes tiene cola pactada propia (o un pactado
+    // fijo cargado a mano). Un mes sin cola NO muestra barra ámbar -- antes mostraba el total
+    // de toda la cola como si fuera de ese mes
+    p.pactadoValor = p.pactadoFijo || (p.sinCola ? null : p.pactadoMes);
   });
 
   const maxAltura = 220;
   const todosValores = [
     ...historicos.map(h=>h.m2),
-    ...proyectados.flatMap(p=> p.m2Proyectados!==null ? [p.m2Proyectados, p.realValor, p.pactadoFijo||0] : [])
+    ...proyectados.flatMap(p=> p.m2Proyectados!==null ? [p.m2Proyectados, p.ym===hoyYm ? p.realValor : 0, p.pactadoValor||0] : [])
   ];
   const maxVal = Math.max(1, ...todosValores);
   const escala = v=> Math.max(4, Math.round((v/maxVal)*maxAltura));
@@ -13412,11 +13770,15 @@ function capRender(){
     stageHtml += `<div class="cap-grupo">
       <div class="cap-barras">
         ${capBarraHTML('capacidad', p.m2Proyectados, escala(p.m2Proyectados))}
-        ${capBarraHTML(p.ym===hoyYm?'realvivo':'real', p.realValor, escala(p.realValor))}
-        ${p.pactadoFijo ? capBarraHTML('real', p.pactadoFijo, escala(p.pactadoFijo)) : ''}
+        ${p.ym===hoyYm ? capBarraHTML('realvivo', p.realValor, escala(p.realValor)) : ''}
+        ${p.pactadoValor ? capBarraHTML('real', p.pactadoValor, escala(p.pactadoValor)) : ''}
       </div>
       <div class="cap-mes-label">${capNombreMes(p.ym)}</div>
-      <div class="cap-mes-sub">dimensión prom. ${p.dimension.toFixed(2)} m²${p.dimensionFuente ? ' <span style="color:#8b96a8;font-size:.85em;">('+p.dimensionFuente+')</span>' : ''}<br><span style="color:${p.ym===hoyYm?'#4fc9b3':'#e8a33d'};">${p.realSub}</span>${p.pactadoFijo ? '<br><span style="color:#e8a33d;">pactado fijo '+fmt(p.pactadoFijo,0)+' m²</span>' : ''}</div>
+      <div class="cap-mes-sub">${p.sinCola ? 'dimensión estimada '+p.dimension.toFixed(2)+' m² <span style="color:#8b96a8;font-size:.85em;">(promedio general)</span>' : 'dimensión prom. '+p.dimension.toFixed(2)+' m²'}${p.dimensionFuente ? ' <span style="color:#8b96a8;font-size:.85em;">('+p.dimensionFuente+')</span>' : ''}<br>${p.ym===hoyYm
+        ? '<span style="color:#4fc9b3;">'+p.realSub+'</span>'+(p.pactadoValor ? '<br><span style="color:#e8a33d;">'+(p.pactadoFijo?'pactado fijo ':'pactado pendiente en cola (G-PRO) ')+fmt(p.pactadoValor,0)+' m²</span>' : '')
+        : (p.sinCola
+            ? '<span style="color:#8b96a8;">sin cola pactada cargada<br>capacidad estimada, no hay pedidos reales todavía</span>'
+            : '<span style="color:#e8a33d;">'+p.realSub+(p.pactadoFijo?' · fijo ':' · ')+fmt(p.pactadoValor,0)+' m²</span>')}</div>
     </div>`;
   });
   document.getElementById('capStage').innerHTML = stageHtml;
@@ -13436,7 +13798,7 @@ function capRender(){
         ? CAP_HISTORICO_MANUAL[h.ym].m2OpDia : null,
       capacidadFormula: Math.max(0, CONSTANTE_BASE_M2 - h.dimInfo.dimension)
     } : null),
-    ...proyectados.map(p=> p.dimension!==null ? {
+    ...proyectados.map(p=> (p.dimension!==null && !p.sinCola) ? {
       ym:p.ym, dimension:p.dimension, capacidadReal:p.capacidadDiariaOperario, capacidadFormula:p.capacidadDiariaOperario
     } : null)
   ].filter(Boolean);
@@ -13557,22 +13919,25 @@ function capRender(){
       const cap = Math.max(0, CONSTANTE_BASE_M2-h.dimInfo.dimension) * CAP_HISTORICO_MANUAL[h.ym].presentes * dh;
       return { ym:h.ym, real:h.m2, cap };
     }),
-    ...proyectados.map(p=> ({ ym:p.ym, real:p.realValor||0, cap:p.m2Proyectados }))
+    // solo el mes en curso aporta "real" (lo cerrado hasta hoy); los meses que todavía no arrancaron
+    // no tienen nada real -- antes se sumaba acá la cola pactada de G-PRO como si ya fuera producción
+    ...proyectados.map(p=> ({ ym:p.ym, real: p.ym===hoyYm ? (p.realValor||0) : null, cap:p.m2Proyectados }))
   ];
   let sumaReal = 0, sumaCap = 0;
   const acumulado = mesesAcumulado.map(m=>{
-    sumaReal += m.real||0;
+    if(m.real!==null) sumaReal += m.real||0;
     sumaCap += m.cap||0;
-    return { ym:m.ym, real:sumaReal, cap:sumaCap };
+    return { ym:m.ym, real: m.real!==null ? sumaReal : null, cap:sumaCap,
+             realMes:m.real, capMes:m.cap, capDisponible: (m.cap!==null && isFinite(m.cap) && m.cap>0) };
   });
 
   if(acumulado.length){
     const anchoA = 700, altoA = 130, margenA = 10;
     const pasoA = acumulado.length>1 ? (anchoA-margenA*2)/(acumulado.length-1) : 0;
-    const maxVal = Math.max(1, ...acumulado.map(m=>Math.max(m.real,m.cap)));
+    const maxVal = Math.max(1, ...acumulado.map(m=>Math.max(m.real||0,m.cap)));
     const yA = v=> 105 - (v/maxVal)*85;
 
-    const coordsReal = acumulado.map((m,i)=>({x:margenA+i*pasoA, y:yA(m.real), m}));
+    const coordsReal = acumulado.map((m,i)=> m.real===null ? null : ({x:margenA+i*pasoA, y:yA(m.real), m})).filter(Boolean);
     const coordsCap = acumulado.map((m,i)=>({x:margenA+i*pasoA, y:yA(m.cap), m}));
     const lineaReal = coordsReal.map(c=>`${c.x},${c.y}`).join(' ');
     const lineaCap = coordsCap.map(c=>`${c.x},${c.y}`).join(' ');
@@ -13580,7 +13945,18 @@ function capRender(){
     const areaReal = `${xMinA},${altoA-14} ${lineaReal} ${xMaxA},${altoA-14}`;
 
     const ultimoReal = coordsReal[coordsReal.length-1], ultimoCap = coordsCap[coordsCap.length-1];
-    const brechaFinal = acumulado[acumulado.length-1].cap - acumulado[acumulado.length-1].real;
+    // la comparación solo tiene sentido entre meses CERRADOS que tengan real Y capacidad calculada;
+    // si no, se mezclan peras con manzanas (meses sin capacidad contra meses con real completo)
+    const comparables = acumulado.filter(m=> m.realMes!==null && m.capDisponible && m.ym<hoyYm);
+    const sinCapacidad = acumulado.filter(m=> m.realMes!==null && !m.capDisponible && m.ym<hoyYm).map(m=>capNombreMes(m.ym,true));
+    let notaAcum = '';
+    if(comparables.length){
+      const rSum = comparables.reduce((a,m)=>a+m.realMes,0), cSum = comparables.reduce((a,m)=>a+m.capMes,0);
+      const dif = cSum - rSum;
+      notaAcum = `Entre ${capNombreMes(comparables[0].ym,true)} y ${capNombreMes(comparables[comparables.length-1].ym,true)} (meses cerrados con capacidad calculada) ${dif>0 ? 'vamos '+fmt(dif,0)+' m² por debajo' : 'vamos '+fmt(-dif,0)+' m² por encima'} de la capacidad.`;
+    }
+    if(sinCapacidad.length) notaAcum += ` No entran en esa comparación: ${sinCapacidad.join(', ')} (todavía no tienen capacidad calculada).`;
+    if(!notaAcum) notaAcum = 'Todavía no hay meses cerrados con capacidad calculada para comparar.';
 
     const puntosA = coordsReal.map((c,i)=>`
       <circle cx="${c.x}" cy="${c.y}" r="3.5" fill="#1f9d8a"/>
@@ -13612,7 +13988,7 @@ function capRender(){
         <span><i style="background:#1f9d8a;"></i> Real acumulado</span>
         <span><i style="background:#4f7cac;"></i> Capacidad acumulada — línea punteada</span>
       </div>
-      <div class="nota">${brechaFinal>0 ? 'Vamos '+fmt(brechaFinal,0)+' m² por debajo de la capacidad acumulada del año.' : 'Vamos '+fmt(-brechaFinal,0)+' m² por encima de la capacidad acumulada del año.'}</div>
+      <div class="nota">${notaAcum}</div>
     `;
   } else {
     document.getElementById('capCobertura').innerHTML = '';
@@ -13624,10 +14000,16 @@ function capRender(){
   if(conDatos.length>=2){
     const a = conDatos[conDatos.length-2], b = conDatos[conDatos.length-1];
     const subeBaja = b.m2Proyectados>a.m2Proyectados ? 'más' : 'menos';
-    porque += `💡 <b>Por qué ${capNombreMes(b.ym,true)} proyecta ${subeBaja} que ${capNombreMes(a.ym,true)}:</b> la dimensión promedio de las aberturas pactadas ${b.dimension<a.dimension?'baja':'sube'} de ${a.dimension.toFixed(2)} m² a ${b.dimension.toFixed(2)} m². `;
-    porque += b.dimension<a.dimension
-      ? `Aberturas más chicas rinden más m² por operario/día con la misma dotación (${a.capacidadDiariaOperario.toFixed(2)} → ${b.capacidadDiariaOperario.toFixed(2)} m²/operario/día). `
-      : `Aberturas más grandes rinden menos m² por operario/día con la misma dotación (${a.capacidadDiariaOperario.toFixed(2)} → ${b.capacidadDiariaOperario.toFixed(2)} m²/operario/día). `;
+    if(b.sinCola){
+      // este mes no tiene pedidos pactados cargados: su número es una estimación, no hay que
+      // explicarlo como si saliera de aberturas pactadas reales
+      porque += `💡 <b>${capNombreMes(b.ym,true)} todavía no tiene cola pactada cargada:</b> su capacidad (${fmt(b.m2Proyectados,0)} m²) es una estimación con la dimensión promedio general (${b.dimension.toFixed(2)} m²), no con pedidos reales. `;
+    } else if(!a.sinCola){
+      porque += `💡 <b>Por qué ${capNombreMes(b.ym,true)} proyecta ${subeBaja} que ${capNombreMes(a.ym,true)}:</b> la dimensión promedio de las aberturas pactadas ${b.dimension<a.dimension?'baja':'sube'} de ${a.dimension.toFixed(2)} m² a ${b.dimension.toFixed(2)} m². `;
+      porque += b.dimension<a.dimension
+        ? `Aberturas más chicas rinden más m² por operario/día con la misma dotación (${a.capacidadDiariaOperario.toFixed(2)} → ${b.capacidadDiariaOperario.toFixed(2)} m²/operario/día). `
+        : `Aberturas más grandes rinden menos m² por operario/día con la misma dotación (${a.capacidadDiariaOperario.toFixed(2)} → ${b.capacidadDiariaOperario.toFixed(2)} m²/operario/día). `;
+    }
   }
   if(cobertura!==null){
     const verbo = m1.ym===hoyYm ? 'cerrado' : 'con pedido real en cola';
@@ -13797,6 +14179,7 @@ document.getElementById('simSimReset').addEventListener('click', ()=>{
 });
 
 function simCategoriaDeCausa(sectorKey, nombreCausa){
+  if(nombreCausa===CAUSA_SIN_IDENTIFICAR) return 'Sin identificar';
   const cfgSector = state.sectores.find(s=>s.nombre===sectorKey);
   const causas = (cfgSector && cfgSector.causas) || DEFAULT_CAUSAS;
   for(const grupo of Object.keys(causas)){
@@ -13905,6 +14288,7 @@ function simRender(){
 // propuesta de mejora + tiempo estimado de ejecución por causa puntual del catálogo 5M.
 // "corta"/"media"/"larga" se usan también para ordenar/filtrar si hace falta a futuro.
 const SIM_PROPUESTA_MEJORA = {
+  'Sin identificar': {propuesta:'Esta pérdida no tiene causa identificada: conviene que el líder la registre con más detalle los próximos días para poder atacarla.', tiempo:'Corta (próxima semana)'},
   'Ausentismo': {propuesta:'Revisar con RRHH si el ausentismo se concentra en días o personas puntuales, y reforzar el seguimiento.', tiempo:'Corta (1-2 semanas)'},
   'Falta de personal': {propuesta:'Evaluar sumar personal al sector o cubrir con polivalencia de otros sectores mientras se resuelve.', tiempo:'Media (semanas a 1-2 meses)'},
   'Capacitación insuficiente': {propuesta:'Programar una capacitación puntual en la tarea crítica (ver Polivalencias para saber a quién).', tiempo:'Corta-media (2-4 semanas)'},
