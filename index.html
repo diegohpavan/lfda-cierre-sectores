@@ -11539,7 +11539,7 @@ if('serviceWorker' in navigator){
 
   .cap-stage{
     background:radial-gradient(ellipse at 50% 20%, #1a2230 0%, #0b0f16 70%);
-    border:1px solid #2b3340; border-radius:14px; padding:52px 20px 36px;
+    border:1px solid #2b3340; border-radius:14px; padding:52px 60px 36px 20px;
     display:flex; justify-content:flex-start; align-items:flex-end; gap:22px; flex-wrap:nowrap;
     overflow-x:auto; overflow-y:visible; perspective:1200px;
   }
@@ -13753,7 +13753,7 @@ function capRender(){
     stageHtml += `<div class="cap-grupo hist">
       <div class="cap-barras">${capBarraHTML('hist', h.m2, escala(h.m2))}</div>
       <div class="cap-mes-label">${capNombreMes(h.ym)}</div>
-      <div class="cap-mes-sub">real cerrado${h.dimInfo ? ' · dim. '+h.dimInfo.dimension.toFixed(1)+' m²' : ''}${h.presentes!==null ? '<br>👥 '+h.presentes+' presentes/día' : ''}</div>
+      <div class="cap-mes-sub">real cerrado${h.dimInfo ? ' · dim. '+h.dimInfo.dimension.toFixed(1)+' m²' : ''}${(h.presentes!=null && isFinite(h.presentes)) ? '<br>👥 '+h.presentes+' presentes/día' : ''}</div>
     </div>`;
   });
   if(historicos.length){
@@ -13782,6 +13782,11 @@ function capRender(){
     </div>`;
   });
   document.getElementById('capStage').innerHTML = stageHtml;
+  try{
+    // centrar el mes en curso para que no queden cortados los meses de los costados
+    const _st=document.getElementById('capStage'), _vivo=_st.querySelector('.cap-barra3d.realvivo');
+    if(_st && _vivo){ const g=_vivo.closest('.cap-grupo'); if(g) _st.scrollLeft = g.offsetLeft - (_st.clientWidth-g.offsetWidth)/2; }
+  }catch(e){}
 
   document.getElementById('capLegend').innerHTML = `
     <span><i style="background:#7d8590;"></i> Real cerrado (histórico)</span>
@@ -13813,7 +13818,7 @@ function capRender(){
 
   if(puntos.length>=1){
     const anchoSvg = 700, alto = 130;
-    const margenX = 10;
+    const margenX = 34;
     const paso = puntos.length>1 ? (anchoSvg-margenX*2)/(puntos.length-1) : 0;
 
     const minDim = Math.min(...puntos.map(p=>p.dimension)), maxDim = Math.max(...puntos.map(p=>p.dimension));
@@ -13859,7 +13864,7 @@ function capRender(){
       items.forEach(it=>{
         let labelY = it.y - 10;
         if(prevLabelY!==null && labelY < prevLabelY + MIN_GAP) labelY = prevLabelY + MIN_GAP;
-        it.labelY = labelY;
+        it.labelY = Math.min(labelY, 110);
         prevLabelY = labelY;
       });
       return items;
@@ -13932,17 +13937,17 @@ function capRender(){
   });
 
   if(acumulado.length){
-    const anchoA = 700, altoA = 130, margenA = 10;
+    const anchoA = 700, altoA = 140, margenA = 34;
     const pasoA = acumulado.length>1 ? (anchoA-margenA*2)/(acumulado.length-1) : 0;
     const maxVal = Math.max(1, ...acumulado.map(m=>Math.max(m.real||0,m.cap)));
-    const yA = v=> 105 - (v/maxVal)*85;
+    const yA = v=> 112 - (v/maxVal)*80;
 
     const coordsReal = acumulado.map((m,i)=> m.real===null ? null : ({x:margenA+i*pasoA, y:yA(m.real), m})).filter(Boolean);
     const coordsCap = acumulado.map((m,i)=>({x:margenA+i*pasoA, y:yA(m.cap), m}));
     const lineaReal = coordsReal.map(c=>`${c.x},${c.y}`).join(' ');
     const lineaCap = coordsCap.map(c=>`${c.x},${c.y}`).join(' ');
     const xMinA = coordsReal[0].x, xMaxA = coordsReal[coordsReal.length-1].x;
-    const areaReal = `${xMinA},${altoA-14} ${lineaReal} ${xMaxA},${altoA-14}`;
+    const areaReal = `${xMinA},${altoA-20} ${lineaReal} ${xMaxA},${altoA-20}`;
 
     const ultimoReal = coordsReal[coordsReal.length-1], ultimoCap = coordsCap[coordsCap.length-1];
     // la comparación solo tiene sentido entre meses CERRADOS que tengan real Y capacidad calculada;
@@ -13963,8 +13968,8 @@ function capRender(){
     `).join('') + coordsCap.map((c,i)=>`
       <circle cx="${c.x}" cy="${c.y}" r="3.5" fill="#4f7cac"/>
     `).join('');
-    const etiquetasMesA = coordsReal.map(c=>`
-      <text x="${c.x}" y="${altoA-2}" text-anchor="middle" font-size="11" fill="#8b96a8" font-family="Segoe UI,sans-serif">${capNombreMes(c.m.ym,true)}</text>
+    const etiquetasMesA = coordsCap.map(c=>`
+      <text x="${c.x}" y="${altoA-4}" text-anchor="middle" font-size="11" fill="#8b96a8" font-family="Segoe UI,sans-serif">${capNombreMes(c.m.ym,true)}</text>
     `).join('');
 
     document.getElementById('capCobertura').innerHTML = `
@@ -13980,8 +13985,8 @@ function capRender(){
         <polyline points="${lineaCap}" fill="none" stroke="#4f7cac" stroke-width="1.6" stroke-dasharray="5,4"/>
         <polyline points="${lineaReal}" fill="none" stroke="#1f9d8a" stroke-width="1.8"/>
         ${puntosA}
-        <text x="${ultimoCap.x-4}" y="${ultimoCap.y-8}" text-anchor="end" font-size="11" fill="#4f7cac" font-weight="700" font-family="Segoe UI,sans-serif">${fmt(acumulado[acumulado.length-1].cap,0)}</text>
-        <text x="${ultimoReal.x-4}" y="${ultimoReal.y-8}" text-anchor="end" font-size="11" fill="#1f9d8a" font-weight="700" font-family="Segoe UI,sans-serif">${fmt(acumulado[acumulado.length-1].real,0)}</text>
+        <text x="${ultimoCap.x}" y="${ultimoCap.y-8}" text-anchor="end" font-size="11" fill="#4f7cac" font-weight="700" font-family="Segoe UI,sans-serif">${fmt(ultimoCap.m.cap,0)}</text>
+        <text x="${ultimoReal.x}" y="${ultimoReal.y+16}" text-anchor="middle" font-size="11" fill="#1f9d8a" font-weight="700" font-family="Segoe UI,sans-serif">${fmt(ultimoReal.m.real,0)}</text>
         ${etiquetasMesA}
       </svg>
       <div class="cap-legend" style="margin-top:0;">
