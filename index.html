@@ -13521,8 +13521,13 @@ const CAP_HISTORICO_MANUAL = {
   '2026-03': { m2: 2402, dimension: 3.3, abert: 727, presentes: 51, m2OpDia: 2.2 },
   '2026-04': { m2: 1773, dimension: 3.8, abert: 461, presentes: 49, m2OpDia: 1.8 },
   '2026-05': { m2: 1434, dimension: 4.2, abert: 339, presentes: 49, m2OpDia: 1.5 },
-  '2026-06': { m2: 1700, dimension: 3.7, abert: 455, presentes: 48, m2OpDia: 1.7 },
+  // Abril a octubre: m² y aberturas reales cerradas en fin de línea (8-LI), sacados del programa de gestión (SUP FIN / UDS FIN NORM).
+  // Julio a octubre no tienen presentes cargados -> sin capacidad por operario calculada (no se inventa).
+  '2026-06': { m2: 1717, dimension: 1717/456, abert: 456, presentes: 48, m2OpDia: 1.7 },
   '2026-07': { m2: 2596, dimension: 2596/727, abert: 727 },
+  '2026-08': { m2: 2490, dimension: 2490/727, abert: 727 },
+  '2026-09': { m2: 2003, dimension: 2003/505, abert: 505 },
+  '2026-10': { m2: 1474, dimension: 1474/464, abert: 464 },
 };
 
 // pactado fijo para meses donde la cola pactada de G-PRO/Cola Productiva no es confiable
@@ -13534,6 +13539,7 @@ const CAP_PACTADO_MANUAL = {
 // cantidad de aberturas REALES cerradas en el mes en curso — para calcular la dimensión
 // de lo que YA se cerró (real ÷ aberturas), no de lo que está pendiente en la cola pactada
 const CAP_ABERTURAS_CERRADAS_MANUAL = {
+  '2026-11': 239, // fin de línea, del programa de gestión al 16/11 (728 m²)
 };
 
 function capM2RealesMes(ym){
